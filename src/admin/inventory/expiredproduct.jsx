@@ -195,7 +195,6 @@ const ExpiredProduct = () => {
             </div>
           </div>
         </div>
-
         <div className="card table-list-card">
           <div className="card-body">
             {/* Búsqueda y Filtros */}

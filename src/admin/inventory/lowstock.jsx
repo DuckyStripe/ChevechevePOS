@@ -1,57 +1,181 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
 import {
-  Archive,
-  Box,
-  ChevronUp,
   Mail,
   RotateCcw,
-  Sliders,
-  Zap,
+  Filter,
+  GitMerge,
+  StopCircle
 } from "feather-icons-react/build/IconComponents";
-import { useDispatch, useSelector } from "react-redux";
-import { setToogleHeader } from "../../core/redux/action";
 import Select from "react-select";
-import { Filter } from "react-feather";
 import EditLowStock from "../../core/modals/inventory/editlowstock";
-import withReactContent from "sweetalert2-react-content";
-import Swal from "sweetalert2";
 import Table from "../../core/pagination/datatable";
+import {
+  fetchLowStock,
+  fetchOUTStock,
+  fetchOptions
+} from "../../Data/Inventario/lowstock"; // I
 
 const LowStock = () => {
-  const dispatch = useDispatch();
-  const data = useSelector((state) => state.toggle_header);
-  const dataSource = useSelector((state) => state.lowstock_data);
+  const [dataSource, setDataSource] = useState([]);
+  const [searchValue, setSearchValue] = useState(""); // Estado para el término de búsqueda
+  const [filteredData, setFilteredData] = useState([]); // Para almacenar datos filtrados
+  const [options, setOptions] = useState({
+    products: [],
+    categories: [],
+    subCategories: [],
+    brands: [],
+    prices: []
+  });
+  const [selectedFilters, setSelectedFilters] = useState({
+    product: null,
+    category: null,
+    subCategory: null,
+    brand: null,
+    price: null
+  });
+
+  useEffect(() => {
+    // Esta función se ejecuta cuando el componente se monta
+    const loadInitialData = async () => {
+      const products = await fetchLowStock(); // Cargar por defecto los productos con bajo inventario
+      setDataSource(products);
+      setFilteredData(products);
+    };
+    // Cargar opciones (solo si esto es necesario)
+    const loadOptions = async () => {
+      const options = await fetchOptions();
+      setOptions(options)
+    };
+
+    loadInitialData();
+    loadOptions();
+  }, []);
+
+  const handleFetchLowStock = async () => {
+    const products = await fetchLowStock();
+    setDataSource(products);
+    setFilteredData(products);
+  };
+
+  const handleFetchOutStock = async () => {
+    const products = await fetchOUTStock();
+    setDataSource(products);
+    setFilteredData(products);
+  };
+
+  const handleSearchChange = (event) => {
+    const value = event.target.value.toLowerCase();
+    setSearchValue(value);
+  console.log(value)
+    const filtered = dataSource.filter((product) =>
+      product.product.toLowerCase().includes(value)
+    );
+    console.log(filtered)
+    setFilteredData(filtered);
+  };
+  const handleSelectChange = (field) => (selectedOption) => {
+    setSelectedFilters((prevFilters) => ({
+      ...prevFilters,
+      [field]: selectedOption ? selectedOption.value : null
+    }));
+  };
+  const handleSearch = () => {
+    const filteredProducts = dataSource.filter((product) => {
+      return (
+        (!selectedFilters.category ||
+          product.category.toLowerCase() ===
+            selectedFilters.category.toLowerCase()) &&
+        (!selectedFilters.subCategory ||
+          (product.subCategory &&
+            product.subCategory.toLowerCase() ===
+              selectedFilters.subCategory.toLowerCase())) &&
+        (!selectedFilters.brand ||
+          product.brand.toLowerCase() ===
+            selectedFilters.brand.toLowerCase()) &&
+        (!selectedFilters.price ||
+          parseFloat(product.price.replace('$', '')) === 
+          parseFloat(selectedFilters.price.replace('$', '')))
+      );
+    });
+  
+    setFilteredData(filteredProducts);
+  };
+
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const toggleFilterVisibility = () => {
     setIsFilterVisible((prevVisibility) => !prevVisibility);
   };
 
-  const oldandlatestvalue = [
-    { value: "date", label: "Sort by Date" },
-    { value: "newest", label: "Newest" },
-    { value: "oldest", label: "Oldest" },
+  const columns = [
+    {
+      title: "Producto",
+      dataIndex: "product",
+      render: (text, record) => (
+        <span className="productimgname">
+          <ImageWithBasePath
+            alt=""
+            src={record.productImage}
+            width={50} // Establece el ancho en píxeles
+            height={50} // Establece el alto en píxeles
+          />
+          <p>{text}</p>
+        </span>
+      ),
+      sorter: (a, b) => a.product.length - b.product.length
+    },
+    {
+      title: "Categoria",
+      dataIndex: "category",
+      sorter: (a, b) => a.category.length - b.category.length
+    },
+    {
+      title: "SubCategoria",
+      dataIndex: "brand",
+      sorter: (a, b) => a.brand.length - b.brand.length
+    },
+    {
+      title: "Precio",
+      dataIndex: "price",
+      sorter: (a, b) =>
+        a.price.localeCompare(b.price, undefined, { numeric: true })
+    },
+    {
+      title: "Unidades",
+      dataIndex: "unit",
+      sorter: (a, b) => a.unit - b.unit
+    },
+    {
+      title: "Catidad",
+      dataIndex: "qty",
+      sorter: (a, b) => a.qty - b.qty
+    },
+    {
+      title: "Creeado por",
+      dataIndex: "createdby",
+      render: (text) => (
+        <span className="userimgname">
+          <p>{text}</p>
+        </span>
+      ),
+      sorter: (a, b) => a.createdby.length - b.createdby.length
+    }
   ];
-  const productlist = [
-    { value: "chooseProduct", label: "Choose Product" },
-    { value: "lenovo3rdGen", label: "Lenovo 3rd Generation" },
-    { value: "nikeJordan", label: "Nike Jordan" },
-    { value: "amazonEchoDot", label: "Amazon Echo Dot" },
-  ];
-  const category = [
-    { value: "chooseCategory", label: "Choose Category" },
-    { value: "laptop", label: "Laptop" },
-    { value: "shoe", label: "Shoe" },
-    { value: "speaker", label: "Speaker" },
-  ];
-  const warehouse = [
-    { value: "chooseWarehouse", label: "Choose Warehouse" },
-    { value: "lavishWarehouse", label: "Lavish Warehouse" },
-    { value: "lobarHandy", label: "Lobar Handy" },
-    { value: "traditionalWarehouse", label: "Traditional Warehouse" },
-  ];
+
+  const resetFilters = () => {
+    setSearchValue(""); // Limpia el campo de búsqueda
+    setSelectedFilters({
+      product: null,
+      category: null,
+      subCategory: null,
+      brand: null,
+      price: null
+    });
+    setFilteredData(dataSource); // Restaura la lista original de productos
+  };
+
   const renderTooltip = (props) => (
     <Tooltip id="pdf-tooltip" {...props}>
       Pdf
@@ -72,114 +196,6 @@ const LowStock = () => {
       Refresh
     </Tooltip>
   );
-  const renderCollapseTooltip = (props) => (
-    <Tooltip id="refresh-tooltip" {...props}>
-      Collapse
-    </Tooltip>
-  );
-
-  const columns = [
-    {
-      title: "Warehouse",
-      dataIndex: "warehouse",
-
-      sorter: (a, b) => a.warehouse.length - b.warehouse.length,
-      width: "5%",
-    },
-    {
-      title: "Store",
-      dataIndex: "store",
-      sorter: (a, b) => a.store.length - b.store.length,
-    },
-    {
-      title: "Product",
-      dataIndex: "product",
-      render: (text, record) => (
-        <span className="productimgname">
-          <Link to="#" className="product-img stock-img">
-            <ImageWithBasePath alt="" src={record.img} />
-          </Link>
-          {text}
-        </span>
-      ),
-      sorter: (a, b) => a.product.length - b.product.length,
-    },
-    {
-      title: "Category",
-      dataIndex: "category",
-      sorter: (a, b) => a.category.length - b.category.length,
-    },
-    {
-      title: "SkU",
-      dataIndex: "sku",
-      sorter: (a, b) => a.sku.length - b.sku.length,
-    },
-    {
-      title: "Qty",
-      dataIndex: "qty",
-      sorter: (a, b) => a.qty.length - b.qty.length,
-    },
-    {
-      title: "Qty Alert",
-      dataIndex: "qtyalert",
-      sorter: (a, b) => a.qtyalert.length - b.qtyalert.length,
-    },
-
-    {
-      title: "Actions",
-      dataIndex: "actions",
-      key: "actions",
-      render: () => (
-        <div className="action-table-data">
-          <div className="edit-delete-action">
-            <Link
-              className="me-2 p-2"
-              to="#"
-              data-bs-toggle="modal"
-              data-bs-target="#edit-stock"
-            >
-              <i data-feather="edit" className="feather-edit"></i>
-            </Link>
-            <Link className="confirm-text p-2" to="#">
-              <i
-                data-feather="trash-2"
-                className="feather-trash-2"
-                onClick={showConfirmationAlert}
-              ></i>
-            </Link>
-          </div>
-        </div>
-      ),
-    },
-  ];
-  const MySwal = withReactContent(Swal);
-
-  const showConfirmationAlert = () => {
-    MySwal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      showCancelButton: true,
-      confirmButtonColor: "#00ff00",
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonColor: "#ff0000",
-      cancelButtonText: "Cancel",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        MySwal.fire({
-          title: "Deleted!",
-          text: "Your file has been deleted.",
-          className: "btn btn-success",
-          confirmButtonText: "OK",
-          customClass: {
-            confirmButton: "btn btn-success",
-          },
-        });
-      } else {
-        MySwal.close();
-      }
-    });
-  };
-
   return (
     <div>
       <div className="page-wrapper">
@@ -249,21 +265,6 @@ const LowStock = () => {
                   </Link>
                 </OverlayTrigger>
               </li>
-              <li>
-                <OverlayTrigger placement="top" overlay={renderCollapseTooltip}>
-                  <Link
-                    data-bs-toggle="tooltip"
-                    data-bs-placement="top"
-                    id="collapse-header"
-                    className={data ? "active" : ""}
-                    onClick={() => {
-                      dispatch(setToogleHeader(!data));
-                    }}
-                  >
-                    <ChevronUp />
-                  </Link>
-                </OverlayTrigger>
-              </li>
             </ul>
           </div>
           <div className="table-tab">
@@ -278,8 +279,9 @@ const LowStock = () => {
                   role="tab"
                   aria-controls="pills-home"
                   aria-selected="true"
+                  onClick={handleFetchLowStock}
                 >
-                  Low Stocks
+                  Inventario Bajo
                 </button>
               </li>
               <li className="nav-item" role="presentation">
@@ -292,8 +294,9 @@ const LowStock = () => {
                   role="tab"
                   aria-controls="pills-profile"
                   aria-selected="false"
+                  onClick={handleFetchOutStock}
                 >
-                  Out of Stocks
+                  Sin Inventario
                 </button>
               </li>
             </ul>
@@ -312,8 +315,10 @@ const LowStock = () => {
                         <div className="search-input">
                           <input
                             type="text"
-                            placeholder="Search"
+                            placeholder="Buscar"
                             className="form-control form-control-sm formsearch"
+                            value={searchValue}
+                            onChange={handleSearchChange}
                           />
                           <Link to className="btn btn-searchset">
                             <i
@@ -342,15 +347,6 @@ const LowStock = () => {
                           </span>
                         </Link>
                       </div>
-                      <div className="form-sort">
-                        <Sliders className="info-img" />
-                        <Select
-                          className="img-select"
-                          classNamePrefix="react-select"
-                          options={oldandlatestvalue}
-                          placeholder="Newest"
-                        />
-                      </div>
                     </div>
                     {/* /Filter */}
                     <div
@@ -361,50 +357,109 @@ const LowStock = () => {
                       {" "}
                       <div className="card-body pb-0">
                         <div className="row">
-                          <div className="col-lg-3 col-sm-6 col-12">
+                          <div className="col-lg-1 col-sm-6 col-12">
+                            <div className="input-blocks"></div>
+                          </div>
+                          <div className="col-lg-2 col-sm-6 col-12">
                             <div className="input-blocks">
-                              <Box className="info-img" />
+                              <StopCircle className="info-img" />
                               <Select
                                 className="img-select"
-                                options={productlist}
                                 classNamePrefix="react-select"
-                                placeholder="Choose Product"
+                                options={options.categories} // Asegúrate de usar 'categories', no 'category'
+                                placeholder="Elegir Categoría"
+                                onChange={handleSelectChange("category")} // Usa la clave correcta
+                                value={
+                                  options.categories?.find(
+                                    (option) =>
+                                      option.value === selectedFilters.category
+                                  ) || null
+                                }
                               />
                             </div>
                           </div>
-                          <div className="col-lg-3 col-sm-6 col-12">
+                          <div className="col-lg-2 col-sm-6 col-12">
                             <div className="input-blocks">
-                              <i data-feather="zap" className="info-img" />
-                              <Zap className="info-img" />
+                              <GitMerge className="info-img" />
                               <Select
                                 className="img-select"
-                                options={category}
                                 classNamePrefix="react-select"
-                                placeholder="Choose Product"
+                                options={options.subCategories}
+                                placeholder="Elegir Subcategoría"
+                                onChange={handleSelectChange("subCategory")}
+                                value={
+                                  options.subCategories?.find(
+                                    (option) =>
+                                      option.value ===
+                                      selectedFilters.subCategory
+                                  ) || null
+                                }
                               />
                             </div>
                           </div>
-                          <div className="col-lg-3 col-sm-6 col-12">
+                          <div className="col-lg-2 col-sm-6 col-12">
                             <div className="input-blocks">
-                              <Archive className="info-img" />
+                              <StopCircle className="info-img" />
                               <Select
                                 className="img-select"
-                                options={warehouse}
                                 classNamePrefix="react-select"
-                                placeholder="Choose Warehouse"
+                                options={options.brands}
+                                placeholder="Elegir Marca"
+                                onChange={handleSelectChange("brand")}
+                                value={
+                                  options.brands?.find(
+                                    (option) =>
+                                      option.value === selectedFilters.brand
+                                  ) || null
+                                }
                               />
                             </div>
                           </div>
-                          <div className="col-lg-3 col-sm-6 col-12 ms-auto">
+                          <div className="col-lg-2 col-sm-6 col-12">
                             <div className="input-blocks">
-                              <Link className="btn btn-filters ms-auto">
-                                {" "}
+                              <i className="fas fa-money-bill info-img" />
+                              <Select
+                                className="img-select"
+                                classNamePrefix="react-select"
+                                options={options.prices}
+                                placeholder="Elegir Precio"
+                                onChange={handleSelectChange("price")}
+                                value={
+                                  options.prices?.find(
+                                    (option) =>
+                                      option.value === selectedFilters.price
+                                  ) || null
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className="col-lg-1 col-sm-6 col-12">
+                            <div className="input-blocks">
+                              <button
+                                className="btn btn-filters ms-auto"
+                                onClick={handleSearch}
+                              >
                                 <i
                                   data-feather="search"
                                   className="feather-search"
-                                />{" "}
-                                Search{" "}
-                              </Link>
+                                />
+                                Buscar
+                              </button>
+                            </div>
+                          </div>
+                          <div className="col-lg-1 col-sm-6 col-12">
+                            <div className="input-blocks">
+                              <button
+                                className="btn btn-filters ms-auto" // Añade alguna clase CSS si necesitas estilos específicos
+                                onClick={resetFilters}
+                              >
+                                <i
+                                  data-feather="rotate-ccw" // Usa un icono adecuado según tu necesidad, aquí como ejemplo
+                                  className="feather-rotate-ccw"
+                                />
+                                Limpiar
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -412,7 +467,7 @@ const LowStock = () => {
                     </div>
                     {/* /Filter */}
                     <div className="table-responsive">
-                      <Table columns={columns} dataSource={dataSource} />
+                      <Table columns={columns} dataSource={filteredData} />
                     </div>
                   </div>
                 </div>
@@ -461,15 +516,6 @@ const LowStock = () => {
                             />
                           </span>
                         </Link>
-                      </div>
-                      <div className="form-sort">
-                        <Sliders className="info-img" />
-                        <Select
-                          className="img-select"
-                          classNamePrefix="react-select"
-                          options={oldandlatestvalue}
-                          placeholder="Newest"
-                        />
                       </div>
                     </div>
                     {/* /Filter */}
@@ -526,7 +572,7 @@ const LowStock = () => {
                     </div>
                     {/* /Filter */}
                     <div className="table-responsive">
-                      <Table columns={columns} dataSource={dataSource} />
+                      <Table columns={columns} dataSource={filteredData} />
                     </div>
                   </div>
                 </div>
