@@ -3,7 +3,7 @@ import { Calendar, PlusCircle } from "feather-icons-react/build/IconComponents";
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Select from "react-select";
-import TextEditor from "../../../feature-module/inventory/texteditor";
+import TextEditor from "../../../admin/inventory/texteditor";
 import ImageWithBasePath from "../../img/imagewithbasebath";
 import { MinusCircle } from "react-feather";
 

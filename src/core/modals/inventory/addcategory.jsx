@@ -14,7 +14,7 @@ const AddCategory = () => {
               <div className="content">
                 <div className="modal-header border-0 custom-modal-header">
                   <div className="page-title">
-                    <h4>Add New Category</h4>
+                    <h4>Añadir Categoria</h4>
                   </div>
                   <button
                     type="button"
@@ -27,7 +27,7 @@ const AddCategory = () => {
                 </div>
                 <div className="modal-body custom-modal-body">
                   <div className="mb-3">
-                    <label className="form-label">Name</label>
+                    <label className="form-label">Nombre</label>
                     <input type="text" className="form-control" />
                   </div>
                   <div className="modal-footer-btn">
@@ -36,10 +36,10 @@ const AddCategory = () => {
                       className="btn btn-cancel me-2"
                       data-bs-dismiss="modal"
                     >
-                      Cancel
+                      Cancelar
                     </Link>
                     <Link to={route.addproduct} className="btn btn-submit">
-                      Submit
+                      Enviar
                     </Link>
                   </div>
                 </div>

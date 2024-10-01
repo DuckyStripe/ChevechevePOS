@@ -10,14 +10,14 @@ import Error404 from "../pages/errorpages/error404";
 import Loader from "../loader/loader";
 const AllRoutes = () => {
   const data = useSelector((state) => state.toggle_header);
-  const HeaderLayout = () => ( 
+  const HeaderLayout = () => (
     <div className={`main-wrapper ${data ? "header-collapse" : ""}`}>
-    <Loader />
-    <Header />
-    <Sidebar />
-    <Outlet />
-    <ThemeSettings />
-  </div>
+      <Loader />
+      <Header />
+      <Sidebar />
+      <Outlet />
+      <ThemeSettings />
+    </div>
   );
 
   const Authpages = () => (

@@ -1,18 +1,24 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import Select from 'react-select'
 
-const AddUnit = () => {
+const EditSubcategories = () => {
+    const categories = [
+        { value: 'Choose Category', label: 'Choose Category' },
+        { value: 'Category', label: 'Category' },
+    ];
+
     return (
         <div>
-            {/* Add Unit */}
-            <div className="modal fade" id="add-units">
+            {/* Edit Category */}
+            <div className="modal fade" id="edit-category">
                 <div className="modal-dialog modal-dialog-centered custom-modal-two">
                     <div className="modal-content">
                         <div className="page-wrapper-new p-0">
                             <div className="content">
                                 <div className="modal-header border-0 custom-modal-header">
                                     <div className="page-title">
-                                        <h4>Create Unit</h4>
+                                        <h4>Edit Sub Category</h4>
                                     </div>
                                     <button
                                         type="button"
@@ -26,23 +32,46 @@ const AddUnit = () => {
                                 <div className="modal-body custom-modal-body">
                                     <form>
                                         <div className="mb-3">
-                                            <label className="form-label">Name</label>
-                                            <input type="text" className="form-control" />
+                                            <label className="form-label">Parent Category</label>
+                                            <Select
+                                            classNamePrefix="react-select"
+                                            options={categories}
+                                            placeholder="Newest"
+                                        />
                                         </div>
                                         <div className="mb-3">
-                                            <label className="form-label">Short Name</label>
-                                            <input type="text" className="form-control" />
+                                            <label className="form-label">Category Name</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                defaultValue="Computers"
+                                            />
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label">Category Code</label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                defaultValue="CT001"
+                                            />
+                                        </div>
+                                        <div className="mb-3 input-blocks">
+                                            <label className="form-label">Description</label>
+                                            <textarea
+                                                className="form-control"
+                                                defaultValue={"Type Description"}
+                                            />
                                         </div>
                                         <div className="mb-0">
                                             <div className="status-toggle modal-status d-flex justify-content-between align-items-center">
                                                 <span className="status-label">Status</span>
                                                 <input
                                                     type="checkbox"
-                                                    id="user2"
+                                                    id="user3"
                                                     className="check"
                                                     defaultChecked="true"
                                                 />
-                                                <label htmlFor="user2" className="checktoggle" />
+                                                <label htmlFor="user3" className="checktoggle" />
                                             </div>
                                         </div>
                                         <div className="modal-footer-btn">
@@ -53,8 +82,8 @@ const AddUnit = () => {
                                             >
                                                 Cancel
                                             </button>
-                                            <Link  to="#" className="btn btn-submit">
-                                                Create Unit
+                                            <Link to="#" className="btn btn-submit">
+                                                Save Changes
                                             </Link>
                                         </div>
                                     </form>
@@ -64,9 +93,9 @@ const AddUnit = () => {
                     </div>
                 </div>
             </div>
-            {/* /Add Unit */}
+            {/* /Edit Category */}
         </div>
     )
 }
 
-export default AddUnit
+export default EditSubcategories
