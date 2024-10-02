@@ -8,8 +8,10 @@ import { useSelector } from "react-redux";
 import ThemeSettings from "../InitialPage/themeSettings";
 import Error404 from "../pages/errorpages/error404";
 import Loader from "../loader/loader";
+
 const AllRoutes = () => {
   const data = useSelector((state) => state.toggle_header);
+
   const HeaderLayout = () => (
     <div className={`main-wrapper ${data ? "header-collapse" : ""}`}>
       <Loader />
@@ -42,16 +44,16 @@ const AllRoutes = () => {
       <Routes>
         <Route path="/pos" element={<Pospages />}>
           {posRoutes.map((route, id) => (
+            // Asegúrate de que los paths sean relativos, no absolutos
             <Route path={route.path} element={route.element} key={id} />
           ))}
         </Route>
-        <Route path={"/"} element={<HeaderLayout />}>
+        <Route path="/" element={<HeaderLayout />}>
           {publicRoutes.map((route, id) => (
             <Route path={route.path} element={route.element} key={id} />
           ))}
         </Route>
-
-        <Route path={"/"} element={<Authpages />}>
+        <Route path="/" element={<Authpages />}>
           {pagesRoute.map((route, id) => (
             <Route path={route.path} element={route.element} key={id} />
           ))}
@@ -61,4 +63,5 @@ const AllRoutes = () => {
     </div>
   );
 };
+
 export default AllRoutes;

@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import Select from "react-select";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
-import Brand from "../../core/modals/inventory/brand";
 import { all_routes } from "../../Router/all_routes";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import Table from "../../core/pagination/datatable";
@@ -553,7 +552,6 @@ const ProductList = () => {
           </div>
         </div>
         {/* /Product list */}
-        <Brand />
       </div>
     </div>
   );

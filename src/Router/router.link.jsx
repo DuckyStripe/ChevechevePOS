@@ -17,7 +17,7 @@ import SubCategories from "../admin/inventory/subcategories";
 import PurchasesList from "../admin/Sales/purchaseslist";
 import Customers from "../admin/customers";
 import SalesReport from "../admin/Sales/salesreport";
-import PurchaseReport from "../admin/Sales/purchasereport";
+import PurchaseOrderReport from "../admin/Sales/purchasereport";
 import ProfitLoss from "../admin/Sales/profitloss";
 import SalesList from "../admin/Sales/saleslist";
 import Users from "../admin/users";
@@ -122,7 +122,7 @@ export const publicRoutes = [
     id: 91,
     path: routes.purchasereport,
     name: "purchasereport",
-    element: <PurchaseReport />,
+    element: <PurchaseOrderReport />,
     route: Route
   },
   {

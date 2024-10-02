@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Select from "react-select";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
-import Brand from "../../core/modals/inventory/brand";
 import Table from "../../core/pagination/datatable";
 import { fetchProducts, fetchOptions } from "../../Data/Inventario/products"; // Importa la función del mock
 import AddInventory from "../../core/modals/inventory/add2inventory";
@@ -355,7 +354,6 @@ const ExpiredProduct = () => {
           </div>
         </div>
         {/* /Product list */}
-        <Brand />
       </div>
       <AddInventory />
     </div>

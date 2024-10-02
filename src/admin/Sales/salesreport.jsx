@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
-import Brand from "../../core/modals/inventory/brand";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import Table from "../../core/pagination/datatable";
 import { setToogleHeader } from "../../core/redux/action";
@@ -320,7 +319,6 @@ const SalesReport = () => {
           </div>
         </div>
         {/* /Product list */}
-        <Brand />
       </div>
       <ViewSale ticketId={selectedTicketId}  />
     </div>
