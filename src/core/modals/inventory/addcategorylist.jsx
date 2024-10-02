@@ -12,7 +12,7 @@ const AddCategoryList = () => {
                             <div className="content">
                                 <div className="modal-header border-0 custom-modal-header">
                                     <div className="page-title">
-                                        <h4>Create Category</h4>
+                                        <h4>Crear Categoria</h4>
                                     </div>
                                     <button
                                         type="button"
@@ -26,16 +26,16 @@ const AddCategoryList = () => {
                                 <div className="modal-body custom-modal-body">
                                     <form>
                                         <div className="mb-3">
-                                            <label className="form-label">Category</label>
+                                            <label className="form-label">Categoria</label>
                                             <input type="text" className="form-control" />
                                         </div>
                                         <div className="mb-3">
-                                            <label className="form-label">Category Slug</label>
+                                            <label className="form-label">Descripcion</label>
                                             <input type="text" className="form-control" />
                                         </div>
                                         <div className="mb-0">
                                             <div className="status-toggle modal-status d-flex justify-content-between align-items-center">
-                                                <span className="status-label">Status</span>
+                                                <span className="status-label">Estatus</span>
                                                 <input
                                                     type="checkbox"
                                                     id="user2"
@@ -51,10 +51,10 @@ const AddCategoryList = () => {
                                                 className="btn btn-cancel me-2"
                                                 data-bs-dismiss="modal"
                                             >
-                                                Cancel
+                                                Cancelar
                                             </button>
                                             <Link to="#" className="btn btn-submit">
-                                                Create Category
+                                                Crear
                                             </Link>
                                         </div>
                                     </form>

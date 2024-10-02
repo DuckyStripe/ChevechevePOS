@@ -18,7 +18,7 @@ const AddSubcategory = () => {
                             <div className="content">
                                 <div className="modal-header border-0 custom-modal-header">
                                     <div className="page-title">
-                                        <h4>Create Sub Category</h4>
+                                        <h4>Crear SubCategoria</h4>
                                     </div>
                                     <button
                                         type="button"
@@ -32,7 +32,7 @@ const AddSubcategory = () => {
                                 <div className="modal-body custom-modal-body">
                                     <form>
                                         <div className="mb-3">
-                                            <label className="form-label">Parent Category</label>
+                                            <label className="form-label">Categoria Padre</label>
                                             <Select
                                                 classNamePrefix="react-select"
                                                 options={categories}
@@ -40,15 +40,11 @@ const AddSubcategory = () => {
                                             />
                                         </div>
                                         <div className="mb-3">
-                                            <label className="form-label">Category Name</label>
-                                            <input type="text" className="form-control" />
-                                        </div>
-                                        <div className="mb-3">
-                                            <label className="form-label">Category Code</label>
+                                            <label className="form-label">Nombre Subcategoria</label>
                                             <input type="text" className="form-control" />
                                         </div>
                                         <div className="mb-3 input-blocks">
-                                            <label className="form-label">Description</label>
+                                            <label className="form-label">Descripcion</label>
                                             <textarea className="form-control" defaultValue={""} />
                                         </div>
                                         <div className="mb-0">
@@ -69,10 +65,10 @@ const AddSubcategory = () => {
                                                 className="btn btn-cancel me-2"
                                                 data-bs-dismiss="modal"
                                             >
-                                                Cancel
+                                                Cancelar
                                             </button>
                                             <Link to="#" className="btn btn-submit">
-                                                Create Subcategory
+                                                Guardar
                                             </Link>
                                         </div>
                                     </form>

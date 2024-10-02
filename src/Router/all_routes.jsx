@@ -16,7 +16,6 @@ export const all_routes = {
   subcategories: "/sub-categories",
   salesreport: "/sales-report",
   purchasereport: "/purchase-report",
-  inventoryreport: "/inventory-report",
   profitloss: "/profit-loss-report",
   saleslist: "/sales-list",
   purchaselist: "/purchase-list",

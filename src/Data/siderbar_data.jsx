@@ -97,12 +97,6 @@ export const SidebarData = [
         showSubRoute: false,
       },
       {
-        label: "Reporte inventario",
-        link: "/inventory-report",
-        icon: <Icon.Inbox />,
-        showSubRoute: false,
-      },
-      {
         label: "Ganancias y perdidas",
         link: "/profit-loss-report",
         icon: <Icon.TrendingDown />,

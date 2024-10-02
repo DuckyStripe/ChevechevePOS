@@ -38,6 +38,7 @@ const ProductList = () => {
     brands: [],
     prices: []
   });
+  
   const [selectedFilters, setSelectedFilters] = useState({
     product: null,
     category: null,
@@ -103,11 +104,11 @@ const ProductList = () => {
 
   const handlePdfDownload = () => {
     const columns = [
+      { header: "ID", dataKey: "id" },
       { header: "Producto", dataKey: "product" },
       { header: "Categoria", dataKey: "category" },
       { header: "SubCategoria", dataKey: "brand" },
       { header: "Precio", dataKey: "price" },
-      { header: "Unidades", dataKey: "unit" },
       { header: "Catidad", dataKey: "qty" },
       { header: "Creeado por", dataKey: "createdby" }
     ];
@@ -240,29 +241,27 @@ const ProductList = () => {
     {
       title: "Action",
       dataIndex: "action",
-      render: () => (
+      render: (text, record) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <div className="input-block add-lists"></div>
-            <Link className="me-2 p-2" to={route.editproduct}>
+            <Link className="me-2 p-2" to={`${route.editproduct}?id=${record.id}`}>
               <Edit className="feather-edit" />
             </Link>
             <Link
               className="confirm-text p-2"
               to="#"
-              onClick={showConfirmationAlert}
+              onClick={() => showConfirmationAlert(record.id)}
             >
               <Trash2 className="feather-trash-2" />
             </Link>
           </div>
         </div>
-      ),
-      sorter: (a, b) => a.createdby.length - b.createdby.length
+      )
     }
   ];
   const MySwal = withReactContent(Swal);
 
-  const showConfirmationAlert = () => {
+  const showConfirmationAlert = (id) => {
     MySwal.fire({
       title: "¿Estas seguro?",
       text: "Esta accion no se puede revertir",
@@ -273,6 +272,7 @@ const ProductList = () => {
       cancelButtonText: "Cancelar"
     }).then((result) => {
       if (result.isConfirmed) {
+        console.log(id)
         MySwal.fire({
           title: "Deleted!",
           text: "Your file has been deleted.",

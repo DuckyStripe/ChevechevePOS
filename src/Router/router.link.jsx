@@ -18,7 +18,6 @@ import PurchasesList from "../admin/Sales/purchaseslist";
 import Customers from "../admin/customers";
 import SalesReport from "../admin/Sales/salesreport";
 import PurchaseReport from "../admin/Sales/purchasereport";
-import InventoryReport from "../admin/Sales/inventoryreport";
 import ProfitLoss from "../admin/Sales/profitloss";
 import SalesList from "../admin/Sales/saleslist";
 import Users from "../admin/users";
@@ -61,7 +60,7 @@ export const publicRoutes = [
     path: routes.editproduct,
     name: "editproduct",
     element: <EditProduct />,
-    route: Route,
+    route: Route
   },
   {
     id: 99,
@@ -76,80 +75,84 @@ export const publicRoutes = [
     name: "expiredproduct",
     element: <ExpiredProduct />,
     route: Route
-  },  {
+  },
+  {
     id: 59,
     path: routes.lowstock,
     name: "lowstock",
     element: <LowStock />,
-    route: Route,
+    route: Route
   },
   {
     id: 60,
     path: routes.categorylist,
     name: "categorylist",
     element: <CategoryList />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 64,
     path: routes.subcategories,
     name: "subcategories",
     element: <SubCategories />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 68,
     path: routes.purchaselist,
     name: "purchaselist",
     element: <PurchasesList />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 84,
     path: routes.customers,
     name: "customers",
     element: <Customers />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 90,
     path: routes.salesreport,
     name: "salesreport",
     element: <SalesReport />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 91,
     path: routes.purchasereport,
     name: "purchasereport",
     element: <PurchaseReport />,
-    route: Route,
-  },  {
-    id: 92,
-    path: routes.inventoryreport,
-    name: "inventoryreport",
-    element: <InventoryReport />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 99,
     path: routes.profitloss,
     name: "profitloss",
     element: <ProfitLoss />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 102,
     path: routes.saleslist,
     name: "saleslist",
     element: <SalesList />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 104,
     path: routes.users,
     name: "users",
     element: <Users />,
-    route: Route,
-  },  {
+    route: Route
+  },
+  {
     id: 105,
     path: routes.rolespermission,
     name: "rolespermission",
     element: <RolesPermissions />,
-    route: Route,
-  },
+    route: Route
+  }
 ];
 
 export const pagesRoute = [

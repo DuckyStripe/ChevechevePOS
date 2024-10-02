@@ -3,10 +3,10 @@ import React  from 'react';
 
 export function itemRender(current, type, originalElement) {
     if (type === "prev") {
-      return <a>Previous</a>;
+      return <a>Anterior</a>;
     }
     if (type === "next") {
-      return <a>Next</a>;
+      return <a>Siguinte</a>;
     }
     return originalElement;
   }

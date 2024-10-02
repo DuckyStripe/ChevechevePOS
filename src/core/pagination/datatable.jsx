@@ -17,7 +17,6 @@ const Datatable = ({ props, columns, dataSource }) => {
     <Table
       key={props}
       className="table datanew dataTable no-footer"
-      rowSelection={rowSelection}
       columns={columns}
       dataSource={dataSource}
       rowKey={(record) => record.id}

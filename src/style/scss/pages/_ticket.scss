@@ -1,0 +1,89 @@
+@import "../utils/_variables";
+@import "../utils/mixins";
+
+#print-receipt {
+    color:  $text-color;
+    .modal-dialog {
+        width: 424px;
+    }
+    .modal-body {
+        padding: 30px;
+        color: $text-color;
+        h6 {
+            font-size: $font-size-16;
+        }
+        .info {
+            h6 {
+                margin: 10px 0;
+                font-weight: normal;
+            }
+            a {
+                color: $text-color;
+            }
+        }
+        .tax-invoice {
+            h6 {
+                margin: 10px 0;
+                font-weight: $font-weight-semibold;
+                position: relative;
+                &:after, &:before {
+                    @include transform(translateY(-50%));
+                    content: "";
+                    border-top:  1px dashed $text-color;
+                    width: 35%;
+                }
+                &:before {
+                    @include position(absolute,50%,null,null,0);
+                }
+                &:after {
+                    @include position(absolute,50%,0,null,null);
+                }
+            }
+            .invoice-user-name {
+                margin-bottom: 10px;
+            }
+            span {
+                color: $secondary;
+            }
+        }
+        table {
+            thead {
+                th {
+                    color: $secondary;
+                    width: auto;
+                    min-width: auto;
+                    padding: 5px;
+                    border-top: 1px dashed $text-color;
+                    border-bottom: 1px dashed $text-color;
+                }
+            }
+            tbody{ 
+
+                tr {
+                    td {
+                        padding: 5px;
+                    }
+                    table {
+                        border-top: 1px dashed $text-color;
+                        tr {
+                            &:last-child {
+                                td {
+                                    font-weight: $font-weight-medium;
+                                    font-size: $font-size-15;
+                                    color: $secondary;
+                                }
+                            }
+                        }    
+                    }
+                }
+            }
+        }
+        .invoice-bar {
+            border-top: 1px dashed $text-color;
+            @include margin-padding(null, 20px 0 0 0);
+        }
+        .btn {
+            width: 200px;
+        }
+    }
+}

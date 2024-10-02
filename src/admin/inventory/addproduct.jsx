@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useState,useEffect } from "react";
 import { Link } from "react-router-dom";
 import Select from "react-select";
 import AddCategory from "../../core/modals/inventory/addcategory";
+import { fetchCategories,fetchSubCategories,fetchUnidad } from "../../Data/Inventario/category"; // I
+
+// import ImageWithBasePath from "../../core/img/imagewithbasebath";
 import {
   ArrowLeft,
   ChevronDown,
@@ -9,39 +12,56 @@ import {
   Info,
   LifeBuoy,
   PlusCircle,
-  
+  X
 } from "feather-icons-react/build/IconComponents";
 import { useDispatch, useSelector } from "react-redux";
 import { setToogleHeader } from "../../core/redux/action";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { all_routes } from "../../Router/all_routes";
 const AddProduct = () => {
+  const [category, setCategory] = useState([]); // Para almacenar la lista de categorías
+  const [subcategory, setSubcategory] = useState([]); // Para almacenar la lista de categorías
+  const [unidad, setunidad] = useState([]); // Para almacenar la lista de categorías
+  const [previewImage, setPreviewImage] = useState(null);
   const route = all_routes;
   const dispatch = useDispatch();
-
   const data = useSelector((state) => state.toggle_header);
+  useEffect(() => {
+    const loadInitialData = async () => {
+      const category = await fetchCategories(); // Cargar por defecto los productos con bajo inventario
+      const subcategory = await fetchSubCategories(); // Cargar por defecto los productos con bajo inventario
+      const unidad = await fetchUnidad(); // Cargar por defecto los productos con bajo inventario
+      setCategory(category);
+      setSubcategory(subcategory);
+      setunidad(unidad);
+    };
+
+    loadInitialData();
+  }, []);
+
+
+
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Función para eliminar la imagen cargada
+  const handleRemoveImage = () => {
+    setPreviewImage(null);
+  };
 
   const renderCollapseTooltip = (props) => (
     <Tooltip id="refresh-tooltip" {...props}>
       Collapse
     </Tooltip>
   );
-  const category = [
-    { value: "Elegir", label: "Elegir" },
-    { value: "Modelo", label: "Modelo" },
-    { value: "Corona", label: "Corona" }
-  ];
-  const subcategory = [
-    { value: "Elegir", label: "Elegir" },
-    { value: "Cuarto", label: "Cuarto" },
-    { value: "Media", label: "Media" },
-    { value: "Mega", label: "Mega" }
-  ];
-  const unidad = [
-    { value: "0", label: "Elije uno" },
-    { value: "Unidad", label: "Unidad/Pieza" },
-    { value: "Paquete", label: "Paquete" }
-  ];
 
   return (
     <div className="page-wrapper">
@@ -243,6 +263,78 @@ const AddProduct = () => {
                               <div className="input-blocks add-product">
                                 <label>Cantidad Minima</label>
                                 <input type="text" className="form-control" />
+                              </div>
+                            </div>
+                            <div
+                              className="accordion-card-one accordion"
+                              id="accordionExample3"
+                            >
+                              <div className="accordion-item">
+                                <div
+                                  className="accordion-header"
+                                  id="headingThree"
+                                >
+                                  <div
+                                    className="accordion-button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#collapseThree"
+                                    aria-controls="collapseThree"
+                                  >
+                                    <div className="addproduct-icon list">
+                                      <h5>
+                                        <i
+                                          data-feather="image"
+                                          className="add-info"
+                                        />
+                                        <span>Images</span>
+                                      </h5>
+                                      <Link to="#">
+                                        <ChevronDown className="chevron-down-add" />
+                                      </Link>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div
+                                  id="collapseThree"
+                                  className="accordion-collapse collapse show"
+                                  aria-labelledby="headingThree"
+                                  data-bs-parent="#accordionExample3"
+                                >
+                                  <div className="accordion-body">
+                                    <div className="text-editor add-list add">
+                                      <div className="col-lg-12">
+                                        <div className="add-choosen">
+                                          <div className="input-blocks">
+                                            <div className="image-upload">
+                                              <input
+                                                type="file"
+                                                onChange={handleImageChange}
+                                              />
+                                              <div className="image-uploads">
+                                                <PlusCircle className="plus-down-add me-0" />
+                                                <h4>Añadir Imagen</h4>
+                                              </div>
+                                            </div>
+                                          </div>
+                                            {previewImage && (
+                                              <div className="phone-img">
+                                                <img
+                                                  src={previewImage}
+                                                  alt="Vista previa"
+                                                />
+                                            <Link to="#">
+                                              <X
+                                                className="x-square-add remove-product"
+                                                onClick={handleRemoveImage}
+                                              />
+                                            </Link>
+                                              </div>
+                                            )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>

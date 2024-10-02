@@ -3,7 +3,6 @@ import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
 import {
-  Mail,
   RotateCcw,
   Filter,
   GitMerge,
@@ -108,6 +107,17 @@ const LowStock = () => {
   const toggleFilterVisibility = () => {
     setIsFilterVisible((prevVisibility) => !prevVisibility);
   };
+  const resetFilters = () => {
+    setSearchValue(""); // Limpia el campo de búsqueda
+    setSelectedFilters({
+      product: null,
+      category: null,
+      subCategory: null,
+      brand: null,
+      price: null
+    });
+    setFilteredData(dataSource); // Restaura la lista original de productos
+  };
 
   const columns = [
     {
@@ -164,17 +174,6 @@ const LowStock = () => {
     }
   ];
 
-  const resetFilters = () => {
-    setSearchValue(""); // Limpia el campo de búsqueda
-    setSelectedFilters({
-      product: null,
-      category: null,
-      subCategory: null,
-      brand: null,
-      price: null
-    });
-    setFilteredData(dataSource); // Restaura la lista original de productos
-  };
 
   const renderTooltip = (props) => (
     <Tooltip id="pdf-tooltip" {...props}>
@@ -202,8 +201,8 @@ const LowStock = () => {
         <div className="content">
           <div className="page-header">
             <div className="page-title me-auto">
-              <h4>Low Stocks</h4>
-              <h6>Manage your low stocks</h6>
+              <h4>Productos bajos en Inventario</h4>
+              <h6>Visualiza los productos bajos en inventario</h6>
             </div>
             <ul className="table-top-head">
               <li>
@@ -219,17 +218,6 @@ const LowStock = () => {
                   </label>
                   Notify
                 </div>
-              </li>
-              <li>
-                <Link
-                  to=""
-                  className="btn btn-secondary"
-                  data-bs-toggle="modal"
-                  data-bs-target="#send-email"
-                >
-                  <Mail className="feather-mail" />
-                  Send Email
-                </Link>
               </li>
               <li>
                 <OverlayTrigger placement="top" overlay={renderTooltip}>
