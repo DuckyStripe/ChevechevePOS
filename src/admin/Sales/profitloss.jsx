@@ -1,205 +1,330 @@
-import React, { useState } from "react";
-import DateRangePicker from "react-bootstrap-daterangepicker";
-import { DatePicker } from "antd";
-import Breadcrumbs from "../../core/breadcrumbs";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import { Calendar } from "feather-icons-react/build/IconComponents";
-import { Database } from "react-feather";
+import { ChevronUp, Calendar } from "feather-icons-react/build/IconComponents";
+import Select from "react-select";
+import {
+  fetchProfitsYear,
+  fetchProfitsMonthsAvailable,
+  fetchProfitsYears,
+  fetchProfitsMonths
+} from "../../Data/Inventario/profits";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
+import ImageWithBasePath from "../../core/img/imagewithbasebath";
+import { setToogleHeader } from "../../core/redux/action";
+import "../../style//css/table.css";
 
 const ProfitLoss = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const handleDateChange = (date) => {
-    setSelectedDate(date);
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(null);
+  const [fetchedData, setFetchedData] = useState({
+    months: [],
+    finances: { income: [] }
+  });
+  const [availableYears, setAvailableYears] = useState([]);
+  const [availableMonths, setAvailableMonths] = useState([]);
+
+  useEffect(() => {
+    const initializeData = async () => {
+      const years = await fetchProfitsYears();
+      setAvailableYears(years);
+
+      if (years.length > 0) {
+        // Use the most recent year by default
+        const latestYear = years[years.length - 1];
+        setSelectedYear(latestYear);
+
+        const data = await fetchProfitsYear(latestYear.value);
+        console.log("Datos Año:", data);
+        setFetchedData(data);
+
+        const months = await fetchProfitsMonthsAvailable(latestYear.value);
+        setAvailableMonths(months);
+      }
+    };
+    initializeData();
+  }, []);
+
+  const handleYearChange = async (selectedOption) => {
+    if (!selectedOption) return;
+
+    // Resetear el mes seleccionado y los datos
+    setSelectedMonth(null);
+    console.log("Año Seleccionado:", selectedOption.value);
+
+    const year = selectedOption.value;
+    setSelectedYear(selectedOption);
+
+    // Obtiene los meses disponibles para el año seleccionado
+    const months = await fetchProfitsMonthsAvailable(year);
+    setAvailableMonths(months);
+
+    // Recarga los datos del año y reinicia la tabla
+    const data = await fetchProfitsYear(year);
+    console.log("Datos Año:", data);
+    setFetchedData(data);
   };
-  const initialSettings = {
-    endDate: new Date("2020-08-11T12:30:00.000Z"),
-    ranges: {
-      "Last 30 Days": [
-        new Date("2020-07-12T04:57:17.076Z"),
-        new Date("2020-08-10T04:57:17.076Z"),
-      ],
-      "Last 7 Days": [
-        new Date("2020-08-04T04:57:17.076Z"),
-        new Date("2020-08-10T04:57:17.076Z"),
-      ],
-      "Last Month": [
-        new Date("2020-06-30T18:30:00.000Z"),
-        new Date("2020-07-31T18:29:59.999Z"),
-      ],
-      "This Month": [
-        new Date("2020-07-31T18:30:00.000Z"),
-        new Date("2020-08-31T18:29:59.999Z"),
-      ],
-      Today: [
-        new Date("2020-08-10T04:57:17.076Z"),
-        new Date("2020-08-10T04:57:17.076Z"),
-      ],
-      Yesterday: [
-        new Date("2020-08-09T04:57:17.076Z"),
-        new Date("2020-08-09T04:57:17.076Z"),
-      ],
-    },
-    startDate: new Date("2020-08-04T04:57:17.076Z"), // Set "Last 7 Days" as default
-    timePicker: false,
+
+  const handleMonthChange = async (selectedOption) => {
+    if (!selectedOption) return;
+
+    console.log(
+      "año",
+      selectedYear ? selectedYear.value : "N/A",
+      "mes",
+      selectedOption.value
+    );
+
+    setSelectedMonth(selectedOption);
+
+    // Utiliza directamente el valor de selectedOption
+    if (selectedYear && selectedOption) {
+      console.log(selectedYear, selectedOption);
+      console.log("entro al if");
+      const data = await fetchProfitsMonths(
+        selectedYear.value,
+        selectedOption.value
+      );
+      console.log("Datos Meses:", data);
+      setFetchedData(data);
+    }
   };
+
+  const dispatch = useDispatch();
+  const data = useSelector((state) => state.toggle_header);
+
+  const handlePdfDownload = () => {
+    const doc = new jsPDF({ orientation: "landscape" }); // Establecer la orientación a landscape
+  
+    // Añade título y metadatos
+    doc.setFontSize(16);
+    doc.text("Reporte de Ganancias y Pérdidas", 20, 10);
+    doc.setFontSize(10);
+    doc.text("Generado desde la aplicación Ganancias y Pérdidas", 20, 15);
+  
+    // Define las columnas basadas en la estructura de la tabla
+    const columns = [
+      { header: "Categoría", dataKey: "category" },
+      ...fetchedData.months.map((month) => ({ header: month, dataKey: month }))
+    ];
+  
+    // Prepara los datos alineados con la tabla
+    const incomeData = fetchedData.finances.income.map((income) => {
+      const row = { category: income.category };
+      fetchedData.months.forEach((month, index) => {
+        row[month] = income.values[index] !== undefined ? income.values[index] : 0;
+      });
+      return row;
+    });
+  
+    // Añade título para "Entradas"
+    doc.setFontSize(14);
+    doc.text("Entradas y Salidas", doc.internal.pageSize.getWidth() / 2, 30, {
+      align: "center"
+    });
+  
+    // Usa autotable para agregar las tablas de "Entradas" al documento
+    doc.autoTable({
+      head: [columns.map((col) => col.header)],
+      body: incomeData.map((data) => columns.map((col) => data[col.dataKey])),
+      startY: 40,
+      margin: { top: 20 }
+    });
+  
+    // Guarda el PDF
+    const today = new Date();
+    const formattedDate = today.toISOString().slice(0, 10); // yyyy-mm-dd
+    const fileName = `Reporte_Financiero_${formattedDate}.pdf`;
+    doc.save(fileName);
+  };
+  
+  const handleExcelExport = () => {
+    // Define encabezados para "Entradas" y "Salidas"
+    const headers = ["Categoría", ...fetchedData.months];
+  
+    // Datos para "Entradas"
+    const incomeData = fetchedData.finances.income.map((income) => [
+      income.category,
+      ...income.values.map((value) => (value !== undefined ? value : 0))
+    ]);
+  
+    // Combina metadatos, título, y datos
+    const sheetData = [
+      ["Reporte de Ganancias y Pérdidas"],
+      ["Generado desde la aplicación Ganancias y Pérdidas"],
+      [],
+      ["Entradas y Salidas"],
+      headers,
+      ...incomeData
+    ];
+  
+    // Crea la hoja de cálculo
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+  
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Ganancias y Pérdidas");
+  
+    // Guarda el archivo Excel
+    const today = new Date();
+    const formattedDate = today.toISOString().slice(0, 10);
+    const fileName = `Reporte_Financiero_${formattedDate}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+  
+
+
+  const handlePrint = () => {
+    window.print();
+    console.log("Contenido impreso");
+  };
+
+  const renderTooltip = (props) => (
+    <Tooltip id="pdf-tooltip" {...props}>
+      Pdf
+    </Tooltip>
+  );
+  const renderExcelTooltip = (props) => (
+    <Tooltip id="excel-tooltip" {...props}>
+      Excel
+    </Tooltip>
+  );
+  const renderPrinterTooltip = (props) => (
+    <Tooltip id="printer-tooltip" {...props}>
+      Printer
+    </Tooltip>
+  );
+
+  const renderCollapseTooltip = (props) => (
+    <Tooltip id="collapse-tooltip" {...props}>
+      Collapse
+    </Tooltip>
+  );
+
   return (
     <div className="page-wrapper">
       <div className="content">
-        <Breadcrumbs
-          maintitle="Profit & Loss Report"
-          subtitle="Manage Your Profit & Loss Report"
-        />
+        <div className="page-header">
+          <div className="add-item d-flex">
+            <div className="page-title">
+              <h4>Ganancias y Perdidas</h4>
+              <h6>Gestiona las ganancias y gastos de tu empresas</h6>
+            </div>
+          </div>
+          <ul className="table-top-head">
+            <li>
+              <OverlayTrigger placement="top" overlay={renderTooltip}>
+                <Link onClick={handlePdfDownload}>
+                  <ImageWithBasePath src="assets/img/icons/pdf.svg" alt="img" />
+                </Link>
+              </OverlayTrigger>
+            </li>
+            <li>
+              <OverlayTrigger placement="top" overlay={renderExcelTooltip}>
+                <Link onClick={handleExcelExport}>
+                  <ImageWithBasePath
+                    src="assets/img/icons/excel.svg"
+                    alt="img"
+                  />
+                </Link>
+              </OverlayTrigger>
+            </li>
+            <li>
+              <OverlayTrigger placement="top" overlay={renderPrinterTooltip}>
+                <Link onClick={handlePrint}>
+                  <i data-feather="printer" className="feather-printer" />
+                </Link>
+              </OverlayTrigger>
+            </li>
+            <li>
+              <OverlayTrigger placement="top" overlay={renderCollapseTooltip}>
+                <Link
+                  onClick={(e) => {
+                    e.preventDefault();
+                    dispatch(setToogleHeader(!fetchedData));
+                  }}
+                  className={data ? "active" : ""}
+                >
+                  <ChevronUp />
+                </Link>
+              </OverlayTrigger>
+            </li>
+          </ul>
+        </div>
         <div className="card table-list-card border-0 mb-0">
-          <div className="card-body mb-3">
-            <div className="table-top mb-0 profit-table-top">
-              <div className="search-path profit-head ">
-                <div className="input-blocks mb-0">
-                  <Calendar className="info-img" />
-                  <div className="input-groupicon">
-                    <DatePicker
-                      selected={selectedDate}
-                      onChange={handleDateChange}
-                      className="form-control floating datetimepicker"
-                      type="date"
-                      dateFormat="dd-MM-yyyy"
-                    />
+          <div className="card-body mb-2">
+            <div className="table-top mb-0 profit-table">
+              <div className="profit-head ">
+                <div className="row ">
+                  {" "}
+                  {/* Centrado por columna */}
+                  <div className="col-lg-4 col-md-6 col-sm-8 col-10 ms-auto m-lg-1">
+                    <div className="input-blocks mb-3">
+                      <div className="form-sort d-flex align-items-center">
+                        <Calendar className="info-img me-2" />{" "}
+                        {/* Espacio entre imagen y select */}
+                        <Select
+                          className="img-select"
+                          classNamePrefix="react-select"
+                          options={availableYears}
+                          value={selectedYear}
+                          placeholder="Año"
+                          onChange={handleYearChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-lg-4 col-md-6 col-sm-8 col-10 m-lg-1">
+                    <div className="input-blocks mb-3">
+                      <div className="form-sort d-flex align-items-center">
+                        <Calendar className="info-img me-2" />
+                        <Select
+                          isDisabled={!selectedYear}
+                          className="img-select"
+                          classNamePrefix="react-select"
+                          options={availableMonths}
+                          value={selectedMonth} // Asegura que el valor refleje el estado actual
+                          placeholder="Mes"
+                          onChange={handleMonthChange}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="position-relative daterange-wraper input-blocks mb-0">
-              <Calendar className="feather-14 info-img" />
-                <DateRangePicker initialSettings={initialSettings}>
-                  <input
-                    className="form-control col-4 input-range"
-                    type="text"
-                  />
-                </DateRangePicker>
-              </div>
-              <div className="date-btn">
-                <Link
-                  href="#"
-                  className="btn btn-secondary d-flex align-items-center"
-                >
-                  <Database className="feather-14 info-img me-2" />
-                  Display Date
-                </Link>
-              </div>
-            </div> 
+            </div>
           </div>
         </div>
-        <div className="table-responsive">
+
+        <div className="table-responsive mt-2">
           <table className="table profit-table">
             <thead className="profit-table-bg">
               <tr>
                 <th className="no-sort"></th>
-                <th>Jan 2023</th>
-                <th>Feb 2023</th>
-                <th>Mar 2023</th>
-                <th>Apr 2023</th>
-                <th>May 2023</th>
-                <th>Jun 2023</th>
+                {fetchedData.months.map((month) => (
+                  <th key={month}>{month}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              <tr className="table-heading">
-                <td>Income</td>
-                <td />
-                <td />
-                <td />
-                <td />
-                <td />
-                <td />
-              </tr>
-              <tr>
-                <td>Sales</td>
-                <td>$4,02,124.00</td>
-                <td>$3,05,178.00</td>
-                <td>$5,61,639.00</td>
-                <td>$2,46,123.00</td>
-                <td>$2,16,836.00</td>
-                <td>$3,40,472.00</td>
-              </tr>
-              <tr>
-                <td>Service</td>
-                <td>$2,12,464.00</td>
-                <td>$1,04,627.00</td>
-                <td>$3,47,273.00</td>
-                <td>$3,51,749.00</td>
-                <td>$2,62,743.00</td>
-                <td>$2,71,837.00</td>
-              </tr>
-              <tr>
-                <td>Purchase Return</td>
-                <td>$3,06,386.00</td>
-                <td>$2,61,738.00</td>
-                <td>$2,82,463.00</td>
-                <td>$2,45,280.00</td>
-                <td>$2,16,383.00</td>
-                <td>$2,73,843.00</td>
-              </tr>
-              <tr className="profit-table-bg">
-                <td>Gross Profit</td>
-                <td>$1,45,547.00</td>
-                <td>$2,62,813.00</td>
-                <td>$2,74,832.00</td>
-                <td>$2,52,725.00</td>
-                <td>$2,57,248.00</td>
-                <td>$2,94,270.00</td>
-              </tr>
-              <tr className="table-heading">
-                <td>Expenses</td>
-                <td />
-                <td />
-                <td />
-                <td />
-                <td />
-                <td />
-              </tr>
-              <tr>
-                <td>Sales</td>
-                <td>$4,02,124.00</td>
-                <td>$3,05,178.00</td>
-                <td>$5,61,639.00</td>
-                <td>$2,46,123.00</td>
-                <td>$2,16,836.00</td>
-                <td>$3,40,472.00</td>
-              </tr>
-              <tr>
-                <td>Purrchase</td>
-                <td>$1,45,547.00</td>
-                <td>$2,62,813.00</td>
-                <td>$2,74,832.00</td>
-                <td>$2,52,725.00</td>
-                <td>$2,57,248.00</td>
-                <td>$2,94,270.00</td>
-              </tr>
-              <tr className="profit-table-bg">
-                <td>Sales Return</td>
-                <td>$4,02,124.00</td>
-                <td>$3,05,178.00</td>
-                <td>$5,61,639.00</td>
-                <td>$2,46,123.00</td>
-                <td>$2,16,836.00</td>
-                <td>$3,40,472.00</td>
-              </tr>
-              <tr className="profit-table-bg">
-                <td>Total Expense</td>
-                <td>$2,58,136.00</td>
-                <td>$1,38,471.00</td>
-                <td>$2,61,682.00</td>
-                <td>$2,16,747.00</td>
-                <td>$2,79,328.00</td>
-                <td>$2,94,840.00</td>
-              </tr>
-              <tr className="profit-table-bg">
-                <td>Net Profit</td>
-                <td>$2,69,276.00</td>
-                <td>$2,75,638.00</td>
-                <td>$2,51,629.00</td>
-                <td>$1,36,836.00</td>
-                <td>$2,05,634.00</td>
-                <td>$1,32,951.00</td>
-              </tr>
+              {fetchedData.finances.income.map((item, index, array) => (
+                <tr
+                  className="table-heading"
+                  key={`income-${index}`}
+                  style={
+                    index === array.length - 1 ? { fontWeight: "bold" } : {}
+                  }
+                >
+                  <td>{item.category}</td>
+                  {item.values.map((value, i) => (
+                    <td key={`income-${index}-value-${i}`}>
+                      ${value.toLocaleString()}
+                    </td>
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

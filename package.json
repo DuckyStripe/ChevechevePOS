@@ -6,6 +6,7 @@
   "dependencies": {
     "@ckeditor/ckeditor5-build-classic": "^43.1.1",
     "@ckeditor/ckeditor5-react": "^6.3.0",
+    "@faker-js/faker": "^9.0.3",
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
     "@fortawesome/free-solid-svg-icons": "^6.5.2",
     "@fortawesome/react-fontawesome": "^0.2.0",

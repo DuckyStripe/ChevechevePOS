@@ -17,8 +17,6 @@ export const all_routes = {
   salesreport: "/sales-report",
   purchasereport: "/purchase-report",
   profitloss: "/profit-loss-report",
-  saleslist: "/sales-list",
-  purchaselist: "/purchase-list",
   customers: "/customers",
   users: "/users",
   rolespermission: "/roles-permissions",

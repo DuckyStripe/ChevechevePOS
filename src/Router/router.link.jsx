@@ -14,12 +14,10 @@ import ExpiredProduct from "../admin/inventory/expiredproduct";
 import LowStock from "../admin/inventory/lowstock";
 import CategoryList from "../admin/inventory/categorylist";
 import SubCategories from "../admin/inventory/subcategories";
-import PurchasesList from "../admin/Sales/purchaseslist";
 import Customers from "../admin/customers";
 import SalesReport from "../admin/Sales/salesreport";
 import PurchaseOrderReport from "../admin/Sales/purchasereport";
 import ProfitLoss from "../admin/Sales/profitloss";
-import SalesList from "../admin/Sales/saleslist";
 import Users from "../admin/users";
 import RolesPermissions from "../admin/rolespermissions";
 import EditProduct from "../admin/inventory/editproduct";
@@ -98,13 +96,6 @@ export const publicRoutes = [
     route: Route
   },
   {
-    id: 68,
-    path: routes.purchaselist,
-    name: "purchaselist",
-    element: <PurchasesList />,
-    route: Route
-  },
-  {
     id: 84,
     path: routes.customers,
     name: "customers",
@@ -132,13 +123,7 @@ export const publicRoutes = [
     element: <ProfitLoss />,
     route: Route
   },
-  {
-    id: 102,
-    path: routes.saleslist,
-    name: "saleslist",
-    element: <SalesList />,
-    route: Route
-  },
+
   {
     id: 104,
     path: routes.users,

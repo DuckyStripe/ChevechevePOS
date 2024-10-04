@@ -105,35 +105,6 @@ export const SidebarData = [
     ],
   },
   {
-    label: "Opciones",
-    submenuOpen: true,
-    submenuHdr: "Sales",
-    submenu: false,
-    showSubRoute: false,
-    submenuItems: [
-      {
-        label: "Ventas",
-        link: "/sales-list",
-        icon: <Icon.ShoppingCart />,
-        showSubRoute: false,
-        submenu: false,
-      },
-      {
-        label: "Gastos",
-        link: "/purchase-list",
-        icon: <Icon.ShoppingBag />,
-        showSubRoute: false,
-        submenu: false,
-      },      {
-        label: "Clientes",
-        link: "/customers",
-        icon: <Icon.User />,
-        showSubRoute: false,
-        submenu: false,
-      },
-    ],
-  },
-  {
     label: "Usuarios",
     submenuOpen: true,
     showSubRoute: false,
@@ -150,6 +121,12 @@ export const SidebarData = [
         link: "/roles-permissions",
         icon: <Icon.UserCheck />,
         showSubRoute: false,
+      },    {
+        label: "Clientes",
+        link: "/customers",
+        icon: <Icon.User />,
+        showSubRoute: false,
+        submenu: false,
       },
     ],
   },

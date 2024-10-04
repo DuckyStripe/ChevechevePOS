@@ -3,7 +3,11 @@ import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
-import { Calendar, PlusCircle,ChevronUp } from "feather-icons-react/build/IconComponents";
+import {
+  Calendar,
+  PlusCircle,
+  ChevronUp
+} from "feather-icons-react/build/IconComponents";
 import { DatePicker } from "antd";
 import { fetchPurchases } from "../../Data/Inventario/purchases";
 import Table from "../../core/pagination/datatable";
@@ -46,33 +50,32 @@ const PurchaseOrderReport = () => {
       { header: "Total", dataKey: "total" },
       { header: "Vendedor Responsable", dataKey: "createdby" }
     ];
-  
+
     // Obtiene la fecha actual para incluir en el nombre del archivo
     const today = new Date();
     const formattedDate = today.toISOString().slice(0, 10); // yyyy-mm-dd
-  
+
     // Crea un nuevo documento PDF
     const doc = new jsPDF();
-  
+
     // Usa autotable para agregar la tabla al documento
     doc.autoTable({
       columns: columns,
-      body: dataSource.map(data => ({
+      body: dataSource.map((data) => ({
         datepurchase: data.datepurchase,
         Name: data.Name,
         Cantidad: data.Cantidad,
         total: data.total,
         createdby: data.createdby
-      })), 
+      })),
       styles: { halign: "center" }, // Opcional: centrar el contenido
       headStyles: { fillColor: [233, 30, 99] } // Opcional: color de la cabecera
     });
-  
+
     // Guarda el PDF con el nombre que incluye la fecha
     const fileName = `Inventario_${formattedDate}.pdf`;
     doc.save(fileName);
   };
-  
 
   const handleExcelExport = () => {
     // Define las columnas que quieres usar en el archivo Excel
