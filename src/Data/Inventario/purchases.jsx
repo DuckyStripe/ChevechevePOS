@@ -6,39 +6,7 @@ export const mockSales = [
     Cantidad: "$10.00", // Precio Unitario
     total: "$100.00", // Total de la Venta, calculado en el backend
     createdby: "Juan Pérez", // Vendedor Responsable
-  },
-  {
-    id: 2,
-    datepurchase: "2024-10-02",
-    Name: "Compra de Monitores",
-    Cantidad: "$12.00",
-    total: "$180.00",
-    createdby: "Ana Gómez",
-  },
-  {
-    id: 3,
-    datepurchase: "2024-10-03",
-    Name: "Compra de Monitores",
-    Cantidad: "$8.00",
-    total: "$40.00",
-    createdby: "Carlos López",
-  },
-  {
-    id: 4,
-    datepurchase: "2024-10-04",
-    Name: "Compra de Monitores",
-    Cantidad: "$11.00",
-    total: "$77.00",
-    createdby: "Luis Martínez",
-  },
-  {
-    id: 5,
-    datepurchase: "2024-10-05",
-    Name: "Compra de Monitores",
-    Cantidad: "$13.00",
-    total: "$78.00",
-    createdby: "María Fernández",
-  },
+  }
 ];
 
 export const fetchPurchases = async () => {

@@ -307,7 +307,7 @@ const SalesReport = () => {
                   <div className="input-blocks">
                     <Link className="btn btn-filters ms-auto d-flex align-items-center justify-content-center">
                       <i data-feather="search" className="feather-search" />{" "}
-                      Search
+                      Buscar
                     </Link>
                   </div>
                 </div>

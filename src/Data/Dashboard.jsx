@@ -6,34 +6,6 @@ const mockProductData = [
     quantity: 100,
     lastPurchase: "17 Enero 2024",
     image: "assets/img/Cheve/mediaCorona.jpeg"
-  },
-  {
-    id: 2,
-    productName: "Corona Mega",
-    quantity: 150,
-    lastPurchase: "17 Enero 2024",
-    image: "assets/img/Cheve/CoronaMega.jpeg"
-  },
-  {
-    id: 3,
-    productName: "Barrilito",
-    quantity: 10,
-    lastPurchase: "17 Enero 2024",
-    image: "assets/img/Cheve/barrilito.jpeg"
-  },
-  {
-    id: 4,
-    productName: "Media Modelo",
-    quantity: 15,
-    lastPurchase: "17 Enero 2024",
-    image: "assets/img/Cheve/mediamodelo.jpeg"
-  },
-  {
-    id: 5,
-    productName: "Modelo Mega",
-    quantity: 15,
-    lastPurchase: "17 Enero 2024",
-    image: "assets/img/Cheve/modelomega.jpeg"
   }
 ];
 const mockRecentPurchasesData = [
@@ -43,27 +15,6 @@ const mockRecentPurchasesData = [
     quantity: 100,
     price: 8200, // Precio asignado arbitrariamente
     image: "assets/img/Cheve/mediaCorona.jpeg"
-  },
-  {
-    id: 2,
-    productName: "Corona Mega",
-    quantity: 150,
-    price: 12000, // Precio asignado arbitrariamente
-    image: "assets/img/Cheve/CoronaMega.jpeg"
-  },
-  {
-    id: 3,
-    productName: "Barrilito",
-    quantity: 10,
-    price: 500, // Precio asignado arbitrariamente
-    image: "assets/img/Cheve/barrilito.jpeg"
-  },
-  {
-    id: 4,
-    productName: "Media Modelo",
-    quantity: 15,
-    price: 6500, // Precio asignado arbitrariamente
-    image: "assets/img/Cheve/mediamodelo.jpeg"
   }
 ];
 const mockDashboardata = {
@@ -97,7 +48,7 @@ const mockProfits = {
       sales: [100, 230, 320, 310, 170, 80, 240, 300, 125],
       purchases: [-150, -70, -30, -160, -30, -50, -80, -70, -85],
     }
-    
+
   },
   categories: [
     "Enero",

@@ -32,9 +32,9 @@ const AllRoutes = () => {
 
   const Pospages = () => (
     <div>
+      <Loader />
       <Header />
       <Outlet />
-      <Loader />
       <ThemeSettings />
     </div>
   );
