@@ -82,7 +82,6 @@ export const fetchCustomerData = async () => {
 };
 
 export const fetchProductData = async () => {
-  console.log(products)
   await new Promise((resolve) => setTimeout(resolve, 500)); // Simula un retraso de 500ms
   return products;
 };

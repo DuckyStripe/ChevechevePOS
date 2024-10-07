@@ -21,7 +21,6 @@ const Customers = () => {
   useEffect(() => {
     const initializeData = async () => {
       const Clientes = await fetchClientes();
-      console.log(Clientes);
       setDataSource(Clientes);
     };
     initializeData();
@@ -99,10 +98,9 @@ const Customers = () => {
   };
 
   const handleEditClick = (customer) => {
-    console.log("Cliente seleccionado:", customer);
     setSelectedCustomer(customer); // Establecer el cliente seleccionado
   };
-  
+
   const columns = [
     {
       title: "Nombre Cliente",

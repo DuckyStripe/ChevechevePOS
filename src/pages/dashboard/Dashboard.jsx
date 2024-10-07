@@ -6,7 +6,8 @@ import {
 } from "feather-icons-react/build/IconComponents";
 import Chart from "react-apexcharts";
 import { Link } from "react-router-dom";
-import ImageWithBasePath from "../../core/img/imagewithbasebath";
+import ImageWithGenericUrlCheve from "../../core/img/imagewithURLCheve";
+import ImageWithBasePath from "../../core/img/imagewithURL";
 import { all_routes } from "../../Router/all_routes";
 // import withReactContent from "sweetalert2-react-content";
 // import Swal from "sweetalert2";
@@ -82,7 +83,8 @@ const Dashboard = () => {
 
     const loadDataDash = async () => {
       const data = await fetchDashboardData();
-      setdatadash(data);
+
+      setdatadash(data[0]);
     };
 
     const loadProducts = async () => {
@@ -92,12 +94,42 @@ const Dashboard = () => {
 
     const loadProfit = async () => {
       const data = await fetchDataProfit();
-      console.log("Datos de profit recibidos:", data);
+      console.log("DataProfit:", data);
       setprofit(data);
 
       // Inicia con el año más reciente
       if (data.years && data.years.length > 0) {
         setSelectedYear(Math.max(...data.years));
+      }
+
+      // Suponiendo que `data` sigue el formato especificado en la pregunta,
+      // actualizamos chartOptions basado en el año seleccionado:
+      if (data && data.data) {
+        const selectedYearData = data.data[Math.max(...data.years)];
+
+        const sales = selectedYearData.sales;
+        const purchases = selectedYearData.purchases;
+
+        const allValues = [...sales, ...purchases];
+        const minValue = Math.min(...allValues);
+        const maxValue = Math.max(...allValues);
+
+        setChartOptions(prevOptions => ({
+          ...prevOptions,
+          series: [
+            { name: "Sales", data: sales },
+            { name: "Purchases", data: purchases }
+          ],
+          yaxis: {
+            ...prevOptions.yaxis,
+            min: minValue,
+            max: maxValue
+          },
+          xaxis: {
+            ...prevOptions.xaxis,
+            categories: data.categories
+          }
+        }));
       }
     };
 
@@ -209,7 +241,7 @@ const Dashboard = () => {
                 </div>
                 <div className="dash-widgetcontent">
                   <h5>{formatCurrency(datadash.TotalVentas)}</h5>
-                  <h6>Total Ventas</h6>
+                  <h6>Total Estimado</h6>
                 </div>
               </div>
             </div>
@@ -238,8 +270,8 @@ const Dashboard = () => {
             <div className="col-xl-3 col-sm-6 col-12 d-flex">
               <div className="dash-count das2">
                 <div className="dash-counts">
-                  <h4>{datadash.PedidosModelo}</h4>
-                  <h5>Pedidos Grupo Modelo</h5>
+                  <h4>{datadash.TotalProductos}</h4>
+                  <h5>Productos</h5>
                 </div>
                 <div className="dash-imgs">
                   <ImageWithBasePath
@@ -253,8 +285,8 @@ const Dashboard = () => {
             <div className="col-xl-3 col-sm-6 col-12 d-flex">
               <div className="dash-count das3">
                 <div className="dash-counts">
-                  <h4>{datadash.Externos}</h4>
-                  <h5>Externos</h5>
+                  <h4>{datadash.LOGS}</h4>
+                  <h5>LOGS</h5>
                 </div>
                 <div className="dash-imgs">
                   <File />
@@ -337,22 +369,22 @@ const Dashboard = () => {
                       <tbody>
                         {recentPurchases.map((purchase) => (
                           <tr key={purchase.id}>
-                            <td>{purchase.quantity}</td>
+                            <td>{purchase.cantidad}</td>
                             <td className="productimgname">
                               <Link
                                 to={route.productlist}
                                 className="product-img"
                               >
-                                <ImageWithBasePath
-                                  src={purchase.image}
+                                <ImageWithGenericUrlCheve
+                                  src={purchase.imagen_producto}
                                   alt="product"
                                 />
                               </Link>
                               <Link to={route.productlist}>
-                                {purchase.productName}
+                                {purchase.nombre_producto}
                               </Link>
                             </td>
-                            <td>${purchase.price}</td>
+                            <td>${purchase.precio_compra}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -382,18 +414,18 @@ const Dashboard = () => {
                         <td>
                           <div className="productimgname">
                             <Link to="#" className="product-img stock-img">
-                              <ImageWithBasePath
-                                src={product.image}
+                              <ImageWithGenericUrlCheve
+                                src={product.imagen_producto}
                                 alt="product"
                               />
                             </Link>
-                            <Link to="#">{product.productName}</Link>
+                            <Link to="#">{product.nombre_producto}</Link>
                           </div>
                         </td>
                         <td>
-                          <Link to="#">{product.quantity}</Link>
+                          <Link to="#">{product.cantidad}</Link>
                         </td>
-                        <td>{product.lastPurchase}</td>
+                        <td>{product.FechaActualizacion}</td>
                       </tr>
                     ))}
                   </tbody>

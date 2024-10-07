@@ -38,13 +38,12 @@ const AddCustomer = () => {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
       // Simular el envío del formulario
-      console.log("Datos del cliente:", formData);
       toast.success("Cliente añadido exitosamente!");
 
       // Resetea el formulario después de enviar

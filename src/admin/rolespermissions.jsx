@@ -20,7 +20,6 @@ const RolesPermissions = () => {
   useEffect(() => {
     const initializeData = async () => {
       const users = await fetchUserData();
-      console.log(users);
       setDataSource(users);
     };
     initializeData();
@@ -96,7 +95,6 @@ const RolesPermissions = () => {
   };
 
   const handleEditClick = (id) => {
-    console.log("ID ROL", id.id, "Nombre ROl", id.rolename);
     setselectedRol(id); // Establecer la categoría seleccionada
   };
   const columns = [

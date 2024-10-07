@@ -64,51 +64,50 @@ const AddUsers = () => {
 
   const validateForm = () => {
     const errors = {};
-  
+
     if (!formData.username) {
       errors.username = "El nombre es obligatorio";
     }
-  
+
     if (!formData.user) {
       errors.user = "El usuario es obligatorio";
     }
-  
+
     if (!formData.phone) {
       errors.phone = "El teléfono es obligatorio";
     }
-  
+
     if (!formData.email) {
       errors.email = "El correo es obligatorio";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       errors.email = "El correo no es válido";
     }
-  
+
     if (!formData.role || formData.role === 'Elegir Uno') {
       errors.role = "El rol es obligatorio";
     }
-  
+
     if (!formData.password) {
       errors.password = "La contraseña es obligatoria";
     }
-  
+
     if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = "Las contraseñas no coinciden";
     }
-  
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
       try {
         // Simula un fetch
-        console.log("Enviando datos: ", formData);
         // Simula una respuesta exitosa con una notificación
         toast.success("Usuario agregado exitosamente");
-        
+
         // Descomenta y ajusta la solicitud API real
         // await fetch('your-endpoint-url', {
         //   method: 'POST',
@@ -117,7 +116,7 @@ const AddUsers = () => {
         //   },
         //   body: JSON.stringify(formData),
         // });
-  
+
       } catch (error) {
         console.error("Error al enviar datos: ", error);
         // Mostrar notificación de error
@@ -125,7 +124,7 @@ const AddUsers = () => {
       }
     }
   };
-  
+
 
   return (
       <div>

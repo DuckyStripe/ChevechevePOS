@@ -60,7 +60,6 @@ const EditCustomer = ({ CustomerData }) => {
     e.preventDefault();
     if (validateForm()) {
       try {
-        console.log("Enviando datos: ", formData);
         toast.success("Cliente modificado exitosamente");
 
         // Resetea el formulario después de enviar
@@ -118,7 +117,7 @@ const EditCustomer = ({ CustomerData }) => {
                           />
                           {formErrors.CustomerName && (
                             <div className="invalid-feedback">{formErrors.CustomerName}</div>
-                           
+
                           )}
                         </div>
                       </div>

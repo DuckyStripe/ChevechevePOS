@@ -29,23 +29,22 @@ const AddRole = () => {
     e.preventDefault();
     if (validateForm()) {
       try {
-        console.log("Enviando datos: ", formData);
         toast.success("Rol agregado exitosamente");
-  
+
         resetFormData();
-  
+
         // Simula un clic en el botón de cancelar para cerrar el modal
         document.querySelector(".btn-cancel").click();
-  
+
       } catch (error) {
         console.error("Error al enviar datos: ", error);
         toast.error("Error al agregar el rol");
       }
     }
   };
-  
-  
-  
+
+
+
 
   return (
     <div>

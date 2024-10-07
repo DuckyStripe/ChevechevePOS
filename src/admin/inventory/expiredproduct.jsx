@@ -3,48 +3,45 @@ import { Link } from "react-router-dom";
 import Select from "react-select";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
 import Table from "../../core/pagination/datatable";
-import { fetchProducts, fetchOptions } from "../../Data/Inventario/products"; // Importa la función del mock
+import { fetchProducts } from "../../Data/Inventario/products"; // Importa la función del mock
 import AddInventory from "../../core/modals/inventory/add2inventory";
+import ImageWithGenericUrlCheve from "../../core/img/imagewithURLCheve";
 // Iconos
 import {
   Edit,
   Filter,
   GitMerge,
-  
   StopCircle,
-  } from "feather-icons-react/build/IconComponents";
+} from "feather-icons-react/build/IconComponents";
+
 
 const ExpiredProduct = () => {
   const [dataSource, setDataSource] = useState([]);
   const [searchValue, setSearchValue] = useState(""); // Estado para el término de búsqueda
   const [filteredData, setFilteredData] = useState([]); // Para almacenar datos filtrados
   const [options, setOptions] = useState({
-    products: [],
-    categories: [],
+    Categoria: [],
+    Subcategoria: [],
     subCategories: [],
-    brands: [],
-    prices: []
+    Unidad: [],
+    precio_compra: [],
   });
   const [selectedFilters, setSelectedFilters] = useState({
-    product: null,
-    category: null,
-    subCategory: null,
-    brand: null,
-    price: null
+    Categoria: null,
+    Subcategoria: null,
+    subCategories: null,
+    Unidad: null,
+    precio_compra: null,
   });
 
   useEffect(() => {
     const loadProducts = async () => {
       const products = await fetchProducts();
-      setDataSource(products);
-      setFilteredData(products);
-    };
-    const loadOptions = async () => {
-      const data = await fetchOptions();
-      setOptions(data);
+      setOptions(products.options);
+      setDataSource(products.data);
+      setFilteredData(products.data);
     };
 
-    loadOptions();
     loadProducts();
   }, []);
 
@@ -53,100 +50,101 @@ const ExpiredProduct = () => {
     setSearchValue(value);
 
     // Filtrar los productos en base al término de búsqueda
-    const filtered = dataSource.filter((product) =>
-      product.product.toLowerCase().includes(value.toLowerCase())
+    const filtered = dataSource.filter((nombre_producto) =>
+      nombre_producto.nombre_producto
+        .toLowerCase()
+        .includes(value.toLowerCase())
     );
     setFilteredData(filtered);
   };
   const handleSelectChange = (field) => (selectedOption) => {
     setSelectedFilters((prevFilters) => ({
       ...prevFilters,
-      [field]: selectedOption ? selectedOption.value : null
+      [field]: selectedOption ? selectedOption.value : null,
     }));
   };
   const handleSearch = () => {
-    console.log("dataSource:", dataSource);
     // Filtro de productos según los filtros seleccionados
-    const filteredProducts = dataSource.filter((product) => {
+    const filteredProducts = dataSource.filter((nombre_producto) => {
       return (
-        (!selectedFilters.category ||
-          product.category.toLowerCase() ===
-            selectedFilters.category.toLowerCase()) &&
-        (!selectedFilters.subCategory ||
-          (product.subCategory &&
-            product.subCategory.toLowerCase() ===
-              selectedFilters.subCategory.toLowerCase())) &&
-        (!selectedFilters.brand ||
-          product.brand.toLowerCase() ===
-            selectedFilters.brand.toLowerCase()) &&
-        (!selectedFilters.price || product.price === selectedFilters.price)
+        (!selectedFilters.Categoria ||
+          nombre_producto.Categoria.toLowerCase() ===
+            selectedFilters.Categoria.toLowerCase()) &&
+        (!selectedFilters.Subcategoria ||
+          (nombre_producto.Subcategoria &&
+            nombre_producto.Subcategoria.toLowerCase() ===
+              selectedFilters.Subcategoria.toLowerCase())) &&
+        (!selectedFilters.Unidad ||
+          nombre_producto.Unidad.toLowerCase() ===
+            selectedFilters.Unidad.toLowerCase()) &&
+        (!selectedFilters.precio_compra ||
+          nombre_producto.precio_compra === selectedFilters.precio_compra)
       );
     });
 
     // Actualiza el estado con los productos filtrados
     setFilteredData(filteredProducts);
-    console.log("Filtered Products:", filteredProducts);
   };
-
 
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const toggleFilterVisibility = () => {
     setIsFilterVisible((prevVisibility) => !prevVisibility);
   };
 
-
   const columns = [
     {
       title: "Producto",
-      dataIndex: "product",
+      dataIndex: "nombre_producto",
       render: (text, record) => (
         <span className="productimgname">
-          <ImageWithBasePath
+          <ImageWithGenericUrlCheve
             alt=""
-            src={record.productImage}
+            src={record.imagen_producto}
             width={50} // Establece el ancho en píxeles
             height={50} // Establece el alto en píxeles
           />
           <p>{text}</p>
         </span>
       ),
-      sorter: (a, b) => a.product.length - b.product.length
+      sorter: (a, b) => a.nombre_producto.length - b.nombre_producto.length,
     },
     {
       title: "Categoria",
-      dataIndex: "category",
-      sorter: (a, b) => a.category.length - b.category.length
+      dataIndex: "Categoria",
+      sorter: (a, b) => a.Categoria.length - b.Categoria.length,
     },
     {
       title: "SubCategoria",
-      dataIndex: "brand",
-      sorter: (a, b) => a.brand.length - b.brand.length
+      dataIndex: "Subcategoria",
+      sorter: (a, b) => a.Subcategoria.length - b.Subcategoria.length,
     },
     {
       title: "Precio",
-      dataIndex: "price",
+      dataIndex: "precio_compra",
       sorter: (a, b) =>
-        a.price.localeCompare(b.price, undefined, { numeric: true })
+        a.precio_compra.localeCompare(b.precio_compra, undefined, {
+          numeric: true,
+        }),
     },
     {
       title: "Unidades",
-      dataIndex: "unit",
-      sorter: (a, b) => a.unit - b.unit
+      dataIndex: "Unidad",
+      sorter: (a, b) => a.Unidad - b.Unidad,
     },
     {
       title: "Catidad",
-      dataIndex: "qty",
-      sorter: (a, b) => a.qty - b.qty
+      dataIndex: "cantidad",
+      sorter: (a, b) => a.cantidad - b.cantidad,
     },
     {
       title: "Creeado por",
-      dataIndex: "createdby",
+      dataIndex: "nombre_usuario",
       render: (text) => (
         <span className="userimgname">
           <p>{text}</p>
         </span>
       ),
-      sorter: (a, b) => a.createdby.length - b.createdby.length
+      sorter: (a, b) => a.nombre_usuario.length - b.nombre_usuario.length,
     },
     {
       title: "Action",
@@ -165,23 +163,19 @@ const ExpiredProduct = () => {
           </div>
         </div>
       ),
-      sorter: (a, b) => a.createdby.length - b.createdby.length
-    }
+    },
   ];
 
   const resetFilters = () => {
-    setSearchValue(""); // Limpia el campo de búsqueda
+    setSearchValue("");
     setSelectedFilters({
-      product: null,
-      category: null,
-      subCategory: null,
-      brand: null,
-      price: null
+      Categoria: null,
+      Subcategoria: null,
+      Unidad: null,
+      precio_compra: null,
     });
-    setFilteredData(dataSource); // Restaura la lista original de productos
+    setFilteredData(dataSource);
   };
-
-
 
   return (
     <div className="page-wrapper">
@@ -247,13 +241,13 @@ const ExpiredProduct = () => {
                           <Select
                             className="img-select"
                             classNamePrefix="react-select"
-                            options={options.categories} // Asegúrate de usar 'categories', no 'category'
+                            options={options.Categoria} // Asegúrate de usar 'Categoria'
                             placeholder="Elegir Categoría"
-                            onChange={handleSelectChange("category")} // Usa la clave correcta
+                            onChange={handleSelectChange("Categoria")}
                             value={
-                              options.categories?.find(
+                              options.Categoria?.find(
                                 (option) =>
-                                  option.value === selectedFilters.category
+                                  option.value === selectedFilters.Categoria
                               ) || null
                             }
                           />
@@ -265,16 +259,16 @@ const ExpiredProduct = () => {
                           <Select
                             className="img-select"
                             classNamePrefix="react-select"
-                            options={options.subCategories}
+                            options={options.Subcategoria} // Asegúrate de usar 'Subcategoria'
                             placeholder="Elegir Subcategoría"
-                            onChange={handleSelectChange("subCategory")}
+                            onChange={handleSelectChange("Subcategoria")} // Asegúrate de que este campo también usa 'Subcategoria'
                             value={
-                              options.subCategories?.find(
+                              options.Subcategoria?.find(
                                 (option) =>
-                                  option.value === selectedFilters.subCategory
+                                  option.value === selectedFilters.Subcategoria
                               ) || null
                             }
-                          />
+                          />{" "}
                         </div>
                       </div>
                       <div className="col-lg-2 col-sm-6 col-12">
@@ -283,13 +277,13 @@ const ExpiredProduct = () => {
                           <Select
                             className="img-select"
                             classNamePrefix="react-select"
-                            options={options.brands}
-                            placeholder="Elegir Marca"
-                            onChange={handleSelectChange("brand")}
+                            options={options.Unidad}
+                            placeholder="Elegir Unidad"
+                            onChange={handleSelectChange("Unidad")}
                             value={
-                              options.brands?.find(
+                              options.Unidad?.find(
                                 (option) =>
-                                  option.value === selectedFilters.brand
+                                  option.value === selectedFilters.Unidad
                               ) || null
                             }
                           />
@@ -301,13 +295,13 @@ const ExpiredProduct = () => {
                           <Select
                             className="img-select"
                             classNamePrefix="react-select"
-                            options={options.prices}
+                            options={options.precio_compra}
                             placeholder="Elegir Precio"
-                            onChange={handleSelectChange("price")}
+                            onChange={handleSelectChange("precio_compra")}
                             value={
-                              options.prices?.find(
+                              options.precio_compra?.find(
                                 (option) =>
-                                  option.value === selectedFilters.price
+                                  option.value === selectedFilters.precio_compra
                               ) || null
                             }
                           />
@@ -357,7 +351,6 @@ const ExpiredProduct = () => {
       </div>
       <AddInventory />
     </div>
-
   );
 };
 

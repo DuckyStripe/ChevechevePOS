@@ -3,11 +3,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import Select from "react-select";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
+import ImageWithGenericUrlCheve from "../../core/img/imagewithURLCheve";
 import { all_routes } from "../../Router/all_routes";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import Table from "../../core/pagination/datatable";
 import { setToogleHeader } from "../../core/redux/action";
-import { fetchProducts, fetchOptions } from "../../Data/Inventario/products"; // Importa la función del mock
+import { fetchProducts } from "../../Data/Inventario/products"; // Importa la función del mock
 import withReactContent from "sweetalert2-react-content";
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
@@ -23,7 +24,7 @@ import {
   PlusCircle,
   RotateCcw,
   StopCircle,
-  Trash2
+  Trash2,
 } from "feather-icons-react/build/IconComponents";
 
 const ProductList = () => {
@@ -31,33 +32,28 @@ const ProductList = () => {
   const [searchValue, setSearchValue] = useState(""); // Estado para el término de búsqueda
   const [filteredData, setFilteredData] = useState([]); // Para almacenar datos filtrados
   const [options, setOptions] = useState({
-    products: [],
-    categories: [],
+    Categoria: [],
+    Subcategoria: [],
     subCategories: [],
-    brands: [],
-    prices: []
+    Unidad: [],
+    precio_compra: [],
   });
-  
+
   const [selectedFilters, setSelectedFilters] = useState({
-    product: null,
-    category: null,
-    subCategory: null,
-    brand: null,
-    price: null
+    Categoria: null,
+    Subcategoria: null,
+    subCategories: null,
+    Unidad: null,
+    precio_compra: null,
   });
 
   useEffect(() => {
     const loadProducts = async () => {
       const products = await fetchProducts();
-      setDataSource(products);
-      setFilteredData(products);
+      setOptions(products.options);
+      setDataSource(products.data);
+      setFilteredData(products.data);
     };
-    const loadOptions = async () => {
-      const data = await fetchOptions();
-      setOptions(data);
-    };
-
-    loadOptions();
     loadProducts();
   }, []);
 
@@ -66,83 +62,109 @@ const ProductList = () => {
     setSearchValue(value);
 
     // Filtrar los productos en base al término de búsqueda
-    const filtered = dataSource.filter((product) =>
-      product.product.toLowerCase().includes(value.toLowerCase())
+    const filtered = dataSource.filter((nombre_producto) =>
+      nombre_producto.nombre_producto
+        .toLowerCase()
+        .includes(value.toLowerCase())
     );
     setFilteredData(filtered);
   };
   const handleSelectChange = (field) => (selectedOption) => {
     setSelectedFilters((prevFilters) => ({
       ...prevFilters,
-      [field]: selectedOption ? selectedOption.value : null
+      [field]: selectedOption ? selectedOption.value : null,
     }));
   };
   const handleSearch = () => {
-    console.log("dataSource:", dataSource);
     // Filtro de productos según los filtros seleccionados
-    const filteredProducts = dataSource.filter((product) => {
+    const filteredProducts = dataSource.filter((nombre_producto) => {
       return (
-        (!selectedFilters.category ||
-          product.category.toLowerCase() ===
-            selectedFilters.category.toLowerCase()) &&
-        (!selectedFilters.subCategory ||
-          (product.subCategory &&
-            product.subCategory.toLowerCase() ===
-              selectedFilters.subCategory.toLowerCase())) &&
-        (!selectedFilters.brand ||
-          product.brand.toLowerCase() ===
-            selectedFilters.brand.toLowerCase()) &&
-        (!selectedFilters.price || product.price === selectedFilters.price)
+        (!selectedFilters.Categoria ||
+          nombre_producto.Categoria.toLowerCase() ===
+            selectedFilters.Categoria.toLowerCase()) &&
+        (!selectedFilters.Subcategoria ||
+          (nombre_producto.Subcategoria &&
+            nombre_producto.Subcategoria.toLowerCase() ===
+              selectedFilters.Subcategoria.toLowerCase())) &&
+        (!selectedFilters.Unidad ||
+          nombre_producto.Unidad.toLowerCase() ===
+            selectedFilters.Unidad.toLowerCase()) &&
+        (!selectedFilters.precio_compra ||
+          nombre_producto.precio_compra === selectedFilters.precio_compra)
       );
     });
 
     // Actualiza el estado con los productos filtrados
     setFilteredData(filteredProducts);
-    console.log("Filtered Products:", filteredProducts);
   };
 
   const handlePdfDownload = () => {
     const columns = [
       { header: "ID", dataKey: "id" },
-      { header: "Producto", dataKey: "product" },
-      { header: "Categoria", dataKey: "category" },
-      { header: "SubCategoria", dataKey: "brand" },
-      { header: "Precio", dataKey: "price" },
-      { header: "Catidad", dataKey: "qty" },
-      { header: "Creeado por", dataKey: "createdby" }
+      { header: "Producto", dataKey: "nombre_producto" },
+      { header: "Categoría", dataKey: "Categoria" },
+      { header: "Subcategoría", dataKey: "Subcategoria" },
+      { header: "Unidad", dataKey: "Unidad" },
+      { header: "Precio de Compra", dataKey: "precio_compra" },
+      { header: "Precio de Venta", dataKey: "precio_venta" },
+      { header: "Cantidad", dataKey: "cantidad" },
+      { header: "Cantidad Mínima", dataKey: "cantidadMinima" },
+      { header: "Creado En", dataKey: "creado_en" },
+      { header: "Nombre del Usuario", dataKey: "nombre_usuario" },
+      { header: "Fecha de Actualización", dataKey: "FechaActualizacion" }
     ];
-  
+
+    // Formatea las fechas a un formato más legible
+    const formatDateString = (dateString) => {
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      return new Date(dateString).toLocaleDateString(undefined, options);
+    };
+
+    // Ajusta el cuerpo de los datos, formatea las fechas
+    const preparedData = dataSource.map(item => ({
+      ...item,
+      creado_en: formatDateString(item.creado_en),
+      FechaActualizacion: formatDateString(item.FechaActualizacion)
+    }));
+
     // Obtiene la fecha actual para incluir en el nombre del archivo
     const today = new Date();
     const formattedDate = today.toISOString().slice(0, 10); // yyyy-mm-dd
-  
-    // Crea un nuevo documento PDF
-    const doc = new jsPDF();
-    
+
+    // Crea un nuevo documento PDF con orientación "landscape"
+    const doc = new jsPDF('landscape');
+
     // Usa autotable para agregar la tabla al documento
     doc.autoTable({
       columns,
-      body: dataSource, // Usa tus datos del mockup
+      body: preparedData, // Usa el cuerpo de datos preparados
       styles: { halign: 'center' }, // Opcional: centrar el contenido
       headStyles: { fillColor: [233, 30, 99] }, // Opcional: color de la cabecera
     });
-  
+
     // Guarda el PDF con el nombre que incluye la fecha
     const fileName = `Inventario_${formattedDate}.pdf`;
     doc.save(fileName);
   };
 
+
   const handleExcelExport = () => {
     // Define las columnas que quieres usar en el archivo Excel
     const columns = [
-      { title: "Producto", dataIndex: "product" },
-      { title: "Categoria", dataIndex: "category" },
-      { title: "SubCategoria", dataIndex: "brand" },
-      { title: "Precio", dataIndex: "price" },
-      { title: "Unidades", dataIndex: "unit" },
-      { title: "Catidad", dataIndex: "qty" },
-      { title: "Creeado por", dataIndex: "createdby" }
+      { title: "ID", dataIndex: "id" },
+      { title: "Producto", dataIndex: "nombre_producto" },
+      { title: "Categoría", dataIndex: "Categoria" },
+      { title: "Subcategoría", dataIndex: "Subcategoria" },
+      { title: "Unidad", dataIndex: "Unidad" },
+      { title: "Precio de Compra", dataIndex: "precio_compra" },
+      { title: "Precio de Venta", dataIndex: "precio_venta" },
+      { title: "Cantidad", dataIndex: "cantidad" },
+      { title: "Cantidad Mínima", dataIndex: "cantidadMinima" },
+      { title: "Creado En", dataIndex: "creado_en" },
+      { title: "Nombre del Usuario", dataIndex: "nombre_usuario" },
+      { title: "Fecha de Actualización", dataIndex: "FechaActualizacion" }
     ];
+
 
     // Extrae las filas de datos basadas en dataSource
     const data = dataSource.map((item) =>
@@ -171,7 +193,6 @@ const ProductList = () => {
 
   const handlePrint = () => {
     window.print();
-    console.log("Contenido impreso");
   };
 
   const dispatch = useDispatch();
@@ -187,55 +208,57 @@ const ProductList = () => {
   const columns = [
     {
       title: "Producto",
-      dataIndex: "product",
+      dataIndex: "nombre_producto",
       render: (text, record) => (
         <span className="productimgname">
-          <ImageWithBasePath
+          <ImageWithGenericUrlCheve
             alt=""
-            src={record.productImage}
+            src={record.imagen_producto}
             width={50} // Establece el ancho en píxeles
             height={50} // Establece el alto en píxeles
           />
           <p>{text}</p>
         </span>
       ),
-      sorter: (a, b) => a.product.length - b.product.length
+      sorter: (a, b) => a.nombre_producto.length - b.nombre_producto.length,
     },
     {
       title: "Categoria",
-      dataIndex: "category",
-      sorter: (a, b) => a.category.length - b.category.length
+      dataIndex: "Categoria",
+      sorter: (a, b) => a.Categoria.length - b.Categoria.length,
     },
     {
       title: "SubCategoria",
-      dataIndex: "brand",
-      sorter: (a, b) => a.brand.length - b.brand.length
+      dataIndex: "Subcategoria",
+      sorter: (a, b) => a.Subcategoria.length - b.Subcategoria.length,
     },
     {
       title: "Precio",
-      dataIndex: "price",
+      dataIndex: "precio_compra",
       sorter: (a, b) =>
-        a.price.localeCompare(b.price, undefined, { numeric: true })
+        a.precio_compra.localeCompare(b.precio_compra, undefined, {
+          numeric: true,
+        }),
     },
     {
       title: "Unidades",
-      dataIndex: "unit",
-      sorter: (a, b) => a.unit - b.unit
+      dataIndex: "Unidad",
+      sorter: (a, b) => a.Unidad - b.Unidad,
     },
     {
       title: "Catidad",
-      dataIndex: "qty",
-      sorter: (a, b) => a.qty - b.qty
+      dataIndex: "cantidad",
+      sorter: (a, b) => a.cantidad - b.cantidad,
     },
     {
       title: "Creeado por",
-      dataIndex: "createdby",
+      dataIndex: "nombre_usuario",
       render: (text) => (
         <span className="userimgname">
           <p>{text}</p>
         </span>
       ),
-      sorter: (a, b) => a.createdby.length - b.createdby.length
+      sorter: (a, b) => a.nombre_usuario.length - b.nombre_usuario.length,
     },
     {
       title: "Action",
@@ -243,7 +266,10 @@ const ProductList = () => {
       render: (text, record) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link className="me-2 p-2" to={`${route.editproduct}?id=${record.id}`}>
+            <Link
+              className="me-2 p-2"
+              to={`${route.editproduct}?id=${record.id}`}
+            >
               <Edit className="feather-edit" />
             </Link>
             <Link
@@ -255,8 +281,8 @@ const ProductList = () => {
             </Link>
           </div>
         </div>
-      )
-    }
+      ),
+    },
   ];
   const MySwal = withReactContent(Swal);
 
@@ -266,20 +292,19 @@ const ProductList = () => {
       text: "Esta accion no se puede revertir",
       showCancelButton: true,
       confirmButtonColor: "#00ff00",
-      confirmButtonText: "Si, Borralo",
+      confirmButtonText: `Si, Borralo ${id}`,
       cancelButtonColor: "#ff0000",
-      cancelButtonText: "Cancelar"
+      cancelButtonText: "Cancelar",
     }).then((result) => {
       if (result.isConfirmed) {
-        console.log(id)
         MySwal.fire({
           title: "Deleted!",
           text: "Your file has been deleted.",
           className: "btn btn-success",
           confirmButtonText: "OK",
           customClass: {
-            confirmButton: "btn btn-success"
-          }
+            confirmButton: "btn btn-success",
+          },
         });
       } else {
         MySwal.close();
@@ -287,15 +312,14 @@ const ProductList = () => {
     });
   };
   const resetFilters = () => {
-    setSearchValue(""); // Limpia el campo de búsqueda
+    setSearchValue("");
     setSelectedFilters({
-      product: null,
-      category: null,
-      subCategory: null,
-      brand: null,
-      price: null
+      Categoria: null,
+      Subcategoria: null,
+      Unidad: null,
+      precio_compra: null
     });
-    setFilteredData(dataSource); // Restaura la lista original de productos
+    setFilteredData(dataSource);
   };
 
   const renderTooltip = (props) => (
@@ -445,13 +469,13 @@ const ProductList = () => {
                           <Select
                             className="img-select"
                             classNamePrefix="react-select"
-                            options={options.categories} // Asegúrate de usar 'categories', no 'category'
+                            options={options.Categoria} // Asegúrate de usar 'Categoria'
                             placeholder="Elegir Categoría"
-                            onChange={handleSelectChange("category")} // Usa la clave correcta
+                            onChange={handleSelectChange("Categoria")}
                             value={
-                              options.categories?.find(
+                              options.Categoria?.find(
                                 (option) =>
-                                  option.value === selectedFilters.category
+                                  option.value === selectedFilters.Categoria
                               ) || null
                             }
                           />
@@ -463,13 +487,13 @@ const ProductList = () => {
                           <Select
                             className="img-select"
                             classNamePrefix="react-select"
-                            options={options.subCategories}
+                            options={options.Subcategoria} // Asegúrate de usar 'Subcategoria'
                             placeholder="Elegir Subcategoría"
-                            onChange={handleSelectChange("subCategory")}
+                            onChange={handleSelectChange("Subcategoria")} // Asegúrate de que este campo también usa 'Subcategoria'
                             value={
-                              options.subCategories?.find(
+                              options.Subcategoria?.find(
                                 (option) =>
-                                  option.value === selectedFilters.subCategory
+                                  option.value === selectedFilters.Subcategoria
                               ) || null
                             }
                           />
@@ -481,13 +505,13 @@ const ProductList = () => {
                           <Select
                             className="img-select"
                             classNamePrefix="react-select"
-                            options={options.brands}
-                            placeholder="Elegir Marca"
-                            onChange={handleSelectChange("brand")}
+                            options={options.Unidad}
+                            placeholder="Elegir Unidad"
+                            onChange={handleSelectChange("Unidad")}
                             value={
-                              options.brands?.find(
+                              options.Unidad?.find(
                                 (option) =>
-                                  option.value === selectedFilters.brand
+                                  option.value === selectedFilters.Unidad
                               ) || null
                             }
                           />
@@ -499,13 +523,13 @@ const ProductList = () => {
                           <Select
                             className="img-select"
                             classNamePrefix="react-select"
-                            options={options.prices}
+                            options={options.precio_compra}
                             placeholder="Elegir Precio"
-                            onChange={handleSelectChange("price")}
+                            onChange={handleSelectChange("precio_compra")}
                             value={
-                              options.prices?.find(
+                              options.precio_compra?.find(
                                 (option) =>
-                                  option.value === selectedFilters.price
+                                  option.value === selectedFilters.precio_compra
                               ) || null
                             }
                           />

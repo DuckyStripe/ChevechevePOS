@@ -5,7 +5,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 const EditRole = ({ RolData }) => {
   const [formErrors, setFormErrors] = useState({});
-  const [idRolstate, setidRolstate] = useState("");
+  const [, setidRolstate] = useState("");//idRolstate
   const [NombreRol, setNombreRol] = useState("");
   const [formData, setFormData] = useState({
     id: "",
@@ -35,7 +35,6 @@ const EditRole = ({ RolData }) => {
     e.preventDefault();
     if (validateForm()) {
       try {
-        console.log("Enviando datos: ", formData, idRolstate);
         toast.success("Rol modificado exitosamente");
 
         resetFormData();

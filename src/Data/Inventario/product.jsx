@@ -14,8 +14,8 @@ const mockProductData = {
 };
 
 export const FecthProduct = async (productId) => {
+  console.log(productId)
     // Mockup de los datos del producto
-    console.log("Product:",productId);
     // Simular espera de una llamada asíncrona
     await new Promise((resolve) => setTimeout(resolve, 500));
 

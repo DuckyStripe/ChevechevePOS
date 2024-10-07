@@ -23,10 +23,22 @@ const SalesReport = () => {
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   useEffect(() => {
     const loadProducts = async () => {
-      const products = await fetchSales();
-      setDataSource(products);
-      setFilteredData(products);
+      // Obtiene la fecha actual
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, "0"); // Asegura que el mes esté en formato 'MM'
+      const day = String(today.getDate()).padStart(2, "0"); // Asegura que el día esté en formato 'DD'
+      const yesterday = String(today.getDate() + 1).padStart(2, "0"); // Asegura que el día esté en formato 'D
+      const currentDate = `${year}-${month}-${day}`;
+      const final = `${year}-${month}-${yesterday}`;
+      console.log("incicial", currentDate, "final", final);
+      // Llama a fetchSales usando la fecha actual
+      const products = await fetchSales(currentDate, final);
+      console.log("Fetchsales", products);
+      setDataSource(products.data);
+      setFilteredData(products.data);
     };
+
     loadProducts();
   }, []);
   const handleDateChange = (date) => {
@@ -39,16 +51,45 @@ const SalesReport = () => {
   const handleDateChange1 = (date) => {
     setSelectedDate1(date);
   };
+  const handleSearchByDate = async () => {
+    if (!selectedDate || !selectedDate1) {
+      alert("Por favor selecciona ambas fechas para realizar la búsqueda.");
+      return;
+    }
+
+    // Formatea las fechas en YYYY-MM-DD
+    const formattedStartDate = selectedDate.format("YYYY-MM-DD");
+    const formattedEndDate = selectedDate1.format("YYYY-MM-DD");
+
+    try {
+      // Llama a fetchSales usando las fechas seleccionadas
+      const products = await fetchSales(formattedStartDate, formattedEndDate);
+      console.log("Fetchsales", products);
+      setDataSource(products.data);
+      setFilteredData(products.data);
+    } catch (error) {
+      console.error("Error fetching sales:", error);
+    }
+  };
   const handleSearchChange = (event) => {
-    const value = event.target.value;
+    const value = event.target.value.toLowerCase();
     setSearchValue(value);
 
-    // Filtrar los productos en base al término de búsqueda
-    const filtered = dataSource.filter((product) =>
-      product.product.toLowerCase().includes(value.toLowerCase())
-    );
+    // Filtrar los productos en base al término de búsqueda, cubriendo todas las columnas especificadas
+    const filtered = dataSource.filter((product) => {
+      return (
+        product.ticket.toString().includes(value) || // Conversión a cadena en caso de ser numérico
+        product.fecha.toLowerCase().includes(value) || // Si fecha es una cadena
+        product.subtotal.toLowerCase().includes(value) || // Si subtotal es una cadena
+        product.impuesto.toLowerCase().includes(value) || // Si impuesto es una cadena
+        product.total.toLowerCase().includes(value) || // Si total es una cadena
+        product.realizado_por.toLowerCase().includes(value)
+      );
+    });
+
     setFilteredData(filtered);
   };
+
 
   const handlePdfDownload = () => {
     const columns = [
@@ -57,7 +98,7 @@ const SalesReport = () => {
       { header: "Cantidad", dataKey: "qty" },
       { header: "Precio Unitario", dataKey: "price" },
       { header: "Total de la Venta", dataKey: "total" },
-      { header: "Vendedor Responsable", dataKey: "createdby" }
+      { header: "Vendedor Responsable", dataKey: "createdby" },
     ];
 
     // Obtiene la fecha actual para incluir en el nombre del archivo
@@ -72,7 +113,7 @@ const SalesReport = () => {
       columns,
       body: dataSource, // Usa tus datos del mockup
       styles: { halign: "center" }, // Opcional: centrar el contenido
-      headStyles: { fillColor: [233, 30, 99] } // Opcional: color de la cabecera
+      headStyles: { fillColor: [233, 30, 99] }, // Opcional: color de la cabecera
     });
 
     // Guarda el PDF con el nombre que incluye la fecha
@@ -88,7 +129,7 @@ const SalesReport = () => {
       { title: "Cantidad", dataIndex: "qty" },
       { title: "Precio Unitario", dataIndex: "price" },
       { title: "Total de la Venta", dataIndex: "total" },
-      { title: "Vendedor Responsable", dataIndex: "createdby" }
+      { title: "Vendedor Responsable", dataIndex: "createdby" },
     ];
 
     // Extrae las filas de datos basadas en dataSource
@@ -117,7 +158,6 @@ const SalesReport = () => {
 
   const handlePrint = () => {
     window.print();
-    console.log("Contenido impreso");
   };
 
   const dispatch = useDispatch();
@@ -126,42 +166,44 @@ const SalesReport = () => {
     {
       title: "# Ticket",
       dataIndex: "ticket",
-      sorter: (a, b) => a.product.length - b.product.length
+      sorter: (a, b) => a.product.length - b.product.length,
     },
     {
       title: "Fecha de Venta",
-      dataIndex: "datesale",
-      sorter: (a, b) => new Date(a.createdon) - new Date(b.createdon)
+      dataIndex: "fecha",
+      sorter: (a, b) => new Date(a.fecha) - new Date(b.fecha),
     },
     {
-      title: "Cantidad Vendida",
-      dataIndex: "qty",
-      sorter: (a, b) => a.qty - b.qty
-    },
-    {
-      title: "Precio Unitario",
-      dataIndex: "price",
+      title: "Subtotal",
+      dataIndex: "subtotal",
       sorter: (a, b) =>
-        parseFloat(a.price.replace("$", "")) -
-        parseFloat(b.price.replace("$", ""))
+        parseFloat(a.subtotal.replace("$", "")) -
+        parseFloat(b.subtotal.replace("$", "")),
+    },
+    {
+      title: "Impuesto",
+      dataIndex: "impuesto",
+      sorter: (a, b) =>
+        parseFloat(a.impuesto.replace("$", "")) -
+        parseFloat(b.impuesto.replace("$", "")),
     },
     {
       title: "Total de la Venta",
       render: (record) => {
-        const total = parseFloat(record.price.replace("$", "")) * record.qty;
+        const total = parseFloat(record.total.replace("$", ""));
         return `$${total.toFixed(2)}`;
-      }
+      },
     },
     {
       title: "Vendedor Responsable",
-      dataIndex: "createdby",
-      sorter: (a, b) => a.createdby.length - b.createdby.length
+      dataIndex: "realizado_por",
+      sorter: (a, b) => a.realizado_por.length - b.realizado_por.length,
     },
     {
       title: "Actions",
       dataIndex: "actions",
       key: "actions",
-      render: (_,record) => (
+      render: (_, record) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
             {/* Asegúrate de usar data-bs-target con el id correcto */}
@@ -170,14 +212,14 @@ const SalesReport = () => {
               to="#"
               data-bs-toggle="modal"
               data-bs-target="#invoice_details" // Cambiar a coincide con el id del modal
-              onClick={() => setSelectedTicketId(record.ticket)} // Aquí estableces el ID
+              onClick={() => setSelectedTicketId(record.venta_id)} // Aquí estableces el ID
             >
               <i data-feather="eye" className="feather-eye"></i>
             </Link>
           </div>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   const renderTooltip = (props) => (
@@ -305,7 +347,10 @@ const SalesReport = () => {
                 </div>
                 <div className="col-lg-2 col-sm-12 col-12">
                   <div className="input-blocks">
-                    <Link className="btn btn-filters ms-auto d-flex align-items-center justify-content-center">
+                    <Link
+                      className="btn btn-filters ms-auto d-flex align-items-center justify-content-center"
+                      onClick={handleSearchByDate}
+                    >
                       <i data-feather="search" className="feather-search" />{" "}
                       Buscar
                     </Link>
@@ -320,7 +365,7 @@ const SalesReport = () => {
         </div>
         {/* /Product list */}
       </div>
-      <ViewSale ticketId={selectedTicketId}  />
+      <ViewSale ticketId={selectedTicketId} />
     </div>
   );
 };

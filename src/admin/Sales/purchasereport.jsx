@@ -113,7 +113,6 @@ const PurchaseOrderReport = () => {
 
   const handlePrint = () => {
     window.print();
-    console.log("Contenido impreso");
   };
   const handleSearchChange = (event) => {
     const value = event.target.value;

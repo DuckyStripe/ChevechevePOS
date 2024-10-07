@@ -1,28 +1,29 @@
-const mockLogin = {
-    success: true,
-    message: "Autenticación exitosa",
-    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZmlyc3ROYW1lIjoiTHVpcyIsImxhc3ROYW1lIjoiQ2FuY2hvbGEiLCJyb2xlIjoiU3VwZXIgQWRtaW4iLCJpYXQiOjE3Mjc3MzY3MDR9.v7tZypqm1S-hLZK3Z35_E3fMPVPhEjf0M0PMpMFON1M",
-    user: {
-      id: 1,
-      firstName: "Luis",
-      lastName: "Canchola",
-      role: "Super Admin"
-    }
+import axios from 'axios';
+import FormData from 'form-data';
+import {encriptarContrasena} from '../Data/DataEncrypt';
+
+export const loginSimulation = async (username, password) => {
+  const { contrasena_encriptada } = encriptarContrasena(password);
+  const user_encriptado  = encriptarContrasena(username);
+  let data = new FormData();
+  data.append('usuario', user_encriptado.contrasena_encriptada);
+  data.append('contrasena', contrasena_encriptada);
+
+  const config = {
+    method: 'post',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/auth/login.php',
+    data: data,
   };
-  
-  const mockLoginError = {
-    success: false,
-    message: "Credenciales inválidas"
-  };
-  
-  export const loginSimulation = async (username, password) => {
-    // Simula una espera por respuesta del servidor
-    await new Promise((r) => setTimeout(r, 500)); // Simula retardo de 500ms
-  
-    if (username === "admin" && password === "password") {
-      return mockLogin;
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      return { success: true, data: response.data };
     } else {
-      return mockLoginError;
+      return { success: false, message: response.data.message };
     }
-  };
-  
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};

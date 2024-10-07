@@ -38,7 +38,6 @@ const ProfitLoss = () => {
         setSelectedYear(latestYear);
 
         const data = await fetchProfitsYear(latestYear.value);
-        console.log("Datos Año:", data);
         setFetchedData(data);
 
         const months = await fetchProfitsMonthsAvailable(latestYear.value);
@@ -53,7 +52,6 @@ const ProfitLoss = () => {
 
     // Resetear el mes seleccionado y los datos
     setSelectedMonth(null);
-    console.log("Año Seleccionado:", selectedOption.value);
 
     const year = selectedOption.value;
     setSelectedYear(selectedOption);
@@ -64,31 +62,21 @@ const ProfitLoss = () => {
 
     // Recarga los datos del año y reinicia la tabla
     const data = await fetchProfitsYear(year);
-    console.log("Datos Año:", data);
     setFetchedData(data);
   };
 
   const handleMonthChange = async (selectedOption) => {
     if (!selectedOption) return;
 
-    console.log(
-      "año",
-      selectedYear ? selectedYear.value : "N/A",
-      "mes",
-      selectedOption.value
-    );
 
     setSelectedMonth(selectedOption);
 
     // Utiliza directamente el valor de selectedOption
     if (selectedYear && selectedOption) {
-      console.log(selectedYear, selectedOption);
-      console.log("entro al if");
       const data = await fetchProfitsMonths(
         selectedYear.value,
         selectedOption.value
       );
-      console.log("Datos Meses:", data);
       setFetchedData(data);
     }
   };
@@ -98,19 +86,19 @@ const ProfitLoss = () => {
 
   const handlePdfDownload = () => {
     const doc = new jsPDF({ orientation: "landscape" }); // Establecer la orientación a landscape
-  
+
     // Añade título y metadatos
     doc.setFontSize(16);
     doc.text("Reporte de Ganancias y Pérdidas", 20, 10);
     doc.setFontSize(10);
     doc.text("Generado desde la aplicación Ganancias y Pérdidas", 20, 15);
-  
+
     // Define las columnas basadas en la estructura de la tabla
     const columns = [
       { header: "Categoría", dataKey: "category" },
       ...fetchedData.months.map((month) => ({ header: month, dataKey: month }))
     ];
-  
+
     // Prepara los datos alineados con la tabla
     const incomeData = fetchedData.finances.income.map((income) => {
       const row = { category: income.category };
@@ -119,13 +107,13 @@ const ProfitLoss = () => {
       });
       return row;
     });
-  
+
     // Añade título para "Entradas"
     doc.setFontSize(14);
     doc.text("Entradas y Salidas", doc.internal.pageSize.getWidth() / 2, 30, {
       align: "center"
     });
-  
+
     // Usa autotable para agregar las tablas de "Entradas" al documento
     doc.autoTable({
       head: [columns.map((col) => col.header)],
@@ -133,24 +121,24 @@ const ProfitLoss = () => {
       startY: 40,
       margin: { top: 20 }
     });
-  
+
     // Guarda el PDF
     const today = new Date();
     const formattedDate = today.toISOString().slice(0, 10); // yyyy-mm-dd
     const fileName = `Reporte_Financiero_${formattedDate}.pdf`;
     doc.save(fileName);
   };
-  
+
   const handleExcelExport = () => {
     // Define encabezados para "Entradas" y "Salidas"
     const headers = ["Categoría", ...fetchedData.months];
-  
+
     // Datos para "Entradas"
     const incomeData = fetchedData.finances.income.map((income) => [
       income.category,
       ...income.values.map((value) => (value !== undefined ? value : 0))
     ]);
-  
+
     // Combina metadatos, título, y datos
     const sheetData = [
       ["Reporte de Ganancias y Pérdidas"],
@@ -160,25 +148,24 @@ const ProfitLoss = () => {
       headers,
       ...incomeData
     ];
-  
+
     // Crea la hoja de cálculo
     const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-  
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Ganancias y Pérdidas");
-  
+
     // Guarda el archivo Excel
     const today = new Date();
     const formattedDate = today.toISOString().slice(0, 10);
     const fileName = `Reporte_Financiero_${formattedDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
-  
+
 
 
   const handlePrint = () => {
     window.print();
-    console.log("Contenido impreso");
   };
 
   const renderTooltip = (props) => (

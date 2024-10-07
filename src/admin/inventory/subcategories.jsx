@@ -3,7 +3,7 @@ import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
 import {
-  
+
   Filter,
   PlusCircle
 } from "feather-icons-react/build/IconComponents";
@@ -42,14 +42,12 @@ const SubCategories = () => {
   const handleSearchChange = (event) => {
     const value = event.target.value.toLowerCase();
     setSearchValue(value);
-    console.log(value);
-    
+
     // Filtramos las categorías en base al nombre de la categoría actual
     const filtered = dataSource.filter((category) =>
       category.category.toLowerCase().includes(value)
     );
-  
-    console.log(filtered);
+
     setFilteredData(filtered);
   };
 
@@ -76,37 +74,45 @@ const SubCategories = () => {
   const columns = [
     {
       title: "Categoria Padre",
-      dataIndex: "category",
-      sorter: (a, b) => a.category.length - b.category.length,
+      dataIndex: "CategoriaPadre",
+      sorter: (a, b) => a.CategoriaPadre.length - b.CategoriaPadre.length,
     },
     {
       title: "Subcategoria",
-      dataIndex: "subcategory",
-      sorter: (a, b) => a.category.length - b.category.length,
+      dataIndex: "valor",
+      sorter: (a, b) => a.valor.length - b.valor.length,
     },
     {
       title: "Descripcion",
-      dataIndex: "categoryslug",
-      sorter: (a, b) => a.categoryslug.length - b.categoryslug.length,
+      dataIndex: "etiqueta",
+      sorter: (a, b) => a.etiqueta.length - b.etiqueta.length,
+    },
+    {
+      title: "Creador",
+      dataIndex: "UsuarioCreador",
+      sorter: (a, b) => a.UsuarioCreador.length - b.UsuarioCreador.length,
     },
     {
       title: "Fecha Creación",
-      dataIndex: "createdon",
-      sorter: (a, b) => a.createdon.length - b.createdon.length,
+      dataIndex: "fechainsercion",
+      sorter: (a, b) => a.fechainsercion.length - b.fechainsercion.length,
     },
     {
       title: "Estatus",
-      dataIndex: "status",
-      sorter: (a, b) => a.status.length - b.status.length,
-      render: (text) => (
-        <span
-          className={`badge ${
-            text === "Active" ? "badge-linesuccess" : "badge-bgdanger"
-          }`}
-        >
-          {text}
-        </span>
-      ),
+      dataIndex: "estatus",
+      sorter: (a, b) => a.estatus - b.estatus,
+      render: (text) => {
+        // Convertir el estatus a texto legible
+        const statusText = text === 1 ? "Activo" : "Inactivo";
+        // Determinar la clase CSS en función del estatus
+        const badgeClass = text === 1 ? "badge-linesuccess" : "badge-bgdanger";
+
+        return (
+          <span className={`badge ${badgeClass}`}>
+            {statusText}
+          </span>
+        );
+      },
     },
     {
       title: "Acciones",
@@ -146,14 +152,14 @@ const SubCategories = () => {
       { title: "Fecha Creacion", dataIndex: "createdon" },
       { title: "Estatus", dataIndex: "status" }
     ];
-  
+
     // Obtiene la fecha actual para incluir en el nombre del archivo
     const today = new Date();
     const formattedDate = today.toISOString().slice(0, 10); // yyyy-mm-dd
-  
+
     // Crea un nuevo documento PDF
     const doc = new jsPDF();
-    
+
     // Usa autotable para agregar la tabla al documento
     doc.autoTable({
       head: [columns.map(col => col.title)],
@@ -161,7 +167,7 @@ const SubCategories = () => {
       styles: { halign: 'center' },
       headStyles: { fillColor: [233, 30, 99] }
     });
-  
+
     // Guarda el PDF con el nombre que incluye la fecha
     const fileName = `Categorias_${formattedDate}.pdf`;
     doc.save(fileName);
@@ -204,7 +210,6 @@ const SubCategories = () => {
 
   const handlePrint = () => {
     window.print();
-    console.log("Contenido impreso");
   };
 
 

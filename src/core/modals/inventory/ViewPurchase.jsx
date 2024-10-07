@@ -7,13 +7,10 @@ import styled from "styled-components";
 
 const ViewPurchase = ({ ticketId }) => {
   const [saleData, setSaleData] = useState(null);
-  console.log("entro al modal")
   useEffect(() => {
     if (ticketId) {
-      console.log(ticketId);
       const fetchSaleData = async () => {
         const data = await fetchPurchase(ticketId);
-        console.log("Entrando al modal",data); // Añade esto para verificar la estructura de 'data'
         setSaleData(data);
       };
       fetchSaleData();

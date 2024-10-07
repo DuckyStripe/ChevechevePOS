@@ -91,13 +91,11 @@ export const availableMonths = [
 
 // Funciones simuladas para recuperar datos
 export const fetchProfitsYear = async (year) => {
-    console.log(year);
     await new Promise((resolve) => setTimeout(resolve, 500));
     return generateYearlyFinanceData(year);
 };
 
 export const fetchProfitsMonths = async (year,month) => {
-    console.log(`Generating data for ${month}, ${year}`);
     await new Promise((resolve) => setTimeout(resolve, 500));
     return generateMonthlyFinanceData(year, month);
 };
@@ -108,7 +106,7 @@ export const fetchProfitsYears = async () => {
 };
 
 export const fetchProfitsMonthsAvailable = async (year) => {
-    console.log(year);
+    console.log(year)
     await new Promise((resolve) => setTimeout(resolve, 500));
     return availableMonths;
 };

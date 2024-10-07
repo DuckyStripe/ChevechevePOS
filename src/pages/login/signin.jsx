@@ -37,20 +37,17 @@ const Signin = () => {
 
       const response = await loginSimulation(username, password);
 
+
       if (response.success) {
         // Decide el tiempo de expiración de la cookie basado en el estado de "rememberMe"
         const expirationDays = rememberMe ? 7 : 1;
-
         // Almacenar el token en una cookie
-        Cookies.set("authToken", response.token, {
+        Cookies.set("authToken", response.data.token, {
           expires: expirationDays,
           path: "/",
           secure: true,
           sameSite: "Strict"
         });
-
-        console.log("Autenticación exitosa");
-
         // Redirigir al dashboard después del login exitoso
         window.location.href = all_routes.dashboard;
       } else {

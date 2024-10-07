@@ -8,6 +8,7 @@ import { useSelector } from "react-redux";
 import ThemeSettings from "../InitialPage/themeSettings";
 import Error404 from "../pages/errorpages/error404";
 import Loader from "../loader/loader";
+import ProtectedRoute from '../core/auth/protectedroute'
 
 const AllRoutes = () => {
   const data = useSelector((state) => state.toggle_header);
@@ -42,13 +43,12 @@ const AllRoutes = () => {
   return (
     <div>
       <Routes>
-        <Route path="/pos" element={<Pospages />}>
+        <Route path="/pos" element={<ProtectedRoute element={<Pospages />} />}>
           {posRoutes.map((route, id) => (
-            // Asegúrate de que los paths sean relativos, no absolutos
             <Route path={route.path} element={route.element} key={id} />
           ))}
         </Route>
-        <Route path="/" element={<HeaderLayout />}>
+        <Route path="/" element={<ProtectedRoute element={<HeaderLayout/>} />}>
           {publicRoutes.map((route, id) => (
             <Route path={route.path} element={route.element} key={id} />
           ))}

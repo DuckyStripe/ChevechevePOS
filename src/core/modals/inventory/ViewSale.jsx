@@ -11,10 +11,9 @@ const ViewSale = ({ ticketId }) => {
 
   useEffect(() => {
     if (ticketId) {
-      console.log(ticketId);
       const fetchSaleData = async () => {
         const data = await fetchSale(ticketId);
-        console.log(data); // Añade esto para verificar la estructura de 'data'
+        console.log("DataTicket", data);
         setSaleData(data);
       };
       fetchSaleData();
@@ -28,10 +27,10 @@ const ViewSale = ({ ticketId }) => {
   `;
   const handlePrint = () => {
     const modalContent = document.getElementById("invoice_details");
-  
+
     // Abre una nueva ventana para imprimir
     const printWindow = window.open("", "", "width=300,height=600"); // 300px es aproximadamente 80mm
-  
+
     // Escribe la estructura HTML y el contenido del modal en la nueva ventana
     printWindow.document.write(`
       <html>
@@ -67,10 +66,10 @@ const ViewSale = ({ ticketId }) => {
         </body>
       </html>
     `);
-  
+
     // Completa la carga y prepara la ventana para imprimir
     printWindow.document.close();
-  
+
     // Espera un momento antes de imprimir
     setTimeout(() => {
       printWindow.focus();
@@ -78,7 +77,7 @@ const ViewSale = ({ ticketId }) => {
       printWindow.close();
     }, 500);
   };
-  
+
   const ModalBody = styled.div`
     padding: 20px;
     font-family: Arial, sans-serif;
@@ -221,7 +220,7 @@ const ViewSale = ({ ticketId }) => {
                 <div className="col-sm-12 col-md-6">
                   <div className="invoice-user-name">
                     <span>Nombre Cliente: </span>
-                    <span>{saleData?.customerName}</span>
+                    <span>{saleData?.cliente_nombre}</span>
                   </div>
                   <div className="invoice-user-name">
                     <span># ticket: </span>
@@ -230,8 +229,8 @@ const ViewSale = ({ ticketId }) => {
                 </div>
                 <div className="col-sm-12 col-md-6">
                   <div className="invoice-user-name">
-                    <span># Cliente: </span>
-                    <span>{saleData?.customerId}</span>
+                    <span>Vendedor: </span>
+                    <span>{saleData?.Vendedor}</span>
                   </div>
                   <div className="invoice-user-name">
                     <span>Fecha: </span>
@@ -267,33 +266,33 @@ const ViewSale = ({ ticketId }) => {
                         <tr>
                           <td>Sub Total :</td>
                           <td className="text-end">
-                            ${saleData?.subTotal.toFixed(2)}
+                            ${saleData?.subtotal}
                           </td>
                         </tr>
                         <tr>
                           <td>IVA :</td>
                           <td className="text-end">
-                            ${saleData?.tax.toFixed(2)}
+                            ${saleData?.impuesto}
                           </td>
                         </tr>
                         <tr>
                           <td>Total :</td>
                           <td className="text-end">
-                            ${saleData?.totalBill.toFixed(2)}
+                            ${saleData?.total  }
                           </td>
                         </tr>
-                        <tr>
+                        {/* <tr>
                           <td>Cambio :</td>
                           <td className="text-end">
-                            ${saleData?.due.toFixed(2)}
+                            ${saleData?.due}
                           </td>
-                        </tr>
-                        <tr>
+                        </tr> */}
+                        {/* <tr>
                           <td>Total Payable :</td>
                           <td className="text-end">
-                            ${saleData?.totalPayable.toFixed(2)}
+                            ${saleData?.totalPayable}
                           </td>
-                        </tr>
+                        </tr> */}
                       </tbody>
                     </Table>
                   </td>

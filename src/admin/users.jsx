@@ -33,13 +33,13 @@ const Users = () => {
   }, []);
   const handlePdfDownload = () => {
     const doc = new jsPDF({ orientation: "landscape" });
-  
+
     // Añadir título y metadatos
     doc.setFontSize(16);
     doc.text("Lista de Usuarios", 20, 10);
     doc.setFontSize(10);
     doc.text("Generado desde la aplicación de Gestión de Usuarios", 20, 15);
-  
+
     // Define las columnas basadas en la estructura de la tabla
     const columns = [
       { header: "Nombre", dataKey: "username" },
@@ -50,7 +50,7 @@ const Users = () => {
       { header: "Fecha Creación", dataKey: "createdon" },
       { header: "Estatus", dataKey: "status" }
     ];
-  
+
     // Usa autotable para agregar los datos de los usuarios al documento
     doc.autoTable({
       head: [columns.map((col) => col.header)],
@@ -72,18 +72,18 @@ const Users = () => {
       },
       theme: 'grid'
     });
-  
+
     // Guarda el PDF
     const today = new Date();
     const formattedDate = today.toISOString().slice(0, 10);
     const fileName = `Lista_Usuarios_${formattedDate}.pdf`;
     doc.save(fileName);
   };
-  
+
   const handleExcelExport = () => {
     // Define encabezados para la hoja de cálculo
     const headers = ["Nombre", "Usuario", "Teléfono", "Correo", "Rol", "Fecha Creación", "Estatus"];
-  
+
     // Prepara los datos para la hoja de cálculo
     const usersData = dataSource.map(user => [
       user.username,
@@ -94,7 +94,7 @@ const Users = () => {
       user.createdon,
       user.status
     ]);
-  
+
     // Combina encabezados y datos
     const sheetData = [
       ["Lista de Usuarios"],
@@ -103,24 +103,23 @@ const Users = () => {
       headers,
       ...usersData
     ];
-  
+
     // Crea la hoja de cálculo
     const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
-  
+
     // Guarda el archivo Excel
     const today = new Date();
     const formattedDate = today.toISOString().slice(0, 10);
     const fileName = `Lista_Usuarios_${formattedDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
-  
+
 
 
   const handlePrint = () => {
     window.print();
-    console.log("Contenido impreso");
   };
 
   const columns = [

@@ -69,11 +69,9 @@ const Pos = () => {
 
   const handleCategoryChange = (selectedOption) => {
     setSelectedCategory(selectedOption)
-    console.log("ID Categoria:", selectedOption);
 
     const prouctosbyCategory = async () => {
       const prouctosbyCategory=await fetchProductsByCategory(selectedOption);
-      console.log("Productos",productlist)
       setProductlist(prouctosbyCategory);
     };
     prouctosbyCategory();
@@ -100,8 +98,6 @@ const Pos = () => {
   }
 
   const addToCart = async (item) => {
-    console.log("Cart Items:", cartItems);
-    console.log("Adding item to cart:", cart);
     if (
       !item ||
       !item.id ||
@@ -158,7 +154,6 @@ const Pos = () => {
   const handleIncrement = (id) => {
     setCart((prevCart) => {
       const updatedCart = prevCart.map((item) => {
-        console.log("Items", item.cantidad >= item.Disponibilidad);
         if (item.id === id) {
           if (item.cantidad < item.Disponibilidad) {
             return {

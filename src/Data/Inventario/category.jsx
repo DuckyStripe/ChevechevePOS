@@ -1,43 +1,101 @@
 // products.js
-export const lowstock = [
-  {
-    key: "1",
-    category: "Electronics",
-    categoryslug: "electronics",
-    createdon: "2024-01-12",
-    status: "Active"
-  }
-];
-const category = [
-  { value: "Elegir", label: "Elegir" },
-  { value: "Modelo", label: "Modelo" },
-  { value: "Corona", label: "Corona" }
-];
-const subcategory = [
-  { value: "Elegir", label: "Elegir" },
-  { value: "Cuarto", label: "Cuarto" },
-  { value: "Media", label: "Media" },
-  { value: "Mega", label: "Mega" }
-];
-const unidad = [
-  { value: "0", label: "Elije uno" },
-  { value: "Unidad", label: "Unidad/Pieza" },
-  { value: "Paquete", label: "Paquete" }
-];
+import axios from 'axios';
+import Cookies from 'js-cookie';
+
 export const fetchCategory = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return lowstock;
+  const token = Cookies.get('authToken');
+
+  const config = {
+    method: 'get',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getCategoriesTable.php',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+      return  data ;
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 
 export const fetchCategories = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return category;
+  const token = Cookies.get('authToken');
+
+  const config = {
+    method: 'get',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getCategories.php',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+      return  data ;
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 export const fetchSubCategories = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return subcategory;
+  const token = Cookies.get('authToken');
+
+  const config = {
+    method: 'get',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getSubcategories.php',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+      return  data ;
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 export const fetchUnidad = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return unidad;
+  const token = Cookies.get('authToken');
+
+  const config = {
+    method: 'get',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getUnits.php',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+      return  data ;
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };

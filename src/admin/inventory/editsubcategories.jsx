@@ -12,8 +12,12 @@ const EditSubcategories = ({ SubcategoryData }) => {
 
   useEffect(() => {
     const loadInitialData = async () => {
-      const products = await fetchCategories(); // Cargar por defecto los productos con bajo inventario
-      setCategories(products);
+      const categoryData = await fetchCategories();
+      const formattedCategories = categoryData.map((cat) => ({
+        value: cat.id, // Suponiendo que cada categoría tiene un "id"
+        label: cat.valor // Suponiendo que cada categoría tiene un nombre "name"
+      }));
+      setCategories(formattedCategories);
     };
 
     loadInitialData();
@@ -21,23 +25,22 @@ const EditSubcategories = ({ SubcategoryData }) => {
 
   useEffect(() => {
     if (SubcategoryData) {
-      setCategoryName(SubcategoryData.category || "");
-      setSubCategoryName(SubcategoryData.subcategory || "");
-      setDescription(SubcategoryData.categoryslug || ""); // Asegúrate de asignar al campo correcto
-      setStatus(SubcategoryData.status === "Active");
+      const selectedCategory = categories.find(
+        (cat) => cat.label === SubcategoryData.CategoriaPadre
+      );
+      setCategoryName(selectedCategory || null);
+      setSubCategoryName(SubcategoryData.valor || "");
+      setDescription(SubcategoryData.etiqueta || "");
+      setStatus(SubcategoryData.estatus === 1);
     }
-  }, [SubcategoryData]);
+  }, [SubcategoryData, categories]); // Asegúrate de volver a calcular si las categorías cambian
   const handleUpdateCategory = () => {
-    // Aquí manejarías la lógica para actualizar la categoría
-    // Podrías hacer una llamada a una API o actualizar el estado global, según sea el caso
     console.log("Updated Category:", {
-      categoryName,
+      categoryName: categoryName ? categoryName.label : "",
+      subcategoryName,
       description,
-      status: status ? "Active" : "Inactive"
+      status
     });
-
-    // Asegúrate de cerrar el modal después de actualizar los datos, si es apropiado
-    // Por ejemplo, podrías utilizar un método para cerrar el modal de Bootstrap manualmente o vía React
   };
 
   return (
@@ -66,12 +69,11 @@ const EditSubcategories = ({ SubcategoryData }) => {
                     <div className="mb-3">
                       <label className="form-label">Categoria Padre</label>
                       <Select
-                        options={categories}
-                        value={categories.find((c) => c.label === categoryName)}
-                        onChange={(selectedOption) =>
-                          setCategoryName(selectedOption.label)
-                        }
-                      />
+        options={categories}
+        value={categoryName}
+        onChange={(selectedOption) => setCategoryName(selectedOption)}
+        placeholder="Selecciona una categoría"
+      />
                     </div>
                     <div className="mb-3">
                       <label className="form-label">Category Name</label>
@@ -96,12 +98,12 @@ const EditSubcategories = ({ SubcategoryData }) => {
                         <span className="status-label">Status</span>
                         <input
                           type="checkbox"
-                          id="user2"
+                          id="SubcategoryCheck"
                           className="check"
                           checked={status}
                           onChange={(e) => setStatus(e.target.checked)}
                         />
-                        <label htmlFor="user3" className="checktoggle" />
+                        <label htmlFor="SubcategoryCheck" className="checktoggle" />
                       </div>
                     </div>
                     <div className="modal-footer-btn">
@@ -133,10 +135,10 @@ const EditSubcategories = ({ SubcategoryData }) => {
 };
 EditSubcategories.propTypes = {
   SubcategoryData: PropTypes.shape({
-    category: PropTypes.string.isRequired,
-    subcategory: PropTypes.string.isRequired,
-    categoryslug: PropTypes.string.isRequired,
-    status: PropTypes.string.isRequired
+    CategoriaPadre: PropTypes.string.isRequired,
+    valor: PropTypes.string.isRequired,
+    etiqueta: PropTypes.string.isRequired,
+    estatus: PropTypes.number.isRequired
   })
 };
 export default EditSubcategories;

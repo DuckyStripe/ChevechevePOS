@@ -1,40 +1,39 @@
-// products.js
-export const mockProducts = [
-  {
-    id: 1,
-    product: "Media Corona",
-    sku: "SKU-001",  // Puedes generar un SKU aleatorio si es necesario
-    category: "Beer",
-    brand: "Corona",
-    price: "$10.00", // Sustituto estimado, puedes ajustar según necesites
-    unit: 1,
-    qty: 100,
-    createdby: "Admin", // Suponiendo que son creados por Admin
-    productImage: "assets/img/Cheve/mediaCorona.jpeg",
-  }
-];
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
-
-export const fetchProducts = async () => {
-  // Simula un retardo de red con una promesa
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return mockProducts;
-};
 const createOptions = (items, key) => {
   const uniqueItems = [...new Set(items.map(item => item[key]))];
   return uniqueItems.map(item => ({ value: item.toLowerCase(), label: item }));
-}
+};
 
-export const fetchOptions = async () => {
-  // Simula un retardo de red con una promesa
-  await new Promise((resolve) => setTimeout(resolve, 500));
+export const fetchProducts = async () => {
+  const token = Cookies.get('authToken'); // Asegúrate de que esto se llame "authToken" como en tu uso de cookies
 
-  const options = {
-    products: createOptions(mockProducts, 'product'),
-    categories: createOptions(mockProducts, 'category'),
-    brands: createOptions(mockProducts, 'brand'),
-    prices: createOptions(mockProducts, 'price'),
+  const config = {
+    method: 'get',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getProductsInventory.php',
+    headers: {
+      'Authorization': `Bearer ${token}` // Añade el token como Bearer token en los headers
+    }
   };
 
-  return options;
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.products;
+      const options = {
+        Categoria: createOptions(data, 'Categoria'),
+        Subcategoria: createOptions(data, 'Subcategoria'),
+        Unidad: createOptions(data, 'Unidad'),
+        precio_compra: createOptions(data, 'precio_compra'),
+      };
+
+      return { data, options };
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
