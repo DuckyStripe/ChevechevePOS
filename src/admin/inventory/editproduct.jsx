@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useLocation , Link } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import Select from "react-select";
 import AddCategory from "../../core/modals/inventory/addcategory";
 // import ImageWithBasePath from "../../core/img/imagewithbasebath";
+import ImageWithGenericUrlCheve from "../../core/img/imagewithURLCheve";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ChevronDown,
@@ -16,18 +18,42 @@ import { useDispatch, useSelector } from "react-redux";
 import { setToogleHeader } from "../../core/redux/action";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { all_routes } from "../../Router/all_routes";
-import {FecthProduct} from "../../Data/Inventario/product"
-const EditProduct = () => {
-  const location = useLocation();
+import {
+  fetchProductsByID,
+  fetchProducts
+} from "../../Data/Inventario/products";
 
+const EditProduct = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [options, setOptions] = useState({
+    Categoria: [],
+    Subcategoria: [],
+    subCategories: [],
+    Unidad: [],
+    precio_compra: []
+  });
   // Función para obtener el ID del producto desde los query params
   const getProductIdFromQuery = () => {
     const params = new URLSearchParams(location.search);
-    return params.get('id');
+    return params.get("id");
   };
 
   const productId = getProductIdFromQuery();
-  const [productData, setProductData] = useState({});
+  const [productData, setProductData] = useState({
+    id: [],
+    nombre_producto: [],
+    Categoria: [],
+    Subcategoria: [],
+    Unidad: [],
+    precio_compra: [],
+    precio_venta: [],
+    cantidad: [],
+    cantidadMinima: [],
+    imagen_producto: [],
+    creado_en: [],
+    FechaActualizacion: []
+  });
   const [previewImage, setPreviewImage] = useState(true);
   const route = all_routes;
   const dispatch = useDispatch();
@@ -43,14 +69,43 @@ const EditProduct = () => {
     }
   };
   useEffect(() => {
-    // Simulación de una llamada para obtener datos del producto por su ID
     const loadInitialData = async () => {
-    const product=await FecthProduct(productId);
-    setProductData(product);
-    setPreviewImage(product.image);
-    }
+      if (!productId) {
+        navigate("/product-list");
+        return;
+      }
+
+      const Options = await fetchProducts();
+      if (Options && Options.options) {
+        setOptions(Options.options);
+
+        // Aquí puedes establecer un valor inicial por defecto si es necesario
+        setProductData((existingProductData) => ({
+          ...existingProductData,
+          // Asegúrate de tener valores que existan en tus options
+          // En este caso, tomando el primer valor como por defecto
+          Unidad:
+            Options.options.Unidad[0]?.value || existingProductData.Unidad,
+          Categoria:
+            Options.options.Categoria[0]?.value ||
+            existingProductData.Categoria,
+          Subcategoria:
+            Options.options.Subcategoria[0]?.value ||
+            existingProductData.Subcategoria
+        }));
+      }
+
+      const Producto = await fetchProductsByID(productId);
+      setProductData((prevData) => ({
+        ...prevData,
+        ...Producto
+      }));
+      setPreviewImage(Producto.imagen_producto);
+    };
+
     loadInitialData();
-  }, [productId]);
+  }, [productId, navigate]);
+
   // Función para eliminar la imagen cargada
   const handleRemoveImage = () => {
     setPreviewImage(null);
@@ -61,22 +116,6 @@ const EditProduct = () => {
       Collapse
     </Tooltip>
   );
-  const category = [
-    { value: "Elegir", label: "Elegir" },
-    { value: "Modelo", label: "Modelo" },
-    { value: "Corona", label: "Corona" }
-  ];
-  const subcategory = [
-    { value: "Elegir", label: "Elegir" },
-    { value: "Cuarto", label: "Cuarto" },
-    { value: "Media", label: "Media" },
-    { value: "Mega", label: "Mega" }
-  ];
-  const unidad = [
-    { value: "0", label: "Elije uno" },
-    { value: "Unidad", label: "Unidad/Pieza" },
-    { value: "Paquete", label: "Paquete" }
-  ];
 
   return (
     <div className="page-wrapper">
@@ -159,11 +198,11 @@ const EditProduct = () => {
                             <input
                               type="text"
                               className="form-control"
-                              value={productData.name || ""}
+                              value={productData.nombre_producto || ""}
                               onChange={(e) =>
                                 setProductData({
                                   ...productData,
-                                  name: e.target.value
+                                  nombre_producto: e.target.value
                                 })
                               }
                             />
@@ -174,15 +213,16 @@ const EditProduct = () => {
                             <label className="form-label">Unidad</label>
                             <Select
                               classNamePrefix="react-select"
-                              options={unidad}
-                              value={unidad.find(
-                                (option) => option.value === productData.unit
+                              options={options.Unidad}
+                              value={options.Unidad.find(
+                                (option) =>
+                                  option.etiqueta == productData.Unidad
                               )}
                               onChange={(selectedOption) =>
-                                setProductData({
-                                  ...productData,
-                                  unit: selectedOption.value
-                                })
+                                setProductData((prevData) => ({
+                                  ...prevData,
+                                  Unidad: selectedOption.label
+                                }))
                               }
                               placeholder="Elegir"
                             />
@@ -194,16 +234,20 @@ const EditProduct = () => {
                             <label className="form-label">Categoria</label>
                             <Select
                               classNamePrefix="react-select"
-                              options={category}
-                              value={category.find(
+                              options={options.Categoria || []} // Manejo seguro
+                              value={(options.Categoria || []).find(
                                 (option) =>
-                                  option.value === productData.category
+                                  option.etiqueta ===
+                                  productData?.options?.Categoria // Manejo seguro
                               )}
                               onChange={(selectedOption) =>
-                                setProductData({
-                                  ...productData,
-                                  category: selectedOption.value
-                                })
+                                setProductData((prevData) => ({
+                                  ...prevData,
+                                  options: {
+                                    ...prevData.options,
+                                    Categoria: selectedOption.label
+                                  }
+                                }))
                               }
                               placeholder="Elegir"
                             />
@@ -216,20 +260,24 @@ const EditProduct = () => {
                             <div className="mb-3 add-product">
                               <label className="form-label">SubCategoria</label>
                               <Select
-                                classNamePrefix="react-select"
-                                options={subcategory}
-                                value={subcategory.find(
-                                  (option) =>
-                                    option.value === productData.subcategory
-                                )}
-                                onChange={(selectedOption) =>
-                                  setProductData({
-                                    ...productData,
-                                    subcategory: selectedOption.value
-                                  })
-                                }
-                                placeholder="Elegir"
-                              />
+                              classNamePrefix="react-select"
+                              options={options.Subcategoria || []} // Manejo seguro
+                              value={(options.Subcategoria || []).find(
+                                (option) =>
+                                  option.etiqueta ===
+                                  productData?.options?.Subcategoria // Manejo seguro
+                              )}
+                              onChange={(selectedOption) =>
+                                setProductData((prevData) => ({
+                                  ...prevData,
+                                  options: {
+                                    ...prevData.options,
+                                    Subcategoria: selectedOption.label
+                                  }
+                                }))
+                              }
+                              placeholder="Elegir"
+                            />
                             </div>
                           </div>
                         </div>
@@ -278,39 +326,39 @@ const EditProduct = () => {
                           aria-labelledby="pills-home-tab"
                         >
                           <div className="row">
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            <div className="col-lg-6 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Precio Costo</label>
                                 <input
                                   type="text"
                                   className="form-control"
-                                  value={productData.price || ""}
+                                  value={productData.precio_compra || ""}
                                   onChange={(e) =>
                                     setProductData({
                                       ...productData,
-                                      price: e.target.value
+                                      precio_compra: e.target.value
                                     })
                                   }
                                 />
                               </div>
                             </div>
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            <div className="col-lg-6 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Precio Venta</label>
                                 <input
                                   type="text"
                                   className="form-control"
-                                  value={productData.salePrice || ""}
+                                  value={productData.precio_venta || ""}
                                   onChange={(e) =>
                                     setProductData({
                                       ...productData,
-                                      salePrice: e.target.value
+                                      precio_venta: e.target.value
                                     })
                                   }
                                 />
                               </div>
                             </div>
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            {/* <div className="col-lg-4 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Precio Mayoreo</label>
                                 <input
@@ -325,36 +373,36 @@ const EditProduct = () => {
                                   }
                                 />
                               </div>
-                            </div>
+                            </div> */}
                           </div>
                           <div className="row">
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            <div className="col-lg-6 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Cantidad Actual </label>
                                 <input
                                   type="text"
                                   className="form-control"
-                                  value={productData.quantity || ""}
+                                  value={productData.cantidad || ""}
                                   onChange={(e) =>
                                     setProductData({
                                       ...productData,
-                                      quantity: e.target.value
+                                      cantidad: e.target.value
                                     })
                                   }
                                 />
                               </div>
                             </div>
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            <div className="col-lg-6 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Cantidad Minima</label>
                                 <input
                                   type="text"
                                   className="form-control"
-                                  value={productData.minQuantity || ""}
+                                  value={productData.cantidadMinima || ""}
                                   onChange={(e) =>
                                     setProductData({
                                       ...productData,
-                                      minQuantity: e.target.value
+                                      cantidadMinima: e.target.value
                                     })
                                   }
                                 />
@@ -413,8 +461,10 @@ const EditProduct = () => {
                                           </div>
                                           {previewImage && (
                                             <div className="phone-img">
-                                              <img
-                                                src={productData.image}
+                                              <ImageWithGenericUrlCheve
+                                                src={
+                                                  productData.imagen_producto
+                                                }
                                                 alt="Vista previa"
                                               />
                                               <Link to="#">
@@ -442,100 +492,7 @@ const EditProduct = () => {
               <div
                 className="accordion-card-one accordion"
                 id="accordionExample4"
-              >
-                {/* <div className="accordion-item">
-                    <div className="accordion-header" id="headingFour">
-                      <div
-                        className="accordion-button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#collapseFour"
-                        aria-controls="collapseFour"
-                      >
-                        <div className="text-editor add-list">
-                          <div className="addproduct-icon list">
-                            <h5>
-                              <List className="add-info" />
-                              <span>Custom Fields</span>
-                            </h5>
-                            <Link to="#">
-                              <ChevronDown className="chevron-down-add" />
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      id="collapseFour"
-                      className="accordion-collapse collapse show"
-                      aria-labelledby="headingFour"
-                      data-bs-parent="#accordionExample4"
-                    >
-                      <div className="accordion-body">
-                        <div className="text-editor add-list add">
-                          <div className="custom-filed">
-                            <div className="input-block add-lists">
-                              <label className="checkboxs">
-                                <input type="checkbox" />
-                                <span className="checkmarks" />
-                                Warranties
-                              </label>
-                              <label className="checkboxs">
-                                <input type="checkbox" />
-                                <span className="checkmarks" />
-                                Manufacturer
-                              </label>
-                              <label className="checkboxs">
-                                <input type="checkbox" />
-                                <span className="checkmarks" />
-                                Expiry
-                              </label>
-                            </div>
-                          </div>
-                          <div className="row">
-                            <div className="col-lg-4 col-sm-6 col-12">
-                              <div className="input-blocks add-product">
-                                <label>Quantity Alert</label>
-                                <input type="text" className="form-control" />
-                              </div>
-                            </div>
-                            <div className="col-lg-4 col-sm-6 col-12">
-                              <div className="input-blocks">
-                                <label>Manufactured Date</label>
-                                <div className="input-groupicon calender-input">
-                                  <Calendar className="info-img" />
-                                  <DatePicker
-                                    selected={selectedDate}
-                                    onChange={handleDateChange}
-                                    type="date"
-                                    className="datetimepicker"
-                                    dateFormat="dd-MM-yyyy"
-                                    placeholder="Elegir Date"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                            <div className="col-lg-4 col-sm-6 col-12">
-                              <div className="input-blocks">
-                                <label>Expiry On</label>
-                                <div className="input-groupicon calender-input">
-                                  <Calendar className="info-img" />
-                                  <DatePicker
-                                    selected={selectedDate1}
-                                    onChange={handleDateChange1}
-                                    type="date"
-                                    className="datetimepicker"
-                                    dateFormat="dd-MM-yyyy"
-                                    placeholder="Elegir Date"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div> */}
-              </div>
+              ></div>
             </div>
           </div>
           <div className="col-lg-12">

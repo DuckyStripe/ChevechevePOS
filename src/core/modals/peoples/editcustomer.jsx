@@ -7,10 +7,10 @@ import "react-toastify/dist/ReactToastify.css";
 const EditCustomer = ({ CustomerData }) => {
   const [formData, setFormData] = useState({
     id: "",
-    CustomerName: "",
-    CustomerEmail: "",
-    CustomerPhone: "",
-    CustomerAddress: "",
+    nombre: "",
+    correo: "",
+    telefono: "",
+    direccion: "",
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -19,10 +19,10 @@ const EditCustomer = ({ CustomerData }) => {
     if (CustomerData) {
       setFormData({
         id: CustomerData.id || "",
-        CustomerName: CustomerData.CustomerName || "",
-        CustomerEmail: CustomerData.CustomerEmail || "",
-        CustomerPhone: CustomerData.CustomerPhone || "",
-        CustomerAddress: CustomerData.CustomerAddress || "",
+        nombre: CustomerData.nombre || "",
+        correo: CustomerData.correo || "",
+        telefono: CustomerData.telefono || "",
+        direccion: CustomerData.direccion || "",
       });
     }
   }, [CustomerData]);
@@ -35,21 +35,21 @@ const EditCustomer = ({ CustomerData }) => {
   const validateForm = () => {
     const errors = {};
 
-    if (!formData.CustomerName) {
-      errors.CustomerName = "El nombre es obligatorio.";
+    if (!formData.nombre) {
+      errors.nombre = "El nombre es obligatorio.";
     }
-    if (!formData.CustomerEmail) {
-      errors.CustomerEmail = "El correo es obligatorio.";
-    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.CustomerEmail)) {
-      errors.CustomerEmail = "El correo no es válido.";
+    if (!formData.correo) {
+      errors.correo = "El correo es obligatorio.";
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.correo)) {
+      errors.correo = "El correo no es válido.";
     }
-    if (!formData.CustomerPhone) {
-      errors.CustomerPhone = "El teléfono es obligatorio.";
-    } else if (!/^\d+$/.test(formData.CustomerPhone)) {
-      errors.CustomerPhone = "El teléfono solo debe contener números.";
+    if (!formData.telefono) {
+      errors.telefono = "El teléfono es obligatorio.";
+    } else if (!/^\d+$/.test(formData.telefono)) {
+      errors.telefono = "El teléfono solo debe contener números.";
     }
-    if (!formData.CustomerAddress) {
-      errors.CustomerAddress = "La dirección es obligatoria.";
+    if (!formData.direccion) {
+      errors.direccion = "La dirección es obligatoria.";
     }
 
     setFormErrors(errors);
@@ -65,10 +65,10 @@ const EditCustomer = ({ CustomerData }) => {
         // Resetea el formulario después de enviar
         // setFormData({
         //   id: "",
-        //   CustomerName: "",
-        //   CustomerEmail: "",
-        //   CustomerPhone: "",
-        //   CustomerAddress: "",
+        //   nombre: "",
+        //   correo: "",
+        //   telefono: "",
+        //   direccion: "",
         // });
 
         // Simula un clic en el botón de cancelar para cerrar el modal
@@ -110,13 +110,13 @@ const EditCustomer = ({ CustomerData }) => {
                           <label className="form-label">Customer Name</label>
                           <input
                             type="text"
-                            className={`form-control ${formErrors.CustomerName ? "is-invalid" : ""}`}
-                            name="CustomerName"
-                            value={formData.CustomerName}
+                            className={`form-control ${formErrors.nombre ? "is-invalid" : ""}`}
+                            name="nombre"
+                            value={formData.nombre}
                             onChange={handleInputChange}
                           />
-                          {formErrors.CustomerName && (
-                            <div className="invalid-feedback">{formErrors.CustomerName}</div>
+                          {formErrors.nombre && (
+                            <div className="invalid-feedback">{formErrors.nombre}</div>
 
                           )}
                         </div>
@@ -126,13 +126,13 @@ const EditCustomer = ({ CustomerData }) => {
                           <label className="form-label">Email</label>
                           <input
                             type="email"
-                            className={`form-control ${formErrors.CustomerEmail ? "is-invalid" : ""}`}
-                            name="CustomerEmail"
-                            value={formData.CustomerEmail}
+                            className={`form-control ${formErrors.correo ? "is-invalid" : ""}`}
+                            name="correo"
+                            value={formData.correo}
                             onChange={handleInputChange}
                           />
-                          {formErrors.CustomerEmail && (
-                            <div className="invalid-feedback">{formErrors.CustomerEmail}</div>
+                          {formErrors.correo && (
+                            <div className="invalid-feedback">{formErrors.correo}</div>
                           )}
                         </div>
                       </div>
@@ -141,13 +141,13 @@ const EditCustomer = ({ CustomerData }) => {
                           <label className="form-label">Phone</label>
                           <input
                             type="text"
-                            className={`form-control ${formErrors.CustomerPhone ? "is-invalid" : ""}`}
-                            name="CustomerPhone"
-                            value={formData.CustomerPhone}
+                            className={`form-control ${formErrors.telefono ? "is-invalid" : ""}`}
+                            name="telefono"
+                            value={formData.telefono}
                             onChange={handleInputChange}
                           />
-                          {formErrors.CustomerPhone && (
-                            <div className="invalid-feedback">{formErrors.CustomerPhone}</div>
+                          {formErrors.telefono && (
+                            <div className="invalid-feedback">{formErrors.telefono}</div>
                           )}
                         </div>
                       </div>
@@ -156,13 +156,13 @@ const EditCustomer = ({ CustomerData }) => {
                           <label className="form-label">Address</label>
                           <input
                             type="text"
-                            className={`form-control ${formErrors.CustomerAddress ? "is-invalid" : ""}`}
-                            name="CustomerAddress"
-                            value={formData.CustomerAddress}
+                            className={`form-control ${formErrors.direccion ? "is-invalid" : ""}`}
+                            name="direccion"
+                            value={formData.direccion}
                             onChange={handleInputChange}
                           />
-                          {formErrors.CustomerAddress && (
-                            <div className="invalid-feedback">{formErrors.CustomerAddress}</div>
+                          {formErrors.direccion && (
+                            <div className="invalid-feedback">{formErrors.direccion}</div>
                           )}
                         </div>
                       </div>
@@ -194,10 +194,10 @@ const EditCustomer = ({ CustomerData }) => {
 EditCustomer.propTypes = {
   CustomerData: PropTypes.shape({
     id: PropTypes.number.isRequired,
-    CustomerName: PropTypes.string.isRequired,
-    CustomerEmail: PropTypes.string.isRequired,
-    CustomerPhone: PropTypes.string.isRequired,
-    CustomerAddress: PropTypes.string.isRequired,
+    nombre: PropTypes.string.isRequired,
+    correo: PropTypes.string.isRequired,
+    telefono: PropTypes.string.isRequired,
+    direccion: PropTypes.string.isRequired,
   }),
 };
 

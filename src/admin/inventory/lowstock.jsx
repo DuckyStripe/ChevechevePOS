@@ -43,7 +43,6 @@ const LowStock = () => {
       setOptions(products.options);
       setDataSource(products.data);
       setFilteredData(products.data);
-      console.log(products.options);
     };
     // Cargar opciones (solo si esto es necesar;
 

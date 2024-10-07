@@ -8,7 +8,6 @@ const createOptions = (items, key) => {
 };
 
 export const fetchSales = async (fechaInicio, fechaFin) => {
-  console.log('Entro a la funcion',fechaInicio, fechaFin);
   const token = Cookies.get('authToken');
   const formData = new FormData();
   formData.append("fecha_inicio", fechaInicio);

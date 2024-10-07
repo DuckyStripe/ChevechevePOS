@@ -30,7 +30,7 @@ const Customers = () => {
     setSearchTerm(e.target.value);
   };
   const filteredData = dataSource.filter((item) =>
-    item.CustomerName.toLowerCase().includes(searchTerm.toLowerCase())
+    item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handlePdfDownload = () => {
@@ -104,23 +104,28 @@ const Customers = () => {
   const columns = [
     {
       title: "Nombre Cliente",
-      dataIndex: "CustomerName",
-      sorter: (a, b) => a.rolename.length - b.rolename.length
+      dataIndex: "nombre",
+      sorter: (a, b) => a.nombre.length - b.nombre.length
     },
     {
       title: "Correo",
-      dataIndex: "CustomerEmail",
-      sorter: (a, b) => a.createdon.length - b.createdon.length
+      dataIndex: "correo",
+      sorter: (a, b) => a.correo.length - b.correo.length
     },
     {
       title: "Numero Telefono",
-      dataIndex: "CustomerPhone",
-      sorter: (a, b) => a.CreateBy.length - b.CreateBy.length
+      dataIndex: "telefono",
+      sorter: (a, b) => a.telefono.length - b.telefono.length
     },
     {
       title: "Direccion",
-      dataIndex: "CustomerAddress",
-      sorter: (a, b) => a.CreateBy.length - b.CreateBy.length
+      dataIndex: "direccion",
+      sorter: (a, b) => a.direccion.length - b.direccion.length
+    },
+    {
+      title: "Fecha Insercion",
+      dataIndex: "fecha_insercion",
+      sorter: (a, b) => a.fecha_insercion.length - b.fecha_insercion.length
     },
     {
       title: "Acciones",

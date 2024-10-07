@@ -94,7 +94,6 @@ const Dashboard = () => {
 
     const loadProfit = async () => {
       const data = await fetchDataProfit();
-      console.log("DataProfit:", data);
       setprofit(data);
 
       // Inicia con el año más reciente

@@ -9,16 +9,16 @@ const EditRole = ({ RolData }) => {
   const [NombreRol, setNombreRol] = useState("");
   const [formData, setFormData] = useState({
     id: "",
-    rolename: ""
+    nombre_rol: ""
   });
 
   useEffect(() => {
     if (RolData) {
       setidRolstate(RolData.id || "");
-      setNombreRol(RolData.rolename || "");
+      setNombreRol(RolData.nombre_rol || "");
       setFormData({
         id: RolData.id || "",
-        rolename: RolData.rolename || ""
+        nombre_rol: RolData.nombre_rol || ""
       });
     }
   }, [RolData]);
@@ -26,7 +26,7 @@ const EditRole = ({ RolData }) => {
   const resetFormData = () => {
     setFormData({
       id: "",
-      rolename: ""
+      nombre_rol: ""
     });
     setFormErrors({});
   };
@@ -36,7 +36,7 @@ const EditRole = ({ RolData }) => {
     if (validateForm()) {
       try {
         toast.success("Rol modificado exitosamente");
-
+        
         resetFormData();
 
         // Simula un clic en el botón de cancelar para cerrar el modal
@@ -55,8 +55,8 @@ const EditRole = ({ RolData }) => {
       errors.id = "El id es obligatorio";
     }
 
-    if (!formData.rolename) {
-      errors.rolename = "El nombre es obligatorio";
+    if (!formData.nombre_rol) {
+      errors.nombre_rol = "El nombre es obligatorio";
     }
 
     setFormErrors(errors);
@@ -68,7 +68,7 @@ const EditRole = ({ RolData }) => {
     setNombreRol(newRolename);
     setFormData((prevState) => ({
       ...prevState,
-      rolename: newRolename
+      nombre_rol: newRolename
     }));
   };
 
@@ -140,7 +140,7 @@ const EditRole = ({ RolData }) => {
 EditRole.propTypes = {
   RolData: PropTypes.shape({
     id: PropTypes.number.isRequired,
-    rolename: PropTypes.string.isRequired
+    nombre_rol: PropTypes.string.isRequired
   })
 };
 export default EditRole;

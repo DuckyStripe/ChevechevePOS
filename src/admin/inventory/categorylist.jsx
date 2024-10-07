@@ -23,7 +23,6 @@ const CategoryList = () => {
     // Esta función se ejecuta cuando el componente se monta
     const loadInitialData = async () => {
       const products = await fetchCategory(); // Cargar por defecto los productos con bajo inventario
-      console.log(products)
       setDataSource(products);
       setFilteredData(products);
     };
@@ -31,7 +30,6 @@ const CategoryList = () => {
     loadInitialData();
   }, []);
   const handleEditClick = (category) => {
-    console.log("Categproa",category)
     setSelectedCategory(category); // Establecer la categoría seleccionada
   };
 

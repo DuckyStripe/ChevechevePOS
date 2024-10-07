@@ -19,8 +19,8 @@ const RolesPermissions = () => {
 
   useEffect(() => {
     const initializeData = async () => {
-      const users = await fetchUserData();
-      setDataSource(users);
+      const roles = await fetchUserData();
+      setDataSource(roles);
     };
     initializeData();
   }, []);
@@ -29,7 +29,7 @@ const RolesPermissions = () => {
     setSearchTerm(e.target.value);
   };
   const filteredData = dataSource.filter((item) =>
-    item.rolename.toLowerCase().includes(searchTerm.toLowerCase())
+    item.nombre_rol.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handlePdfDownload = () => {
@@ -99,19 +99,24 @@ const RolesPermissions = () => {
   };
   const columns = [
     {
+      title: "ID",
+      dataIndex: "id",
+      sorter: (a, b) => a.id.length - b.id.length
+    },
+    {
       title: "Rol",
-      dataIndex: "rolename",
-      sorter: (a, b) => a.rolename.length - b.rolename.length
+      dataIndex: "nombre_rol",
+      sorter: (a, b) => a.nombre_rol.length - b.nombre_rol.length
     },
     {
       title: "Fecha Creación",
-      dataIndex: "createdon",
-      sorter: (a, b) => a.createdon.length - b.createdon.length
+      dataIndex: "creado_en",
+      sorter: (a, b) => a.creado_en.length - b.creado_en.length
     },
     {
       title: "Creado por",
-      dataIndex: "CreateBy",
-      sorter: (a, b) => a.CreateBy.length - b.CreateBy.length
+      dataIndex: "nombre_usuario",
+      sorter: (a, b) => a.nombre_usuario.length - b.nombre_usuario.length
     },
     {
       title: "Acciones",

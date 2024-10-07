@@ -1,33 +1,59 @@
-import { fakerES } from '@faker-js/faker';
-const roles = [
-  { value: 'Elegir Uno', label: 'Elegir Uno' },
-  { value: 'Administrador', label: 'Administrador' },
-  { value: 'Usuario', label: 'Usuario' },
-];
-// Función para generar un usuario falso
-const generateFakeUser = () => {
-  return {
-    username: fakerES.person.fullName(),   
-    user: fakerES.internet.userName(),        // Nombre de usuario
-    phone: fakerES.phone.number('+52 55# ### ###'), // Número de teléfono (formato aproximado de España)
-    email: fakerES.internet.email(),              // Correo electrónico
-    role: fakerES.helpers.arrayElement(['Admin', 'User']), // Rol aleatorio
-    createdon: fakerES.date.past().toLocaleDateString(), // Fecha de creación
-    status: fakerES.helpers.arrayElement(['Active', 'Inactive']), // Estatus aleatorio
-    actions: null // Este campo será gestionado por el renderizador de tu tabla
-  };
-};
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
-// Genera una lista de usuarios falsos
-export const mockSales = Array.from({ length: 50 }, generateFakeUser);
+
 
 export const fetchUsers = async () => {
-  // Simula un retardo de red con una promesa
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return mockSales;
+  const token = Cookies.get('authToken');
+  // Configuración de solicitud con método POST
+  const config = {
+    method: 'post',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getUsers.php',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // No establezcas 'Content-Type', Axios lo manejará automáticamente
+    },
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+  
+      return data;
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 export const fetchRolesAvaible= async () => {
-  // Simula un retardo de red con una promesa
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return roles;
+  const token = Cookies.get('authToken');
+  const formData = new FormData();
+  // Configuración de solicitud con método POST
+  const config = {
+    method: 'get',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getRolesAvaible.php',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // No establezcas 'Content-Type', Axios lo manejará automáticamente
+    },
+    data: formData // Usa 'data' para enviar el formData
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+  
+      return data;
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };

@@ -1,34 +1,46 @@
-export const mockSales = [
-  {
-    id: 1,
-    datepurchase: "2024-10-01", // Fecha de Venta
-    Name: "Compra de Monitores", // Cantidad Vendida
-    Cantidad: "$10.00", // Precio Unitario
-    total: "$100.00", // Total de la Venta, calculado en el backend
-    createdby: "Juan Pérez", // Vendedor Responsable
-  }
-];
-
-export const fetchPurchases = async () => {
-  // Simula un retardo de red con una promesa
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return mockSales;
-};
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
 const createOptions = (items, key) => {
   const uniqueItems = [...new Set(items.map(item => item[key]))];
-  return uniqueItems.map(item => ({ value: item.toLowerCase(), label: item }));
-}
+  return uniqueItems.map(item => ({ value: item, label: item }));
+};
+export const fetchPurchases = async (fechaInicio, fechaFin) => {
+  const token = Cookies.get('authToken');
+  const formData = new FormData();
+  formData.append("fecha_inicio", fechaInicio);
+  formData.append("fecha_fin", fechaFin);
 
-export const fetchPurchasesOptions = async () => {
-  // Simula un retardo de red con una promesa
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  const options = {
-    tickets: createOptions(mockSales, 'ticket'),
-    dates: createOptions(mockSales, 'datepurchase'),
-    createdBys: createOptions(mockSales, 'createdby'),
+  // Configuración de solicitud con método POST
+  const config = {
+    method: 'post',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getPurchases.php',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // No establezcas 'Content-Type', Axios lo manejará automáticamente
+    },
+    data: formData // Usa 'data' para enviar el formData
   };
 
-  return options;
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+
+      // Asegúrate de que las claves sean correctas de acuerdo con la respuesta de la API
+      const options = {
+        categoria: createOptions(data, 'Categoria'), // Cambié el nombre del option para reflejar la clave correcta
+        subcategoria: createOptions(data, 'Subcategoria'),
+        unidad: createOptions(data, 'Unidad'),
+        precio_compra: createOptions(data, 'precio_compra'),
+      };
+
+      return { data, options };
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };

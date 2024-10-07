@@ -13,7 +13,6 @@ const ViewSale = ({ ticketId }) => {
     if (ticketId) {
       const fetchSaleData = async () => {
         const data = await fetchSale(ticketId);
-        console.log("DataTicket", data);
         setSaleData(data);
       };
       fetchSaleData();

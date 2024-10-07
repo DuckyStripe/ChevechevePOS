@@ -20,6 +20,7 @@ import "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 const Users = () => {
+  const [selectedUser,setSelectedUser ] = useState(null); //
   const [dataSource, setDataSource] = useState([]);
   const dispatch = useDispatch();
   const data = useSelector((state) => state.toggle_header);
@@ -115,7 +116,9 @@ const Users = () => {
     const fileName = `Lista_Usuarios_${formattedDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
-
+  const handleEditClick = (Users) => {
+    setSelectedUser(Users); // Establecer la categoría seleccionada
+  };
 
 
   const handlePrint = () => {
@@ -125,7 +128,7 @@ const Users = () => {
   const columns = [
     {
       title: "Nombre",
-      dataIndex: "username",
+      dataIndex: "nombre_usuario",
       render: (text) => (
         <span>
           <div>
@@ -133,11 +136,11 @@ const Users = () => {
           </div>
         </span>
       ),
-      sorter: (a, b) => a.username.length - b.username.length,
+      sorter: (a, b) => a.nombre_usuario.length - b.nombre_usuario.length,
     },
     {
       title: "Usuario",
-      dataIndex: "user",
+      dataIndex: "usuario",
       render: (text) => (
         <span>
           <div>
@@ -145,61 +148,58 @@ const Users = () => {
           </div>
         </span>
       ),
-      sorter: (a, b) => a.username.length - b.username.length,
+      sorter: (a, b) => a.usuario.length - b.usuario.length,
     },
     {
       title: "Telefono",
-      dataIndex: "phone",
-      sorter: (a, b) => a.phone.length - b.phone.length,
+      dataIndex: "telefono",
+      sorter: (a, b) => a.telefono.length - b.telefono.length,
     },
     {
       title: "Correo",
-      dataIndex: "email",
-      sorter: (a, b) => a.email.length - b.email.length,
+      dataIndex: "correo",
+      sorter: (a, b) => a.correo.length - b.correo.length,
     },
     {
       title: "Rol",
-      dataIndex: "role",
-      sorter: (a, b) => a.role.length - b.role.length,
+      dataIndex: "nombre_rol",
+      sorter: (a, b) => a.nombre_rol.length - b.nombre_rol.length,
     },
     {
       title: "Fecha Creación",
-      dataIndex: "createdon",
-      sorter: (a, b) => a.createdon.length - b.createdon.length,
+      dataIndex: "creado_en",
+      sorter: (a, b) => a.creado_en.length - b.creado_en.length,
     },
     {
       title: "Estatus",
-      dataIndex: "status",
-      render: (text) => (
-        <div>
-          {text === "Active" && (
-            <span className="badge badge-linesuccess">{text}</span>
-          )}
-          {text === "Inactive" && (
-            <span className="badge badge-linedanger">{text}</span>
-          )}
-        </div>
-      ),
-      sorter: (a, b) => a.status.length - b.status.length,
+      dataIndex: "estatus",
+      sorter: (a, b) => a.estatus - b.estatus,
+      render: (_,estatus) => {
+        // Convertir el estatus a texto legible
+        const statusText = estatus.estado === 1 ? "Activo" : "Inactivo";
+        // Determinar la clase CSS en función del estatus
+        const badgeClass = estatus.estado === 1 ? "badge-linesuccess" : "badge-bgdanger";
+
+        return (
+          <span className={`badge ${badgeClass}`}>
+            {statusText}
+          </span>
+        );
+      },
     },
     {
       title: "Acciones",
       dataIndex: "actions",
       key: "actions",
-      render: () => (
+      render: (_,User) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
-            <Link className="me-2 p-2" to="#">
-              <i
-                data-feather="eye"
-                className="feather feather-eye action-eye"
-              ></i>
-            </Link>
             <Link
               className="me-2 p-2"
               to="#"
               data-bs-toggle="modal"
               data-bs-target="#edit-units"
+              onClick={() => handleEditClick(User)}
             >
               <i data-feather="edit" className="feather-edit"></i>
             </Link>
@@ -355,7 +355,7 @@ const Users = () => {
         </div>
       </div>
       <AddUsers />
-      <EditUser />
+      <EditUser UserData={selectedUser}  />
     </div>
   );
 };

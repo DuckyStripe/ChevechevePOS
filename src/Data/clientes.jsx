@@ -1,19 +1,29 @@
-import { fakerES } from '@faker-js/faker';
-
-// Generar un cliente falso
-const generateFakeClient = () => ({
-  id: fakerES.number.int({ min: 1, max: 1000 }), // ID único
-  CustomerName: fakerES.person.fullName(), // Nombre completo
-  CustomerEmail: fakerES.internet.email(), // Correo electrónico
-  CustomerPhone: fakerES.phone.number('+52 55# ### ###'), // Número de teléfono
-  CustomerAddress: fakerES.address.streetAddress() // Dirección
-});
-
-// Generar una lista de clientes falsos
-const clientes = Array.from({ length: 50 }, generateFakeClient);
+// products.js
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
 export const fetchClientes = async () => {
-  // Simula un retardo de red con una promesa
-  await new Promise((r) => setTimeout(r, 500)); // Simula un retraso de 500ms
-  return clientes;
+  const token = Cookies.get('authToken');
+  // Configuración de solicitud con método POST
+  const config = {
+    method: 'post',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getClientes.php',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // No establezcas 'Content-Type', Axios lo manejará automáticamente
+    },
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+      return data
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };

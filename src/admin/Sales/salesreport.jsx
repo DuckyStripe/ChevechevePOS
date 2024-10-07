@@ -31,11 +31,9 @@ const SalesReport = () => {
       const yesterday = String(today.getDate() + 1).padStart(2, "0"); // Asegura que el día esté en formato 'D
       const currentDate = `${year}-${month}-${day}`;
       const final = `${year}-${month}-${yesterday}`;
-      console.log("incicial", currentDate, "final", final);
       // Llama a fetchSales usando la fecha actual
       const products = await fetchSales(currentDate, final);
-      console.log("Fetchsales", products);
-      setDataSource(products.data);
+     setDataSource(products.data);
       setFilteredData(products.data);
     };
 
@@ -64,7 +62,6 @@ const SalesReport = () => {
     try {
       // Llama a fetchSales usando las fechas seleccionadas
       const products = await fetchSales(formattedStartDate, formattedEndDate);
-      console.log("Fetchsales", products);
       setDataSource(products.data);
       setFilteredData(products.data);
     } catch (error) {

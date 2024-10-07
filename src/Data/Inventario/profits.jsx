@@ -1,112 +1,113 @@
-import { faker } from '@faker-js/faker';
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
-// Función para generar datos financieros aleatorios para un año completo
-function generateYearlyFinanceData() {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const entries = [];
-    const exits = [];
-    const profits = [];
-    const total = [];
-
-    // Corrige el límite del bucle utilizando months.length
-    for (let i = 0; i < months.length; i++) {
-        const entry = faker.number.int({ min: 5000, max: 20000 });
-        const exit = faker.number.int({ min: 1000, max: 5000 });
-        const profit = entry - exit;
-        entries.push(entry);
-        exits.push(exit);
-        profits.push(profit);
-        total.push(Math.abs(profit));
-    }
-
-    return {
-        months: months,
-        finances: {
-            income: [
-                { category: "Entradas", values: entries },
-                { category: "Salidas", values: exits },
-                { category: "Ganancia", values: profits },
-                { category: "Total", values: total }
-            ]
-        }
-    };
-}
-
-function generateMonthlyFinanceData(year, month) {
-    const daysInMonth = {
-        "Jan": 31, "Feb": 28, "Mar": 31, "Apr": 30,
-        "May": 31, "Jun": 30, "Jul": 31, "Aug": 31,
-        "Sep": 30, "Oct": 31, "Nov": 30, "Dec": 31
-    };
-
-    const days = daysInMonth[month] || 31;
-
-    const entries = [];
-    const exits = [];
-    const profits = [];
-    const total = [];
-
-    for (let i = 0; i < days; i++) {
-        const entry = faker.number.int({ min: 5000, max: 20000 });
-        const exit = faker.number.int({ min: 1000, max: 5000 });
-        const profit = entry - exit;
-        entries.push(entry);
-        exits.push(exit);
-        profits.push(profit);
-        total.push(Math.abs(profit));
-    }
-
-    return {
-        months: Array.from({ length: days }, (_, i) => i + 1),
-        finances: {
-            income: [
-                { category: "Entradas", values: entries },
-                { category: "Salidas", values: exits },
-                { category: "Ganancia", values: profits },
-                { category: "Total", values: total }
-            ]
-        }
-    };
-}
-
-
-
-// Exportando años y meses disponibles
-export const availableYears = [
-    { value: "Selecciona uno", label: "Selecciona uno" },
-    { value: "2021", label: "2021" },
-    { value: "2022", label: "2022" }
-];
-23
 export const availableMonths = [
     { value: "Selecciona uno", label: "Selecciona uno" },
-    { value: "Jan", label: "Jan" },
-    { value: "Feb", label: "Feb" },
-    { value: "Mar", label: "Mar" },
-    { value: "Apr", label: "Apr" },
-    { value: "May", label: "May" },
-    { value: "Jun", label: "Jun" },
-    { value: "Jul", label: "Jul" }
+    { value: 1, label: "Enero" },
+    { value: 2, label: "Febrero" },
+    { value: 3, label: "Marzo" },
+    { value: 4, label: "Abril" },
+    { value: 5, label: "Mayo" },
+    { value: 6, label: "Junio" },
+    { value: 7, label: "Julio" },
+    { value: 8, label: "Agosto" }, // Mes de agosto
+    { value: 9, label: "Septiembre" }, // Mes de septiembre
+    { value: 10, label: "Octubre" }, // Mes de octubre
+    { value: 11, label: "Noviembre" }, // Mes de noviembre
+    { value: 12, label: "Diciembre" }  // Mes de diciembre
 ];
+
 
 // Funciones simuladas para recuperar datos
 export const fetchProfitsYear = async (year) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return generateYearlyFinanceData(year);
+    const token = Cookies.get('authToken');
+    const formData = new FormData();
+    formData.append("Year", year);
+  
+    // Configuración de solicitud con método POST
+    const config = {
+      method: 'post',
+      url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getProfitsByYear.php',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // No establezcas 'Content-Type', Axios lo manejará automáticamente
+      },
+      data: formData // Usa 'data' para enviar el formData
+    };
+  
+    try {
+      const response = await axios.request(config);
+  
+      if (response.data.success) {
+        const data = response.data.Data;
+    
+        return data;
+      } else {
+        return { success: false, message: response.data.message };
+      }
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
 };
 
 export const fetchProfitsMonths = async (year,month) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return generateMonthlyFinanceData(year, month);
+    const token = Cookies.get('authToken');
+    const formData = new FormData();
+    formData.append("Year", year);
+    formData.append("Mounth", month);
+    // Configuración de solicitud con método POST
+    const config = {
+      method: 'post',
+      url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getProfitsMounthYear.php',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // No establezcas 'Content-Type', Axios lo manejará automáticamente
+      },
+      data: formData // Usa 'data' para enviar el formData
+    };
+  
+    try {
+      const response = await axios.request(config);
+  
+      if (response.data.success) {
+        const data = response.data.Data;
+    
+        return data;
+      } else {
+        return { success: false, message: response.data.message };
+      }
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
 };
 
 export const fetchProfitsYears = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return availableYears;
+    const token = Cookies.get('authToken');
+    // Configuración de solicitud con método POST
+    const config = {
+      method: 'get',
+      url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getAvaibleYears.php',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // No establezcas 'Content-Type', Axios lo manejará automáticamente
+      }
+    };
+  
+    try {
+      const response = await axios.request(config);
+  
+      if (response.data.success) {
+        const data = response.data.Data;
+    
+        return data;
+      } else {
+        return { success: false, message: response.data.message };
+      }
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
 };
 
-export const fetchProfitsMonthsAvailable = async (year) => {
-    console.log(year)
-    await new Promise((resolve) => setTimeout(resolve, 500));
+export const fetchProfitsMonthsAvailable = async () => {
     return availableMonths;
 };
