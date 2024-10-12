@@ -3,7 +3,6 @@ import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import ImageWithBasePath from "../core/img/imagewithbasebath";
 import { Link } from "react-router-dom";
 import { PlusCircle } from "react-feather";
-import withReactContent from "sweetalert2-react-content";
 import Swal from "sweetalert2";
 import Table from "../core/pagination/datatable";
 import { fetchClientes } from "../Data/clientes";
@@ -12,17 +11,20 @@ import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import AddCustomer from "../core/modals/peoples/addcustomer";
 import EditCustomer from "../core/modals/peoples/editcustomer";
+import axios from 'axios';
+import Cookies from 'js-cookie';
+
 
 const Customers = () => {
   const [dataSource, setDataSource] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const initializeData = async () => {
+    const Clientes = await fetchClientes();
+    setDataSource(Clientes);
+  };
   useEffect(() => {
-    const initializeData = async () => {
-      const Clientes = await fetchClientes();
-      setDataSource(Clientes);
-    };
     initializeData();
   }, []);
 
@@ -147,7 +149,7 @@ const Customers = () => {
               <i
                 data-feather="trash-2"
                 className="feather-trash-2"
-                onClick={showConfirmationAlert}
+                onClick={() => showConfirmationAlert(id.id)}
               ></i>
             </Link>
           </div>
@@ -171,32 +173,63 @@ const Customers = () => {
     </Tooltip>
   );
 
-  const MySwal = withReactContent(Swal);
-
-  const showConfirmationAlert = () => {
-    MySwal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+  const showConfirmationAlert = async (id) => {
+    const formData = new FormData();
+    formData.append("id", id);
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción no se puede revertir",
       showCancelButton: true,
       confirmButtonColor: "#00ff00",
-      confirmButtonText: "Yes, delete it!",
+      confirmButtonText: `Sí, bórralo`,
       cancelButtonColor: "#ff0000",
-      cancelButtonText: "Cancel"
-    }).then((result) => {
-      if (result.isConfirmed) {
-        MySwal.fire({
-          title: "Deleted!",
-          text: "Your file has been deleted.",
-          className: "btn btn-success",
-          confirmButtonText: "OK",
-          customClass: {
-            confirmButton: "btn btn-success"
-          }
-        });
-      } else {
-        MySwal.close();
-      }
+      cancelButtonText: "Cancelar",
     });
+  
+    if (result.isConfirmed) {
+      const token = Cookies.get('authToken');
+      const config = {
+        method: 'post',  
+        url: `https://cheveposapi.codelabs.com.mx/Endpoints/Delete/DeleteCliente.php`, // Suponiendo este endpoint
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        data:formData
+      };
+  
+      try {
+        const response = await axios.request(config);
+  
+        if (response.data.success) {
+          initializeData();
+          await Swal.fire({
+            title: "¡Eliminado!",
+            text: "El cliente ha sido eliminado.",
+            icon: 'success',
+            confirmButtonText: "OK",
+            customClass: {
+              confirmButton: "btn btn-success",
+            },
+          });
+        } else {
+          await Swal.fire({
+            title: "Error",
+            text: response.data.message,
+            icon: 'error',
+            confirmButtonText: "OK",
+          });
+        }
+      } catch (error) {
+        await Swal.fire({
+          title: "Error",
+          text: "Hubo un problema al intentar eliminar el cliente.",
+          icon: 'error',
+          confirmButtonText: "OK",
+
+        });
+        console.error("Error al eliminar el cliente:", error);
+      }
+    }
   };
   return (
     <div>

@@ -13,11 +13,7 @@ const EditSubcategories = ({ SubcategoryData }) => {
   useEffect(() => {
     const loadInitialData = async () => {
       const categoryData = await fetchCategories();
-      const formattedCategories = categoryData.map((cat) => ({
-        value: cat.id, // Suponiendo que cada categoría tiene un "id"
-        label: cat.valor // Suponiendo que cada categoría tiene un nombre "name"
-      }));
-      setCategories(formattedCategories);
+      setCategories(categoryData);
     };
 
     loadInitialData();

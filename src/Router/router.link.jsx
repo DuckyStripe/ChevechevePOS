@@ -20,7 +20,6 @@ import PurchaseOrderReport from "../admin/Sales/purchasereport";
 import ProfitLoss from "../admin/Sales/profitloss";
 import Users from "../admin/users";
 import RolesPermissions from "../admin/rolespermissions";
-import EditProduct from "../admin/inventory/editproduct";
 
 const routes = all_routes;
 import { all_routes } from "./all_routes";
@@ -51,13 +50,6 @@ export const publicRoutes = [
     path: "/",
     name: "Root",
     element: <Navigate to="/signin" />,
-    route: Route
-  },
-  {
-    id: 65,
-    path: routes.editproduct,
-    name: "editproduct",
-    element: <EditProduct />,
     route: Route
   },
   {

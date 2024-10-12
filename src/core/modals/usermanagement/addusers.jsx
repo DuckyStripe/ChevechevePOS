@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import Select from "react-select";
 import { fetchRolesAvaible } from "../../../Data/Inventario/users";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
+import Cookies from "js-cookie";
+import { encriptarContrasena } from "../../../Data/DataEncrypt";
 
 const AddUsers = () => {
+  const [status, setStatus] = useState(true);
   const [roles, setRoles] = useState([]);
   const [formData, setFormData] = useState({
     username: "",
@@ -42,6 +46,7 @@ const AddUsers = () => {
   const handleTogglePassword = () => {
     setShowPassword((prevShowPassword) => !prevShowPassword);
   };
+  
 
   const handleToggleConfirmPassword = () => {
     setConfirmPassword((prevShowPassword) => !prevShowPassword);
@@ -55,13 +60,12 @@ const AddUsers = () => {
     });
   };
 
-  const handleRoleChange = (selectedOption) => {
-    setFormData({
-      ...formData,
-      role: selectedOption.value // Guarda solo el valor del rol
-    });
-  };
-
+const handleRoleChange = (selectedOption) => {
+  setFormData({
+    ...formData,
+    role: selectedOption ? selectedOption.value : null
+  });
+};
   const validateForm = () => {
     const errors = {};
 
@@ -83,7 +87,7 @@ const AddUsers = () => {
       errors.email = "El correo no es válido";
     }
 
-    if (!formData.role || formData.role === 'Elegir Uno') {
+    if (!formData.role || formData.role === "Elegir Uno") {
       errors.role = "El rol es obligatorio";
     }
 
@@ -99,24 +103,41 @@ const AddUsers = () => {
     return Object.keys(errors).length === 0;
   };
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const token = Cookies.get("authToken");
     if (validateForm()) {
       try {
-        // Simula un fetch
-        // Simula una respuesta exitosa con una notificación
-        toast.success("Usuario agregado exitosamente");
+        const formDatas = new FormData();
+        const { contrasena_encriptada } = await encriptarContrasena(
+          formData.password
+        );
+        formDatas.append("nombre_usuario", formData.username);
+        formDatas.append("usuario", formData.user);
+        formDatas.append("correo", formData.email);
+        formDatas.append("phone", formData.phone);
+        formDatas.append("role", formData.role);
+        formDatas.append("estado", status ? 1 : 0);
+        formDatas.append("password", contrasena_encriptada);
+        const config = {
+          method: "post",
+          url: `https://cheveposapi.codelabs.com.mx/Endpoints/Insert/InsertUsuario.php`,
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          data: formDatas
+        };
+        const response = await axios.request(config);
+        console.log(response);
+        if (response.data.success===true) {
+          resetFormData();
 
-        // Descomenta y ajusta la solicitud API real
-        // await fetch('your-endpoint-url', {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json',
-        //   },
-        //   body: JSON.stringify(formData),
-        // });
-
+          // Simula un clic en el botón de cancelar para cerrar el modal
+          toast.success("Usuario agregado exitosamente");
+          window.location.reload();
+        } else {
+          toast.error(response.data.message || "Error al guardar la compra.");
+        }
       } catch (error) {
         console.error("Error al enviar datos: ", error);
         // Mostrar notificación de error
@@ -125,10 +146,9 @@ const AddUsers = () => {
     }
   };
 
-
   return (
-      <div>
-    <ToastContainer />
+    <div>
+      <ToastContainer />
       {/* Add User */}
       <div className="modal fade" id="add-units">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">
@@ -290,6 +310,22 @@ const AddUsers = () => {
                               </span>
                             )}
                           </div>
+                        </div>
+                      </div>
+                      <div className="col-lg-12">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="status-label">Estatus</span>
+                          <input
+                            type="checkbox"
+                            id="adduser"
+                            className="check"
+                            checked={status}
+                            onChange={(e) => setStatus(e.target.checked)}
+                          />
+                          <label
+                            htmlFor="adduser"
+                            className="checktoggle"
+                          />
                         </div>
                       </div>
                     </div>

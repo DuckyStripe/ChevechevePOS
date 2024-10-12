@@ -20,5 +20,4 @@ export const all_routes = {
   customers: "/customers",
   users: "/users",
   rolespermission: "/roles-permissions",
-  editproduct: "/edit-product",
 };

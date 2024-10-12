@@ -1,8 +1,17 @@
-import React, { useState,useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import AddCategory from "../../core/modals/inventory/addcategory";
-import { fetchCategories,fetchSubCategories,fetchUnidad } from "../../Data/Inventario/category"; // I
+import {
+  fetchCategories,
+  fetchSubCategories,
+  fetchUnidad
+} from "../../Data/Inventario/category"; // I
+// products.js
+import axios from "axios";
+import Cookies from "js-cookie";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // import ImageWithBasePath from "../../core/img/imagewithbasebath";
 import {
@@ -19,10 +28,23 @@ import { setToogleHeader } from "../../core/redux/action";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { all_routes } from "../../Router/all_routes";
 const AddProduct = () => {
+  const navigate = useNavigate();
   const [category, setCategory] = useState([]); // Para almacenar la lista de categorías
   const [subcategory, setSubcategory] = useState([]); // Para almacenar la lista de categorías
   const [unidad, setunidad] = useState([]); // Para almacenar la lista de categorías
   const [previewImage, setPreviewImage] = useState(null);
+  const [productData, setProductData] = useState({
+    nombre: "",
+    unidad: null,
+    categoria: null,
+    subcategoria: null,
+    precioCosto: "",
+    precioVenta: "",
+    precioMayoreo: "",
+    cantidadActual: "",
+    cantidadMinima: "",
+    imagen: null
+  });
   const route = all_routes;
   const dispatch = useDispatch();
   const data = useSelector((state) => state.toggle_header);
@@ -39,11 +61,14 @@ const AddProduct = () => {
     loadInitialData();
   }, []);
 
-
-
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      setProductData((prevData) => ({
+        ...prevData,
+        imagen: file
+      }));
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewImage(reader.result);
@@ -56,6 +81,128 @@ const AddProduct = () => {
   const handleRemoveImage = () => {
     setPreviewImage(null);
   };
+  const handleChange = (key, value) => {
+    setProductData((prevData) => ({
+      ...prevData,
+      [key]: value
+    }));
+  };
+
+  const validateFormData = () => {
+    const errors = {};
+
+    // Validación para nombre: letras y números
+    if (!productData.nombre) {
+      errors.nombre = "El nombre es requerido.";
+    } else if (!/^[a-zA-Z0-9\s]+$/.test(productData.nombre)) {
+      errors.nombre = "El nombre solo puede contener letras y números.";
+    }
+
+    // Validación para las IDs de unidad, categoría y subcategoría
+    if (!productData.unidad?.value) {
+      errors.unidad = "La unidad es requerida.";
+    }
+
+    if (!productData.categoria?.value) {
+      errors.categoria = "La categoría es requerida.";
+    }
+
+    if (!productData.subcategoria?.value) {
+      errors.subcategoria = "La subcategoría es requerida.";
+    }
+
+    // Validación para precios: deben ser números
+    if (!productData.precioCosto) {
+      errors.precioCosto = "El precio de costo es requerido.";
+    } else if (isNaN(productData.precioCosto)) {
+      errors.precioCosto = "El precio de costo debe ser un número.";
+    }
+
+    if (!productData.precioVenta) {
+      errors.precioVenta = "El precio de venta es requerido.";
+    } else if (isNaN(productData.precioVenta)) {
+      errors.precioVenta = "El precio de venta debe ser un número.";
+    }
+
+    // Validación para cantidades: solo números
+    if (!productData.cantidadActual) {
+      errors.cantidadActual = "La cantidad actual es requerida.";
+    } else if (!/^\d+$/.test(productData.cantidadActual)) {
+      errors.cantidadActual = "La cantidad actual debe ser un número.";
+    }
+
+    if (!productData.cantidadMinima) {
+      errors.cantidadMinima = "La cantidad mínima es requerida.";
+    } else if (!/^\d+$/.test(productData.cantidadMinima)) {
+      errors.cantidadMinima = "La cantidad mínima debe ser un número.";
+    }
+
+    return errors;
+  };
+
+  const handleFormSubmit = async () => {
+    const errors = validateFormData();
+
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach((error) => {
+        toast.error(error); // Usa react-toastify para mostrar los errores
+      });
+      return;
+    }
+
+    const token = Cookies.get("authToken");
+
+    const formData = new FormData();
+
+    formData.append("nombre_producto", productData.nombre);
+    formData.append("unidad_id", productData.unidad?.value);
+    formData.append("categoria_id", productData.categoria?.value);
+    formData.append("subcategoria_id", productData.subcategoria?.value);
+    formData.append("precio_compra", productData.precioCosto);
+    formData.append("precio_venta", productData.precioVenta);
+    formData.append("cantidad", productData.cantidadActual);
+    formData.append("cantidad_minima", productData.cantidadMinima);
+    if (productData.imagen) {
+      formData.append("imagen_producto", productData.imagen);
+    }
+    console.log(productData);
+    const config = {
+      method: "post",
+      url: "https://cheveposapi.codelabs.com.mx/Endpoints/Insert/InsertProduct.php",
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      data: formData
+    };
+    console.log(config);
+    try {
+      const response = await axios.request(config);
+
+      if (response.data.success) {
+        toast.success("Producto insertado correctamente.");
+
+        // Limpiar los datos del modal
+        setProductData({
+          nombre: "",
+          unidad: null,
+          categoria: null,
+          subcategoria: null,
+          precioCosto: "",
+          precioVenta: "",
+          cantidadActual: "",
+          cantidadMinima: "",
+          imagen: null
+        });
+
+        // Redireccionar a otra ruta
+        navigate(all_routes.productlist); // Cambia "/newroute" por la ruta que deseas redirigir.
+      } else {
+        toast.error(`Error: ${response.data.message}`);
+      }
+    } catch (error) {
+      toast.error(`Error: ${error.message}`);
+    }
+  };
 
   const renderCollapseTooltip = (props) => (
     <Tooltip id="refresh-tooltip" {...props}>
@@ -65,6 +212,7 @@ const AddProduct = () => {
 
   return (
     <div className="page-wrapper">
+      <ToastContainer />
       <div className="content">
         <div className="page-header">
           <div className="add-item d-flex">
@@ -141,7 +289,14 @@ const AddProduct = () => {
                             <label className="form-label">
                               Nombre del Producto
                             </label>
-                            <input type="text" className="form-control" />
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={productData.nombre}
+                              onChange={(e) =>
+                                handleChange("nombre", e.target.value)
+                              }
+                            />
                           </div>
                         </div>
                         <div className="col-lg-4 col-sm-6 col-12">
@@ -150,6 +305,10 @@ const AddProduct = () => {
                             <Select
                               classNamePrefix="react-select"
                               options={unidad}
+                              value={productData.unidad}
+                              onChange={(selectedOption) =>
+                                handleChange("unidad", selectedOption)
+                              }
                               placeholder="Elegir"
                             />
                           </div>
@@ -170,6 +329,10 @@ const AddProduct = () => {
                             <Select
                               classNamePrefix="react-select"
                               options={category}
+                              value={productData.categoria}
+                              onChange={(selectedOption) =>
+                                handleChange("categoria", selectedOption)
+                              }
                               placeholder="Elegir"
                             />
                           </div>
@@ -183,6 +346,10 @@ const AddProduct = () => {
                               <Select
                                 classNamePrefix="react-select"
                                 options={subcategory}
+                                value={productData.subcategoria}
+                                onChange={(selectedOption) =>
+                                  handleChange("subcategoria", selectedOption)
+                                }
                                 placeholder="Elegir"
                               />
                             </div>
@@ -233,36 +400,64 @@ const AddProduct = () => {
                           aria-labelledby="pills-home-tab"
                         >
                           <div className="row">
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            <div className="col-lg-6 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Precio Costo</label>
-                                <input type="text" className="form-control" />
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={productData.precioCosto}
+                                  onChange={(e) =>
+                                    handleChange("precioCosto", e.target.value)
+                                  }
+                                />
                               </div>
                             </div>
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            <div className="col-lg-6 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Precio Venta</label>
-                                <input type="money" className="form-control" />
-                              </div>
-                            </div>
-                            <div className="col-lg-4 col-sm-6 col-12">
-                              <div className="input-blocks add-product">
-                                <label>Precio Mayoreo</label>
-                                <input type="text" className="form-control" />
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={productData.precioVenta}
+                                  onChange={(e) =>
+                                    handleChange("precioVenta", e.target.value)
+                                  }
+                                />
                               </div>
                             </div>
                           </div>
                           <div className="row">
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            <div className="col-lg-6 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Cantidad Actual </label>
-                                <input type="text" className="form-control" />
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={productData.cantidadActual}
+                                  onChange={(e) =>
+                                    handleChange(
+                                      "cantidadActual",
+                                      e.target.value
+                                    )
+                                  }
+                                />
                               </div>
                             </div>
-                            <div className="col-lg-4 col-sm-6 col-12">
+                            <div className="col-lg-6 col-sm-6 col-12">
                               <div className="input-blocks add-product">
                                 <label>Cantidad Minima</label>
-                                <input type="text" className="form-control" />
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={productData.cantidadMinima}
+                                  onChange={(e) =>
+                                    handleChange(
+                                      "cantidadMinima",
+                                      e.target.value
+                                    )
+                                  }
+                                />
                               </div>
                             </div>
                             <div
@@ -316,20 +511,20 @@ const AddProduct = () => {
                                               </div>
                                             </div>
                                           </div>
-                                            {previewImage && (
-                                              <div className="phone-img">
-                                                <img
-                                                  src={previewImage}
-                                                  alt="Vista previa"
-                                                />
-                                            <Link to="#">
-                                              <X
-                                                className="x-square-add remove-product"
-                                                onClick={handleRemoveImage}
+                                          {previewImage && (
+                                            <div className="phone-img">
+                                              <img
+                                                src={previewImage}
+                                                alt="Vista previa"
                                               />
-                                            </Link>
-                                              </div>
-                                            )}
+                                              <Link to="#">
+                                                <X
+                                                  className="x-square-add remove-product"
+                                                  onClick={handleRemoveImage}
+                                                />
+                                              </Link>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
@@ -344,103 +539,6 @@ const AddProduct = () => {
                   </div>
                 </div>
               </div>
-              <div
-                className="accordion-card-one accordion"
-                id="accordionExample4"
-              >
-                {/* <div className="accordion-item">
-                  <div className="accordion-header" id="headingFour">
-                    <div
-                      className="accordion-button"
-                      data-bs-toggle="collapse"
-                      data-bs-target="#collapseFour"
-                      aria-controls="collapseFour"
-                    >
-                      <div className="text-editor add-list">
-                        <div className="addproduct-icon list">
-                          <h5>
-                            <List className="add-info" />
-                            <span>Custom Fields</span>
-                          </h5>
-                          <Link to="#">
-                            <ChevronDown className="chevron-down-add" />
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    id="collapseFour"
-                    className="accordion-collapse collapse show"
-                    aria-labelledby="headingFour"
-                    data-bs-parent="#accordionExample4"
-                  >
-                    <div className="accordion-body">
-                      <div className="text-editor add-list add">
-                        <div className="custom-filed">
-                          <div className="input-block add-lists">
-                            <label className="checkboxs">
-                              <input type="checkbox" />
-                              <span className="checkmarks" />
-                              Warranties
-                            </label>
-                            <label className="checkboxs">
-                              <input type="checkbox" />
-                              <span className="checkmarks" />
-                              Manufacturer
-                            </label>
-                            <label className="checkboxs">
-                              <input type="checkbox" />
-                              <span className="checkmarks" />
-                              Expiry
-                            </label>
-                          </div>
-                        </div>
-                        <div className="row">
-                          <div className="col-lg-4 col-sm-6 col-12">
-                            <div className="input-blocks add-product">
-                              <label>Quantity Alert</label>
-                              <input type="text" className="form-control" />
-                            </div>
-                          </div>
-                          <div className="col-lg-4 col-sm-6 col-12">
-                            <div className="input-blocks">
-                              <label>Manufactured Date</label>
-                              <div className="input-groupicon calender-input">
-                                <Calendar className="info-img" />
-                                <DatePicker
-                                  selected={selectedDate}
-                                  onChange={handleDateChange}
-                                  type="date"
-                                  className="datetimepicker"
-                                  dateFormat="dd-MM-yyyy"
-                                  placeholder="Elegir Date"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                          <div className="col-lg-4 col-sm-6 col-12">
-                            <div className="input-blocks">
-                              <label>Expiry On</label>
-                              <div className="input-groupicon calender-input">
-                                <Calendar className="info-img" />
-                                <DatePicker
-                                  selected={selectedDate1}
-                                  onChange={handleDateChange1}
-                                  type="date"
-                                  className="datetimepicker"
-                                  dateFormat="dd-MM-yyyy"
-                                  placeholder="Elegir Date"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div> */}
-              </div>
             </div>
           </div>
           <div className="col-lg-12">
@@ -448,7 +546,7 @@ const AddProduct = () => {
               <button type="button" className="btn btn-cancel me-2">
                 Cancelar
               </button>
-              <Link to={route.addproduct} className="btn btn-submit">
+              <Link className="btn btn-submit" onClick={handleFormSubmit}>
                 Guardar
               </Link>
             </div>

@@ -228,10 +228,10 @@ const Header = () => {
             <div className="dropdown-menu notifications">
               <div className="topnav-dropdown-header">
                 <span className="notification-title">Notificaciones</span>
-                <Link to="#" className="clear-noti">
+                {/* <Link to="#" className="clear-noti">
                   {" "}
                   Limpiar Todo{" "}
-                </Link>
+                </Link> */}
               </div>
               <div className="noti-content">
               <ul className="notification-list">
@@ -239,7 +239,7 @@ const Header = () => {
                   <li className="notification-message active" key={notification.id}>
                     <div className="media d-flex">
                       <span className="avatar flex-shrink-0">
-                      <ImageWithBasePath alt="img" src={`assets/img/icons/${notification.icon}`} />
+                      <ImageWithBasePath alt="img" src={`assets/img/icons/${notification.img}`} />
                       </span>
                       <div className="media-body flex-grow-1">
                         <p className="noti-details">El usuario:{" "}
@@ -276,8 +276,8 @@ const Header = () => {
                 <span className="user-detail">
                 {user ? (
                   <>
-                    <span className="user-name">{`${user.firstName} ${user.lastName}`}</span>
-                    <span className="user-role">{user.role}</span>
+                    <span className="user-name">{`${user.nombre}`}</span>
+                    <span className="user-role">{user.nombre_rol}</span>
                   </>
                 ) : (
                   <span>Cargando usuario...</span>
@@ -298,8 +298,8 @@ const Header = () => {
                   <div className="profilesets">
                   {user ? (
                   <>
-                    <span className="user-name">{`${user.firstName} ${user.lastName}`}</span> <br></br>
-                    <span className="user-role">{user.role}</span>
+                    <span className="user-name">{`${user.nombre}`}</span> <br></br>
+                    <span className="user-role">{user.nombre_rol}</span>
                   </>
                 ) : (
                   <span>Cargando usuario...</span>

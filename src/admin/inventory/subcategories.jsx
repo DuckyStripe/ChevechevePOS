@@ -13,25 +13,26 @@ import Table from "../../core/pagination/datatable";
 import {
   fetchSubCategory,
   } from "../../Data/Inventario/subcategory"; // I
-import withReactContent from "sweetalert2-react-content";
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
 const SubCategories = () => {
   const [dataSource, setDataSource] = useState([]);
   const [searchValue, setSearchValue] = useState(""); // Estado para el término de búsqueda
   const [filteredData, setFilteredData] = useState([]); // Para almacenar datos filtrados
   const [selectedSubCategory, setSelectedSubCategory] = useState(null); // Estado para la categoría seleccionada
-
+  
+  const loadInitialData = async () => {
+    const products = await fetchSubCategory(); // Cargar por defecto los productos con bajo inventario
+    setDataSource(products);
+    setFilteredData(products);
+  };
   useEffect(() => {
     // Esta función se ejecuta cuando el componente se monta
-    const loadInitialData = async () => {
-      const products = await fetchSubCategory(); // Cargar por defecto los productos con bajo inventario
-      setDataSource(products);
-      setFilteredData(products);
-    };
 
     loadInitialData();
   }, []);
@@ -134,7 +135,7 @@ const SubCategories = () => {
               <i
                 data-feather="trash-2"
                 className="feather-trash-2"
-                onClick={showConfirmationAlert}
+                onClick={() =>showConfirmationAlert(category.id)}
               ></i>
             </Link>
           </div>
@@ -142,8 +143,6 @@ const SubCategories = () => {
       ),
     },
   ];
-  const MySwal = withReactContent(Swal);
-
   const handlePdfDownload = () => {
     const columns = [
       { title: "ID", dataIndex: "key" },
@@ -213,30 +212,63 @@ const SubCategories = () => {
   };
 
 
-  const showConfirmationAlert = () => {
-    MySwal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+  const showConfirmationAlert = async (id) => {
+    const formData = new FormData();
+    formData.append("id", id);
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción no se puede revertir",
       showCancelButton: true,
       confirmButtonColor: "#00ff00",
-      confirmButtonText: "Yes, delete it!",
+      confirmButtonText: `Sí, bórralo`,
       cancelButtonColor: "#ff0000",
-      cancelButtonText: "Cancel",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        MySwal.fire({
-          title: "Deleted!",
-          text: "Your file has been deleted.",
-          className: "btn btn-success",
-          confirmButtonText: "OK",
-          customClass: {
-            confirmButton: "btn btn-success",
-          },
-        });
-      } else {
-        MySwal.close();
-      }
+      cancelButtonText: "Cancelar",
     });
+  
+    if (result.isConfirmed) {
+      const token = Cookies.get('authToken');
+      const config = {
+        method: 'post',  
+        url: `https://cheveposapi.codelabs.com.mx/Endpoints/Delete/DeleteSubcategoria.php`, // Suponiendo este endpoint
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        data:formData
+      };
+  
+      try {
+        const response = await axios.request(config);
+  
+        if (response.data.success) {
+          loadInitialData();
+          await Swal.fire({
+            title: "¡Eliminado!",
+            text: "Subcategoria ha sido eliminado.",
+            icon: 'success',
+            confirmButtonText: "OK",
+            customClass: {
+              confirmButton: "btn btn-success",
+            },
+          });
+        } else {
+          await Swal.fire({
+            title: "Error",
+            text: response.data.message,
+            icon: 'error',
+            confirmButtonText: "OK",
+          });
+        }
+      } catch (error) {
+        await Swal.fire({
+          title: "Error",
+          text: "Hubo un problema al intentar eliminar la subcategoria.",
+          icon: 'error',
+          confirmButtonText: "OK",
+
+        });
+        console.error("Error al eliminar el subcategoria:", error);
+      }
+    }
   };
   return (
     <div>

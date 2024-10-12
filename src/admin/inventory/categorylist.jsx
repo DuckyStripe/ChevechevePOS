@@ -1,34 +1,54 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
-import { PlusCircle } from "feather-icons-react/build/IconComponents";
+import { PlusCircle,Trash2 } from "feather-icons-react/build/IconComponents";
 import AddCategoryList from "../../core/modals/inventory/addcategorylist";
 import EditCategoryList from "../../core/modals/inventory/editcategorylist";
 import Table from "../../core/pagination/datatable";
 import { fetchCategory } from "../../Data/Inventario/category"; // I
-import withReactContent from "sweetalert2-react-content";
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
 const CategoryList = () => {
   const [dataSource, setDataSource] = useState([]);
   const [searchValue, setSearchValue] = useState(""); // Estado para el término de búsqueda
   const [filteredData, setFilteredData] = useState([]); // Para almacenar datos filtrados
   const [selectedCategory,setSelectedCategory ] = useState(null); //
+  const [updateTable, setUpdateTable] = useState(false);
 
+  const loadInitialData = async () => {
+    const products = await fetchCategory(); // Cargar por defecto los productos con bajo inventario
+    setDataSource(products);
+    setFilteredData(products);
+  };
   useEffect(() => {
     // Esta función se ejecuta cuando el componente se monta
-    const loadInitialData = async () => {
-      const products = await fetchCategory(); // Cargar por defecto los productos con bajo inventario
-      setDataSource(products);
-      setFilteredData(products);
-    };
 
     loadInitialData();
   }, []);
+
+  const loadTableData = async () => {
+    try {
+      const response = await fetchCategory(); // Suponiendo que esta función ya existe
+      setDataSource(response);
+      setFilteredData(response);
+    } catch (error) {
+      console.error("Error al cargar los datos de la tabla", error);
+    }
+  };
+
+  useEffect(() => {
+    if (updateTable) {
+      loadTableData();
+      setUpdateTable(false); // Reiniciamos el estado
+    }
+  }, [updateTable]);
+  
   const handleEditClick = (category) => {
     setSelectedCategory(category); // Establecer la categoría seleccionada
   };
@@ -109,19 +129,18 @@ const CategoryList = () => {
             >
               <i data-feather="edit" className="feather-edit"></i>
             </Link>
-            <Link className="confirm-text p-2" to="#">
-              <i
-                data-feather="trash-2"
-                className="feather-trash-2"
-                onClick={showConfirmationAlert}
-              ></i>
+            <Link
+              className="confirm-text p-2"
+              to="#"
+              onClick={() => showConfirmationAlert(category.id)}
+            >
+              <Trash2 className="feather-trash-2" />
             </Link>
           </div>
         </div>
       ),
     },
   ];
-  const MySwal = withReactContent(Swal);
 
   const handlePdfDownload = () => {
     const columns = [
@@ -191,30 +210,63 @@ const CategoryList = () => {
     window.print();
   };
 
-  const showConfirmationAlert = () => {
-    MySwal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+  const showConfirmationAlert = async (id) => {
+    const formData = new FormData();
+    formData.append("id", id);
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción no se puede revertir",
       showCancelButton: true,
       confirmButtonColor: "#00ff00",
-      confirmButtonText: "Yes, delete it!",
+      confirmButtonText: `Sí, bórralo`,
       cancelButtonColor: "#ff0000",
-      cancelButtonText: "Cancel",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        MySwal.fire({
-          title: "Deleted!",
-          text: "Your file has been deleted.",
-          className: "btn btn-success",
-          confirmButtonText: "OK",
-          customClass: {
-            confirmButton: "btn btn-success",
-          },
-        });
-      } else {
-        MySwal.close();
-      }
+      cancelButtonText: "Cancelar",
     });
+  
+    if (result.isConfirmed) {
+      const token = Cookies.get('authToken');
+      const config = {
+        method: 'post',  
+        url: `https://cheveposapi.codelabs.com.mx/Endpoints/Delete/DeleteCategoria.php`, // Suponiendo este endpoint
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        data:formData
+      };
+  
+      try {
+        const response = await axios.request(config);
+  
+        if (response.data.success) {
+          loadInitialData();
+          await Swal.fire({
+            title: "¡Eliminado!",
+            text: "la categoria ha sido eliminada.",
+            icon: 'success',
+            confirmButtonText: "OK",
+            customClass: {
+              confirmButton: "btn btn-success",
+            },
+          });
+        } else {
+          await Swal.fire({
+            title: "Error",
+            text: response.data.message,
+            icon: 'error',
+            confirmButtonText: "OK",
+          });
+        }
+      } catch (error) {
+        await Swal.fire({
+          title: "Error",
+          text: "Hubo un problema al intentar eliminar categoria.",
+          icon: 'error',
+          confirmButtonText: "OK",
+
+        });
+        console.error("Error al eliminar el producto:", error);
+      }
+    }
   };
   return (
     <div>

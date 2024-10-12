@@ -9,11 +9,13 @@ import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import Table from "../../core/pagination/datatable";
 import { setToogleHeader } from "../../core/redux/action";
 import { fetchProducts } from "../../Data/Inventario/products"; // Importa la función del mock
-import withReactContent from "sweetalert2-react-content";
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
+import axios from 'axios';
+import Cookies from 'js-cookie';
+import EditProduct from "../../core/modals/inventory/editproduct";
 
 // Iconos
 import {
@@ -31,6 +33,7 @@ const ProductList = () => {
   const [dataSource, setDataSource] = useState([]);
   const [searchValue, setSearchValue] = useState(""); // Estado para el término de búsqueda
   const [filteredData, setFilteredData] = useState([]); // Para almacenar datos filtrados
+  const [selectedProduct,setSelectedProduct ] = useState(null); //
   const [options, setOptions] = useState({
     Categoria: [],
     Subcategoria: [],
@@ -47,13 +50,13 @@ const ProductList = () => {
     precio_compra: null,
   });
 
+  const loadProducts = async () => {
+    const products = await fetchProducts();
+    setOptions(products.options);
+    setDataSource(products.data);
+    setFilteredData(products.data);
+  };
   useEffect(() => {
-    const loadProducts = async () => {
-      const products = await fetchProducts();
-      setOptions(products.options);
-      setDataSource(products.data);
-      setFilteredData(products.data);
-    };
     loadProducts();
   }, []);
 
@@ -204,7 +207,10 @@ const ProductList = () => {
   };
 
   const route = all_routes;
-
+  const handleEditClick = (Product) => {
+    console.log(Product)
+    setSelectedProduct(Product); // Establecer la categoría seleccionada
+  };
   const columns = [
     {
       title: "Producto",
@@ -263,12 +269,15 @@ const ProductList = () => {
     {
       title: "Action",
       dataIndex: "action",
-      render: (text, record) => (
+      render: (_, record) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
             <Link
               className="me-2 p-2"
-              to={`${route.editproduct}?id=${record.id}`}
+              to="#"
+              data-bs-toggle="modal"
+              data-bs-target="#edit-product"
+              onClick={() => handleEditClick(record)}
             >
               <Edit className="feather-edit" />
             </Link>
@@ -284,32 +293,63 @@ const ProductList = () => {
       ),
     },
   ];
-  const MySwal = withReactContent(Swal);
-
-  const showConfirmationAlert = (id) => {
-    MySwal.fire({
-      title: "¿Estas seguro?",
-      text: "Esta accion no se puede revertir",
+  const showConfirmationAlert = async (id) => {
+    const formData = new FormData();
+    formData.append("id", id);
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción no se puede revertir",
       showCancelButton: true,
       confirmButtonColor: "#00ff00",
-      confirmButtonText: `Si, Borralo ${id}`,
+      confirmButtonText: `Sí, bórralo`,
       cancelButtonColor: "#ff0000",
       cancelButtonText: "Cancelar",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        MySwal.fire({
-          title: "Deleted!",
-          text: "Your file has been deleted.",
-          className: "btn btn-success",
-          confirmButtonText: "OK",
-          customClass: {
-            confirmButton: "btn btn-success",
-          },
-        });
-      } else {
-        MySwal.close();
-      }
     });
+  
+    if (result.isConfirmed) {
+      const token = Cookies.get('authToken');
+      const config = {
+        method: 'post',  
+        url: `https://cheveposapi.codelabs.com.mx/Endpoints/Delete/DeleteProduct.php`, // Suponiendo este endpoint
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        data:formData
+      };
+  
+      try {
+        const response = await axios.request(config);
+  
+        if (response.data.success) {
+          loadProducts();
+          await Swal.fire({
+            title: "¡Eliminado!",
+            text: "El producto ha sido eliminado.",
+            icon: 'success',
+            confirmButtonText: "OK",
+            customClass: {
+              confirmButton: "btn btn-success",
+            },
+          });
+        } else {
+          await Swal.fire({
+            title: "Error",
+            text: response.data.message,
+            icon: 'error',
+            confirmButtonText: "OK",
+          });
+        }
+      } catch (error) {
+        await Swal.fire({
+          title: "Error",
+          text: "Hubo un problema al intentar eliminar el producto.",
+          icon: 'error',
+          confirmButtonText: "OK",
+
+        });
+        console.error("Error al eliminar el producto:", error);
+      }
+    }
   };
   const resetFilters = () => {
     setSearchValue("");
@@ -575,7 +615,7 @@ const ProductList = () => {
             </div>
           </div>
         </div>
-        {/* /Product list */}
+        <EditProduct DataProducto={selectedProduct} />
       </div>
     </div>
   );

@@ -66,6 +66,7 @@ export const fetchSubCategories = async () => {
     const response = await axios.request(config);
 
     if (response.data.success) {
+      
       const data = response.data.Data;
       return  data ;
     } else {

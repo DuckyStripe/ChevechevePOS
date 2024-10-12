@@ -1,6 +1,9 @@
 import React, { useState, useRef } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
+import Cookies from "js-cookie";
+
 
 const AddRole = () => {
   const [formData, setFormData] = useState({
@@ -27,14 +30,27 @@ const AddRole = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const token = Cookies.get("authToken");
     if (validateForm()) {
       try {
-        toast.success("Rol agregado exitosamente");
-
-        resetFormData();
-
-        // Simula un clic en el botón de cancelar para cerrar el modal
-        document.querySelector(".btn-cancel").click();
+        const config = {
+          method: "post",
+          url: `https://cheveposapi.codelabs.com.mx/Endpoints/Insert/InsertarRoles.php`,
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          data: formData
+        };
+        
+        const response = await axios.request(config);
+        
+        if (response.data.success===true) {
+          toast.success("Rol agregado exitosamente");
+          resetFormData();
+          window.location.reload();
+        } else {
+          toast.error(response.data.message || "Error al guardar el Rol.");
+        }
 
       } catch (error) {
         console.error("Error al enviar datos: ", error);

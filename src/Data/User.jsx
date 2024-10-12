@@ -1,33 +1,35 @@
-const mockUserData = {
-  id: 1,
-  firstName: "Luis",
-  lastName: "Canchola",
-  role: "Super Admin",
-  isDeveloper: true
-};
+import Cookies from "js-cookie";
+import {jwtDecode} from 'jwt-decode';
+import axios from "axios";
 
-const mockNotifications = [
-  {
-    id: 1,
-    icon: "delete.svg",
-    user: "Luis",
-    message: "New user signed up",
-    time: "5 mins ago"
-  },
-  {
-    id: 2,
-    icon: "edit.svg",
-    user: "Luis",
-    message: "Server overload alert",
-    time: "10 mins ago"
-  }
-];
+
 export const fetchUserData = async () => {
-  // Aquí puedes simular una espera similar a una llamada a la API
-  await new Promise((r) => setTimeout(r, 500)); // Simula un retraso de 500ms
-  return mockUserData;
+  const token = Cookies.get("authToken");
+  const {nombre,nombre_rol} = jwtDecode(token);
+  return {nombre,nombre_rol};
 };
 export const fetchNotifications = async () => {
-  await new Promise((r) => setTimeout(r, 500));
-  return mockNotifications;
+  const token = Cookies.get('authToken');
+  // Configuración de solicitud con método POST
+  const config = {
+    method: 'post',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getNotification.php',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.Data;
+  
+      return data;
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };

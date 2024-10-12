@@ -22,7 +22,6 @@ import {
   fetchCustomerData,
   fetchCategoriesData,
   fetchProductsData,
-  fetchLastPurchaseData,
   fetchProductsByCategory
 } from "../../Data/pos";
 import ViewSale from "../../core/modals/inventory/ViewSale";
@@ -31,7 +30,7 @@ const Pos = () => {
   const [categories, setCategorias] = useState([]);
   const [productlist, setProductlist] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [LastPurchase, setLastPurchase] = useState([]);
+  // const [LastPurchase, setLastPurchase] = useState([]);
   const [cartItems, setCartItems] = useState(0);
   const [cart, setCart] = useState([]);
   const [subTotal, setSubTotal] = useState("MX$0.00");
@@ -45,11 +44,11 @@ const Pos = () => {
       const categorias = await fetchCategoriesData();
       const productList = await fetchProductsData();
       const clientes = await fetchCustomerData();
-      const LastPurchase = await fetchLastPurchaseData();
+      // const LastPurchase = await fetchLastPurchaseData();
       setCategorias(categorias);
       setProductlist(productList);
       setCustomers(clientes);
-      setLastPurchase(LastPurchase);
+      // setLastPurchase(LastPurchase);
     };
     if (selectedCategory) {
       fetchProductsByCategory(selectedCategory.id) // Utiliza .id si el objeto categoría tienen una propiedad id
@@ -378,13 +377,13 @@ const Pos = () => {
             </div>
             <div className="col-md-12 col-lg-4 ps-0">
               <aside className="product-order-list">
-                <div className="head d-flex align-items-center justify-content-between w-100">
+                {/* <div className="head d-flex align-items-center justify-content-between w-100">
                   <div className="">
                     <h5>Ticket</h5>
                     <span>Transaction ID : #{LastPurchase.id}</span>
                   </div>
-                </div>
-                <div className="customer-info block-section">
+                </div> */}
+                <div className="head customer-info block-section">
                   <h6>Informacion Cliente</h6>
                   <div className="input-block d-flex align-items-center">
                     <div className="flex-grow-1">

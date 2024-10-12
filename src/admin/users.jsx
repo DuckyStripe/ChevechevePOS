@@ -8,7 +8,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   PlusCircle,
 } from "react-feather";
-import withReactContent from "sweetalert2-react-content";
 import Swal from "sweetalert2";
 import Table from "../core/pagination/datatable";
 import AddUsers from "../core/modals/usermanagement/addusers";
@@ -18,6 +17,9 @@ import {fetchUsers} from "../Data/Inventario/users"
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
+import axios from 'axios';
+import Cookies from 'js-cookie';
+
 
 const Users = () => {
   const [selectedUser,setSelectedUser ] = useState(null); //
@@ -25,11 +27,11 @@ const Users = () => {
   const dispatch = useDispatch();
   const data = useSelector((state) => state.toggle_header);
 
+  const initializeData = async () => {
+    const users = await fetchUsers();
+    setDataSource(users);
+  };
   useEffect(() => {
-    const initializeData = async () => {
-      const users = await fetchUsers();
-      setDataSource(users);
-    };
     initializeData();
   }, []);
   const handlePdfDownload = () => {
@@ -207,7 +209,7 @@ const Users = () => {
               <i
                 data-feather="trash-2"
                 className="feather-trash-2"
-                onClick={showConfirmationAlert}
+                onClick={() => showConfirmationAlert(User.id)}
               ></i>
             </Link>
           </div>
@@ -238,32 +240,63 @@ const Users = () => {
   );
 
 
-  const MySwal = withReactContent(Swal);
-
-  const showConfirmationAlert = () => {
-    MySwal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+  const showConfirmationAlert = async (id) => {
+    const formData = new FormData();
+    formData.append("id", id);
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción no se puede revertir",
       showCancelButton: true,
       confirmButtonColor: "#00ff00",
-      confirmButtonText: "Yes, delete it!",
+      confirmButtonText: `Sí, bórralo`,
       cancelButtonColor: "#ff0000",
-      cancelButtonText: "Cancel",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        MySwal.fire({
-          title: "Deleted!",
-          text: "Your file has been deleted.",
-          className: "btn btn-success",
-          confirmButtonText: "OK",
-          customClass: {
-            confirmButton: "btn btn-success",
-          },
-        });
-      } else {
-        MySwal.close();
-      }
+      cancelButtonText: "Cancelar",
     });
+  
+    if (result.isConfirmed) {
+      const token = Cookies.get('authToken');
+      const config = {
+        method: 'post',  
+        url: `https://cheveposapi.codelabs.com.mx/Endpoints/Delete/DeleteUser.php`, // Suponiendo este endpoint
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        data:formData
+      };
+  
+      try {
+        const response = await axios.request(config);
+  
+        if (response.data.success) {
+          initializeData();
+          await Swal.fire({
+            title: "¡Eliminado!",
+            text: "El producto ha sido eliminado.",
+            icon: 'success',
+            confirmButtonText: "OK",
+            customClass: {
+              confirmButton: "btn btn-success",
+            },
+          });
+        } else {
+          await Swal.fire({
+            title: "Error",
+            text: response.data.message,
+            icon: 'error',
+            confirmButtonText: "OK",
+          });
+        }
+      } catch (error) {
+        await Swal.fire({
+          title: "Error",
+          text: "Hubo un problema al intentar eliminar el producto.",
+          icon: 'error',
+          confirmButtonText: "OK",
+
+        });
+        console.error("Error al eliminar el producto:", error);
+      }
+    }
   };
   return (
     <div>
