@@ -2,24 +2,19 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Select from "react-select";
 import AddCategory from "../../modals/inventory/addcategory";
-// import ImageWithBasePath from "../../core/img/imagewithbasebath";
 import ImageWithGenericUrlCheve from "../../img/imagewithURLCheve";
 import {
   fetchCategories,
   fetchSubCategories,
-  fetchUnidad
+  fetchUnidad,
 } from "../../../Data/Inventario/category"; // I
 import {
   ChevronDown,
   Info,
   LifeBuoy,
   PlusCircle,
-  X
+  X,
 } from "feather-icons-react/build/IconComponents";
-// import {
-//   fetchProductsByID,
-//   fetchProducts
-// } from "../../../Data/Inventario/products";
 import { ToastContainer, toast } from "react-toastify";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -29,59 +24,87 @@ const EditProduct = ({ DataProducto }) => {
   const [options, setOptions] = useState({
     Categoria: [],
     Subcategoria: [],
-    Unidad: []
+    Unidad: [],
   });
   const [productData, setProductData] = useState({
-    id: [],
-    nombre_producto: [],
-    Categoria: [],
-    Subcategoria: [],
-    Unidad: [],
-    precio_compra: [],
-    precio_venta: [],
-    cantidad: [],
-    cantidadMinima: [],
-    imagen_producto: [],
-    creado_en: [],
-    FechaActualizacion: []
+    id: 0,
+    nombre_producto: "",
+    Categoria: 0,
+    Subcategoria: 0,
+    Unidad: 0,
+    precio_compra: "",
+    precio_venta: "",
+    cantidad: 0,
+    cantidadMinima: 0,
+    imagen_producto: "",
+    creado_en: "",
+    FechaActualizacion: "",
   });
-  console.log(DataProducto)
-  const [previewImage, setPreviewImage] = useState(true);
-  const handleImageChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+
+  const [previewImage, setPreviewImage] = useState(null);
+  const [isNewImage, setIsNewImage] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Llamadas a las funciones de fetch, espera las Promises
+        // Llama a las funciones de fetch y espera las promesas
         const categorias = await fetchCategories();
         const subcategorias = await fetchSubCategories();
         const unidades = await fetchUnidad();
 
-        // Actualizar el estado con los resultados de las llamadas
+        // Actualiza el estado con los resultados de las llamadas
         setOptions({
           Categoria: categorias,
           Subcategoria: subcategorias,
-          Unidad: unidades
+          Unidad: unidades,
         });
       } catch (error) {
         console.error("Error fetching data:", error);
       }
     };
+
     fetchData();
-    setProductData(DataProducto);
-  }, [DataProducto]);
+
+    // Asegúrate de que DataProducto esté definido y existe antes de la conversión
+    if (DataProducto) {
+      // Actualiza productData con valores numéricos para precio_compra y precio_venta
+      setProductData({
+        ...DataProducto,
+        precio_compra: parseFloat(DataProducto.precio_compra) || 0, // Convierte a número
+        precio_venta: parseFloat(DataProducto.precio_venta) || 0, // Convierte a número
+      });
+    }
+  }, [DataProducto]); // Volver a ejecutar si DataProducto cambia
 
   // Función para eliminar la imagen cargada
   const handleRemoveImage = () => {
-    setPreviewImage(null);
+    setPreviewImage(null); // Elimina la vista previa de la interfaz
+
+    setProductData((prevData) => ({
+      ...prevData,
+      imagen_producto: "", // Intenta usar null si eso se ajusta mejor a tu lógica
+    }));
+  };
+  useEffect(() => {}, [productData]);
+
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+
+    if (file) {
+      setProductData((prevData) => ({
+        ...prevData,
+        imagen: file,
+      }));
+
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        setPreviewImage(reader.result); // Actualiza la vista previa
+        setIsNewImage(true); // Marca la imagen como nueva
+      };
+
+      reader.readAsDataURL(file);
+    }
   };
 
   const validateFormData = () => {
@@ -96,15 +119,15 @@ const EditProduct = ({ DataProducto }) => {
     }
 
     // Validación para las IDs de unidad, categoría y subcategoría
-    if (!productData.Unidad?.value) {
+    if (!productData.Unidad) {
       errors.Unidad = "La unidad es requerida.";
     }
 
-    if (!productData.Categoria?.value) {
+    if (!productData.Categoria) {
       errors.Categoria = "La categoría es requerida.";
     }
 
-    if (!productData.Subcategoria?.value) {
+    if (!productData.Subcategoria) {
       errors.subcategoria = "La subcategoría es requerida.";
     }
 
@@ -137,17 +160,18 @@ const EditProduct = ({ DataProducto }) => {
     return errors;
   };
 
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Data Producto", productData);
+  const handleFormSubmit = async () => {
     const errors = validateFormData();
 
     if (Object.keys(errors).length > 0) {
       Object.values(errors).forEach((error) => {
-        toast.error(error); // Usa react-toastify para mostrar los errores
+        toast.error(error);
       });
       return;
     }
+
+    const token = Cookies.get("authToken");
+
     const formData = new FormData();
     formData.append("productId", productData.id);
     formData.append("Categoria", productData.Categoria);
@@ -155,53 +179,57 @@ const EditProduct = ({ DataProducto }) => {
     formData.append("Unidad", productData.Unidad);
     formData.append("cantidad", productData.cantidad);
     formData.append("cantidadMinima", productData.cantidadMinima);
-    formData.append("imagen_producto", productData.imagen_producto);
     formData.append("nombre_producto", productData.nombre_producto);
     formData.append("nombre_usuario", productData.nombre_usuario);
     formData.append("precio_compra", productData.precio_compra);
     formData.append("precio_venta", productData.precio_venta);
-    // const token = Cookies.get("authToken");
 
-    // const config = {
-    //   method: "post",
-    //   url: "https://cheveposapi.codelabs.com.mx/Endpoints/Update/UpdateCliente.php",
-    //   headers: {
-    //     Authorization: `Bearer ${token}`,
-    //     "Content-Type": "application/json"
-    //   },
-    //   data:formData
-    // };
+    // Adjuntar archivo de la imagen si `isNewImage` es verdadero.
+    if (isNewImage && productData.imagen instanceof File) {
+      formData.append("imagen_producto", productData.imagen);
+    }
+    formData.append("isNewImage", isNewImage);
 
-    
-    // try {
-        console.log(formData);
-    //   const response = await axios.request(config);
+    const config = {
+      method: "post",
+      url: "https://cheveposapi.codelabs.com.mx/Endpoints/Update/UpdateProducto.php",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      data: formData,
+    };
 
-    //   if (response.data.success) {
-    //     console.log(productData);
-    //     toast.success("Producto insertado correctamente.");
+    try {
+      const response = await axios.request(config);
 
-        // // Limpiar los datos del modal
-        // setProductData({
-        //     nombre: "",
-        //     unidad: null,
-        //     categoria: null,
-        //     subcategoria: null,
-        //     precioCosto: "",
-        //     precioVenta: "",
-        //     cantidadActual: "",
-        //     cantidadMinima: "",
-        //     imagen: null
-        // });
-        // navigate(all_routes.productlist);
-    //   } else {
-    //     toast.error(`Error: ${response.data.message}`);
-    //   }
-    // } catch (error) {
-    //   toast.error(`Error: ${error.message}`);
-    // }
+      if (response.data.success) {
+        toast.success("Producto actualizao correctamente.");
+        // Limpiar o redirigir según sea necesario
+        window.location.reload();
+      } else {
+        toast.error(`Error: ${response.data.message}`);
+      }
+    } catch (error) {
+      toast.error(`Error: ${error.message}`);
+    }
   };
 
+  const closemodal = () => {
+    setProductData({
+      nombre: "",
+      unidad: null,
+      categoria: null,
+      subcategoria: null,
+      precioCosto: "",
+      precioVenta: "",
+      precioMayoreo: "",
+      cantidadActual: "",
+      cantidadMinima: "",
+      imagen: null,
+    });
+    setPreviewImage(null);
+    setIsNewImage(false);
+  };
   return (
     <div>
       <ToastContainer />
@@ -267,7 +295,7 @@ const EditProduct = ({ DataProducto }) => {
                                           onChange={(e) =>
                                             setProductData({
                                               ...productData,
-                                              nombre_producto: e.target.value
+                                              nombre_producto: e.target.value,
                                             })
                                           }
                                         />
@@ -285,12 +313,13 @@ const EditProduct = ({ DataProducto }) => {
                                           options={options.Unidad}
                                           value={options.Unidad.find(
                                             (option) =>
-                                              option.label == productData.Unidad
+                                              option.value ===
+                                              productData.Unidad // Compara con value
                                           )}
                                           onChange={(selectedOption) =>
                                             setProductData((prevData) => ({
                                               ...prevData,
-                                              Unidad: selectedOption.label
+                                              Unidad: selectedOption.value, // Guarda el value
                                             }))
                                           }
                                           placeholder="Elegir"
@@ -310,16 +339,13 @@ const EditProduct = ({ DataProducto }) => {
                                           options={options.Categoria || []} // Manejo seguro
                                           value={(options.Categoria || []).find(
                                             (option) =>
-                                              option.etiqueta ===
-                                              productData?.options?.Categoria // Manejo seguro
+                                              option.value ===
+                                              productData.Categoria // Compara con value
                                           )}
                                           onChange={(selectedOption) =>
                                             setProductData((prevData) => ({
                                               ...prevData,
-                                              options: {
-                                                ...prevData.options,
-                                                Categoria: selectedOption.label
-                                              }
+                                              Categoria: selectedOption.value, // Guarda el value
                                             }))
                                           }
                                           placeholder="Elegir"
@@ -328,37 +354,33 @@ const EditProduct = ({ DataProducto }) => {
                                     </div>
                                   </div>
                                   <div className="col-lg-4 col-sm-6 col-12">
-                                      <div className="mb-3 add-product">
-                                        <label className="form-label">
-                                          SubCategoria
-                                        </label>
-                                        {productData && (
-                                          <Select
-                                            classNamePrefix="react-select"
-                                            options={options.Subcategoria || []} // Manejo seguro
-                                            value={(
-                                              options.Subcategoria || []
-                                            ).find(
-                                              (option) =>
-                                                option.etiqueta ===
-                                                productData?.options
-                                                  ?.Subcategoria // Manejo seguro
-                                            )}
-                                            onChange={(selectedOption) =>
-                                              setProductData((prevData) => ({
-                                                ...prevData,
-                                                options: {
-                                                  ...prevData.options,
-                                                  Subcategoria:
-                                                    selectedOption.label
-                                                }
-                                              }))
-                                            }
-                                            placeholder="Elegir"
-                                          />
-                                        )}
-                                      </div>
+                                    <div className="mb-3 add-product">
+                                      <label className="form-label">
+                                        SubCategoria
+                                      </label>
+                                      {productData && (
+                                        <Select
+                                          classNamePrefix="react-select"
+                                          options={options.Subcategoria || []} // Manejo seguro
+                                          value={(
+                                            options.Subcategoria || []
+                                          ).find(
+                                            (option) =>
+                                              option.value ===
+                                              productData.Subcategoria // Compara con value
+                                          )}
+                                          onChange={(selectedOption) =>
+                                            setProductData((prevData) => ({
+                                              ...prevData,
+                                              Subcategoria:
+                                                selectedOption.value, // Guarda el value
+                                            }))
+                                          }
+                                          placeholder="Elegir"
+                                        />
+                                      )}
                                     </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -420,13 +442,17 @@ const EditProduct = ({ DataProducto }) => {
                                               onChange={(e) =>
                                                 setProductData({
                                                   ...productData,
-                                                  precio_compra: e.target.value
+                                                  precio_compra:
+                                                    parseFloat(
+                                                      e.target.value
+                                                    ) || 0, // Conviertes a número
                                                 })
                                               }
                                             />
                                           )}
                                         </div>
                                       </div>
+
                                       <div className="col-lg-6 col-sm-6 col-12">
                                         <div className="input-blocks add-product">
                                           <label>Precio Venta</label>
@@ -440,7 +466,10 @@ const EditProduct = ({ DataProducto }) => {
                                               onChange={(e) =>
                                                 setProductData({
                                                   ...productData,
-                                                  precio_venta: e.target.value
+                                                  precio_venta:
+                                                    parseFloat(
+                                                      e.target.value
+                                                    ) || 0, // Conviertes a número
                                                 })
                                               }
                                             />
@@ -460,7 +489,7 @@ const EditProduct = ({ DataProducto }) => {
                                               onChange={(e) =>
                                                 setProductData({
                                                   ...productData,
-                                                  cantidad: e.target.value
+                                                  cantidad: e.target.value,
                                                 })
                                               }
                                             />
@@ -480,7 +509,8 @@ const EditProduct = ({ DataProducto }) => {
                                               onChange={(e) =>
                                                 setProductData({
                                                   ...productData,
-                                                  cantidadMinima: e.target.value
+                                                  cantidadMinima:
+                                                    e.target.value,
                                                 })
                                               }
                                             />
@@ -540,26 +570,42 @@ const EditProduct = ({ DataProducto }) => {
                                                         </div>
                                                       </div>
                                                     </div>
-                                                    {previewImage &&
-                                                      productData &&
-                                                      productData.imagen_producto && (
-                                                        <div className="phone-img">
-                                                          <ImageWithGenericUrlCheve
-                                                            src={
-                                                              productData.imagen_producto
-                                                            }
-                                                            alt="Vista previa"
-                                                          />
-                                                          <Link to="#">
-                                                            <X
-                                                              className="x-square-add remove-product"
-                                                              onClick={
-                                                                handleRemoveImage
-                                                              }
+                                                    {isNewImage
+                                                      ? previewImage && (
+                                                          <div className="phone-img">
+                                                            <img
+                                                              src={previewImage}
+                                                              alt="Vista previa"
                                                             />
-                                                          </Link>
-                                                        </div>
-                                                      )}
+                                                            <Link to="#">
+                                                              <X
+                                                                className="x-square-add remove-product"
+                                                                onClick={
+                                                                  handleRemoveImage
+                                                                }
+                                                              />
+                                                            </Link>
+                                                          </div>
+                                                        )
+                                                      : productData &&
+                                                        productData.imagen_producto && (
+                                                          <div className="phone-img">
+                                                            <ImageWithGenericUrlCheve
+                                                              src={
+                                                                productData.imagen_producto
+                                                              }
+                                                              alt="Vista previa"
+                                                            />
+                                                            <Link to="#">
+                                                              <X
+                                                                className="x-square-add remove-product"
+                                                                onClick={
+                                                                  handleRemoveImage
+                                                                }
+                                                              />
+                                                            </Link>
+                                                          </div>
+                                                        )}
                                                   </div>
                                                 </div>
                                               </div>
@@ -581,14 +627,18 @@ const EditProduct = ({ DataProducto }) => {
                       </div>
                     </div>
                     <div className="modal-footer-btn">
-                      <button type="button" className="btn btn-cancel me-2"
-                                       data-bs-dismiss="modal">
+                      <button
+                        type="button"
+                        className="btn btn-cancel me-2"
+                        data-bs-dismiss="modal"
+                        onClick={closemodal}
+                      >
                         Cancelar
                       </button>
                       <button
                         type="button"
                         className="btn btn-submit"
-                        onClick={() => handleFormSubmit}
+                        onClick={handleFormSubmit} // Quita la flecha y los paréntesis vacíos
                       >
                         Guardar
                       </button>
@@ -608,17 +658,17 @@ EditProduct.propTypes = {
   DataProducto: PropTypes.shape({
     id: PropTypes.number.isRequired,
     nombre_producto: PropTypes.string.isRequired,
-    Categoria: PropTypes.string.isRequired,
-    Subcategoria: PropTypes.string.isRequired,
-    Unidad: PropTypes.string.isRequired,
+    Categoria: PropTypes.number.isRequired,
+    Subcategoria: PropTypes.number.isRequired,
+    Unidad: PropTypes.number.isRequired,
     precio_compra: PropTypes.string.isRequired,
     precio_venta: PropTypes.string.isRequired,
     cantidad: PropTypes.number.isRequired,
     cantidadMinima: PropTypes.number.isRequired,
     imagen_producto: PropTypes.string.isRequired,
     creado_en: PropTypes.string.isRequired,
-    FechaActualizacion: PropTypes.string.isRequired
-  })
+    FechaActualizacion: PropTypes.string.isRequired,
+  }),
 };
 
 export default EditProduct;

@@ -46,15 +46,6 @@ export const SidebarData = [
         showSubRoute: false,
         submenu: false,
       },
-
-
-      {
-        label: "Ajustar Inventario",
-        link: "/expired-products",
-        icon: <Icon.Codesandbox />,
-        showSubRoute: false,
-        submenu: false,
-      },
       {
         label: "Productos Bajos en Inventario",
         link: "/low-stocks",

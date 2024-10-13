@@ -10,7 +10,6 @@ import EmailVerification from "../pages/emailverification/emailverification";
 import Dashboard from "../pages/dashboard/Dashboard";
 import AddProduct from "../admin/inventory/addproduct";
 import ProductList from "../admin/inventory/productlist";
-import ExpiredProduct from "../admin/inventory/expiredproduct";
 import LowStock from "../admin/inventory/lowstock";
 import CategoryList from "../admin/inventory/categorylist";
 import SubCategories from "../admin/inventory/subcategories";
@@ -57,13 +56,6 @@ export const publicRoutes = [
     path: routes.pos,
     name: "pos",
     element: <Pos />,
-    route: Route
-  },
-  {
-    id: 58,
-    path: routes.expiredproduct,
-    name: "expiredproduct",
-    element: <ExpiredProduct />,
     route: Route
   },
   {

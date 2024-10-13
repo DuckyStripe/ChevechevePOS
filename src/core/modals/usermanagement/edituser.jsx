@@ -6,7 +6,8 @@ import { fetchRolesAvaible } from "../../../Data/Inventario/users";
 import { ToastContainer, toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import {encriptarContrasena} from "../../../Data/DataEncrypt";
-
+import axios from "axios";
+import Cookies from "js-cookie";
 const EditUser = ({ UserData }) => {
   const [Roles, setRoles] = useState([]);
   const [Datauser, setDatauser] = useState({});
@@ -27,7 +28,9 @@ const EditUser = ({ UserData }) => {
     };
     initializeData();
   }, [UserData]);
-
+  useEffect(() => {
+    console.log("Nuevo Proucto:",Datauser)
+  }, [Datauser]);
   const handleTogglePassword = () => {
     setShowPassword((prevShowPassword) => !prevShowPassword);
   };
@@ -35,26 +38,106 @@ const EditUser = ({ UserData }) => {
   const handleToggleConfirmPassword = () => {
     setConfirmPassword((prevShowPassword) => !prevShowPassword);
   };
-  const handleUpdateCategory = () => {
-    if (Datauser.password !== Datauser.confirmPassword) {
-        toast.error("Las contraseñas no coinciden.");
-        return;
-      }
-      delete Datauser.confirmPassword;
+  const validateFormData = () => {
+    const errors = {};
 
-    const { contrasena_encriptada } = encriptarContrasena(Datauser.password);
-    // Aquí manejarías la lógica para actualizar la categoría
-    console.log("Updated Category:", {
-        ...Datauser,
-        password: contrasena_encriptada
+    // Validación para el teléfono
+    if (!Datauser.telefono) {
+        errors.telefono = "El teléfono es requerido.";
+    } else if (!/^\d{10}$/.test(Datauser.telefono)) {
+        errors.telefono = "El teléfono debe contener 10 dígitos.";
+    }
+
+    // Validación para el correo
+    if (!Datauser.correo) {
+        errors.correo = "El correo es requerido.";
+    } else if (!/\S+@\S+\.\S+/.test(Datauser.correo)) {
+        errors.correo = "El correo debe ser una dirección válida.";
+    }
+
+    // Validación para el rol
+    if (!Datauser.nombre_rol) {
+        errors.nombre_rol = "El rol es requerido.";
+    }
+
+    // Validación para la contraseña (si se proporciona)
+    if (Datauser.password && Datauser.password.length < 6) {
+        errors.password = "La contraseña debe tener al menos 6 caracteres.";
+    }
+
+    // Validación para la confirmación de contraseña
+    if (Datauser.password && Datauser.confirmPassword !== Datauser.password) {
+        errors.confirmPassword = "Las contraseñas no coinciden.";
+    }
+
+    return errors;
+};
+
+const handlesubmit = async () => {
+  const errors = validateFormData();
+
+  if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach((error) => {
+          toast.error(error);
       });
-    // Asegúrate de cerrar el modal después de actualizar los datos, si es apropiado
+      return;
+  }
+
+  if (Datauser.password !== Datauser.confirmPassword) {
+      toast.error("Las contraseñas no coinciden.");
+      return;
+  }
+
+  delete Datauser.confirmPassword;
+
+  // Determina si la contraseña se debe incluir
+  let passwordToSend = null;
+  if (Datauser.password) {
+      const { contrasena_encriptada } = encriptarContrasena(Datauser.password);
+      passwordToSend = contrasena_encriptada;
+  }
+
+  const token = Cookies.get("authToken");
+
+  const formData = new FormData();
+  formData.append("userId", Datauser.id);
+  formData.append("rol_id", Datauser.rol_id);
+  formData.append("correo", Datauser.correo);
+  formData.append("telefono", Datauser.telefono);
+  if (passwordToSend) {
+      formData.append("password", passwordToSend);
+  } // Solo se agrega si se ha ingresado una nueva contraseña
+  formData.append("estado", Datauser.estado);
+
+  const config = {
+      method: "post",
+      url: "https://cheveposapi.codelabs.com.mx/Endpoints/Update/UpdateUser.php",
+      headers: {
+          Authorization: `Bearer ${token}`,
+      },
+      data: formData,
   };
+
+  try {
+      const response = await axios.request(config);
+
+      if (response.data.success) {
+          toast.success("Usuario actualizado correctamente.");
+          // Limpiar o redirigir según sea necesario
+          window.location.reload();
+      } else {
+          toast.error(`Error: ${response.data.message}`);
+      }
+  } catch (error) {
+      toast.error(`Error: ${error.message}`);
+  }
+};
+
+
   const handledeleteData = () => {
-    setDatauser({});
-    setShowPassword({});
-    setConfirmPassword({});
-    // Asegúrate de cerrar el modal después de actualizar los datos, si es apropiado
+    setDatauser({}); // Correcto para reiniciar el objeto de datos del usuario
+    setShowPassword(true); // Restablecer a valor booleano
+    setConfirmPassword(true); // Restablecer a valor booleano
   };
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -66,11 +149,12 @@ const EditUser = ({ UserData }) => {
   const handleRoleChange = (selectedOption) => {
     setDatauser((prevData) => ({
       ...prevData,
-      nombre_rol: selectedOption ? selectedOption.label : ""
+      rol_id: selectedOption ? selectedOption.value : ""
     }));
   };
   return (
     <div>
+      <ToastContainer/>
       {/* Edit User */}
       <div className="modal fade" id="edit-units">
       <ToastContainer/>
@@ -135,7 +219,7 @@ const EditUser = ({ UserData }) => {
                             classNamePrefix="react-select"
                             options={Roles}
                             value={Roles.find(
-                              (role) => role.label === Datauser.nombre_rol
+                              (role) => role.value === Datauser.rol_id
                             )} // Usar 'value' en lugar de 'defaultValue'
                             onChange={handleRoleChange}
                             placeholder="Elige un rol"
@@ -220,7 +304,7 @@ const EditUser = ({ UserData }) => {
                       <Link
                         to="#"
                         className="btn btn-submit"
-                        onClick={handleUpdateCategory}
+                        onClick={handlesubmit}
                       >
                         Guardar
                       </Link>
@@ -245,7 +329,8 @@ EditUser.propTypes = {
     telefono: PropTypes.string.isRequired,
     correo: PropTypes.string.isRequired,
     nombre_rol: PropTypes.string.isRequired,
-    estado: PropTypes.string.isRequired
+    rol_id: PropTypes.number.isRequired,
+    estado: PropTypes.number.isRequired
   })
 };
 

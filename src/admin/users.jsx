@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   PlusCircle,
 } from "react-feather";
+import { fetchRolesAvaible } from "../Data/Inventario/users";
 import Swal from "sweetalert2";
 import Table from "../core/pagination/datatable";
 import AddUsers from "../core/modals/usermanagement/addusers";
@@ -24,13 +25,29 @@ import Cookies from 'js-cookie';
 const Users = () => {
   const [selectedUser,setSelectedUser ] = useState(null); //
   const [dataSource, setDataSource] = useState([]);
+  const [dataModal, setDataModal] = useState([]);
   const dispatch = useDispatch();
   const data = useSelector((state) => state.toggle_header);
 
   const initializeData = async () => {
     const users = await fetchUsers();
     setDataSource(users);
+    console.log(users);
+
+    const rolesAvailable = await fetchRolesAvaible();
+    console.log(rolesAvailable)
+    const transformedUsers = users.map((User) => { // Directamente mapeado
+      const rol_id = rolesAvailable.find(cat => cat.label === User.nombre_rol)?.value || null;
+
+      return {
+          ...User,
+          rol_id, // Usar 'rol_id' en lugar de 'nombre_rol'
+      };
+  });
+
+    setDataModal(transformedUsers);
   };
+
   useEffect(() => {
     initializeData();
   }, []);
@@ -119,8 +136,12 @@ const Users = () => {
     XLSX.writeFile(workbook, fileName);
   };
   const handleEditClick = (Users) => {
-    setSelectedUser(Users); // Establecer la categoría seleccionada
+    console.log("datamodal",dataModal)
+    const userForModal = dataModal.find(users => users.id === Users.id);
+    console.log("userfor modal",userForModal)
+    setSelectedUser(userForModal);
   };
+
 
 
   const handlePrint = () => {
@@ -252,21 +273,21 @@ const Users = () => {
       cancelButtonColor: "#ff0000",
       cancelButtonText: "Cancelar",
     });
-  
+
     if (result.isConfirmed) {
       const token = Cookies.get('authToken');
       const config = {
-        method: 'post',  
+        method: 'post',
         url: `https://cheveposapi.codelabs.com.mx/Endpoints/Delete/DeleteUser.php`, // Suponiendo este endpoint
         headers: {
           'Authorization': `Bearer ${token}`,
         },
         data:formData
       };
-  
+
       try {
         const response = await axios.request(config);
-  
+
         if (response.data.success) {
           initializeData();
           await Swal.fire({

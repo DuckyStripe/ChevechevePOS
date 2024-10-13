@@ -13,14 +13,20 @@ import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
-import axios from 'axios';
-import Cookies from 'js-cookie';
+import axios from "axios";
+import Cookies from "js-cookie";
 import EditProduct from "../../core/modals/inventory/editproduct";
-
+import AddInventory from "../../core/modals/inventory/add2inventory";
+import {
+  fetchCategories,
+  fetchSubCategories,
+  fetchUnidad,
+} from "../../Data/Inventario/category"; // I
 // Iconos
 import {
   ChevronUp,
   Edit,
+  Plus,
   Filter,
   GitMerge,
   PlusCircle,
@@ -31,9 +37,10 @@ import {
 
 const ProductList = () => {
   const [dataSource, setDataSource] = useState([]);
+  const [dataModal, setDataModal] = useState([]);
   const [searchValue, setSearchValue] = useState(""); // Estado para el término de búsqueda
   const [filteredData, setFilteredData] = useState([]); // Para almacenar datos filtrados
-  const [selectedProduct,setSelectedProduct ] = useState(null); //
+  const [selectedProduct, setSelectedProduct] = useState(null); //
   const [options, setOptions] = useState({
     Categoria: [],
     Subcategoria: [],
@@ -52,10 +59,35 @@ const ProductList = () => {
 
   const loadProducts = async () => {
     const products = await fetchProducts();
-    setOptions(products.options);
+    const categorias = await fetchCategories();
+    const subcategorias = await fetchSubCategories();
+    const unidades = await fetchUnidad();
+
+    // Actualiza las opciones
+    setOptions({
+      Categoria: categorias,
+      Subcategoria: subcategorias,
+      Unidad: unidades,
+    });
+
+    // Transforma el data source para que use IDs en lugar de labels
+    const transformedProducts = products.data.map(product => {
+      const categoriaId = categorias.find(cat => cat.label === product.Categoria)?.value || null;
+      const subcategoriaId = subcategorias.find(subcat => subcat.label === product.Subcategoria)?.value || null;
+      const unidadId = unidades.find(un => un.label === product.Unidad)?.value || null;
+
+      return {
+        ...product,
+        Categoria: categoriaId,
+        Subcategoria: subcategoriaId,
+        Unidad: unidadId
+      };
+    });
     setDataSource(products.data);
+    setDataModal(transformedProducts);
     setFilteredData(products.data);
   };
+
   useEffect(() => {
     loadProducts();
   }, []);
@@ -78,6 +110,7 @@ const ProductList = () => {
       [field]: selectedOption ? selectedOption.value : null,
     }));
   };
+
   const handleSearch = () => {
     // Filtro de productos según los filtros seleccionados
     const filteredProducts = dataSource.filter((nombre_producto) => {
@@ -114,20 +147,20 @@ const ProductList = () => {
       { header: "Cantidad Mínima", dataKey: "cantidadMinima" },
       { header: "Creado En", dataKey: "creado_en" },
       { header: "Nombre del Usuario", dataKey: "nombre_usuario" },
-      { header: "Fecha de Actualización", dataKey: "FechaActualizacion" }
+      { header: "Fecha de Actualización", dataKey: "FechaActualizacion" },
     ];
 
     // Formatea las fechas a un formato más legible
     const formatDateString = (dateString) => {
-      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      const options = { year: "numeric", month: "long", day: "numeric" };
       return new Date(dateString).toLocaleDateString(undefined, options);
     };
 
     // Ajusta el cuerpo de los datos, formatea las fechas
-    const preparedData = dataSource.map(item => ({
+    const preparedData = dataSource.map((item) => ({
       ...item,
       creado_en: formatDateString(item.creado_en),
-      FechaActualizacion: formatDateString(item.FechaActualizacion)
+      FechaActualizacion: formatDateString(item.FechaActualizacion),
     }));
 
     // Obtiene la fecha actual para incluir en el nombre del archivo
@@ -135,13 +168,13 @@ const ProductList = () => {
     const formattedDate = today.toISOString().slice(0, 10); // yyyy-mm-dd
 
     // Crea un nuevo documento PDF con orientación "landscape"
-    const doc = new jsPDF('landscape');
+    const doc = new jsPDF("landscape");
 
     // Usa autotable para agregar la tabla al documento
     doc.autoTable({
       columns,
       body: preparedData, // Usa el cuerpo de datos preparados
-      styles: { halign: 'center' }, // Opcional: centrar el contenido
+      styles: { halign: "center" }, // Opcional: centrar el contenido
       headStyles: { fillColor: [233, 30, 99] }, // Opcional: color de la cabecera
     });
 
@@ -149,7 +182,6 @@ const ProductList = () => {
     const fileName = `Inventario_${formattedDate}.pdf`;
     doc.save(fileName);
   };
-
 
   const handleExcelExport = () => {
     // Define las columnas que quieres usar en el archivo Excel
@@ -165,9 +197,8 @@ const ProductList = () => {
       { title: "Cantidad Mínima", dataIndex: "cantidadMinima" },
       { title: "Creado En", dataIndex: "creado_en" },
       { title: "Nombre del Usuario", dataIndex: "nombre_usuario" },
-      { title: "Fecha de Actualización", dataIndex: "FechaActualizacion" }
+      { title: "Fecha de Actualización", dataIndex: "FechaActualizacion" },
     ];
-
 
     // Extrae las filas de datos basadas en dataSource
     const data = dataSource.map((item) =>
@@ -208,9 +239,10 @@ const ProductList = () => {
 
   const route = all_routes;
   const handleEditClick = (Product) => {
-    console.log(Product)
-    setSelectedProduct(Product); // Establecer la categoría seleccionada
+    const productForModal = dataModal.find((product) => product.id === Product.id);
+    setSelectedProduct(productForModal);
   };
+
   const columns = [
     {
       title: "Producto",
@@ -272,6 +304,15 @@ const ProductList = () => {
       render: (_, record) => (
         <div className="action-table-data">
           <div className="edit-delete-action">
+          <Link
+          className="me-2 p-2"
+              to="#"
+              data-bs-toggle="modal"
+              data-bs-target="#add-units-category"
+              onClick={() => handleEditClick(record)}
+            >
+              <Plus className="feather-edit" />
+            </Link>
             <Link
               className="me-2 p-2"
               to="#"
@@ -305,27 +346,27 @@ const ProductList = () => {
       cancelButtonColor: "#ff0000",
       cancelButtonText: "Cancelar",
     });
-  
+
     if (result.isConfirmed) {
-      const token = Cookies.get('authToken');
+      const token = Cookies.get("authToken");
       const config = {
-        method: 'post',  
+        method: "post",
         url: `https://cheveposapi.codelabs.com.mx/Endpoints/Delete/DeleteProduct.php`, // Suponiendo este endpoint
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        data:formData
+        data: formData,
       };
-  
+
       try {
         const response = await axios.request(config);
-  
+
         if (response.data.success) {
           loadProducts();
           await Swal.fire({
             title: "¡Eliminado!",
             text: "El producto ha sido eliminado.",
-            icon: 'success',
+            icon: "success",
             confirmButtonText: "OK",
             customClass: {
               confirmButton: "btn btn-success",
@@ -335,7 +376,7 @@ const ProductList = () => {
           await Swal.fire({
             title: "Error",
             text: response.data.message,
-            icon: 'error',
+            icon: "error",
             confirmButtonText: "OK",
           });
         }
@@ -343,11 +384,9 @@ const ProductList = () => {
         await Swal.fire({
           title: "Error",
           text: "Hubo un problema al intentar eliminar el producto.",
-          icon: 'error',
+          icon: "error",
           confirmButtonText: "OK",
-
         });
-        console.error("Error al eliminar el producto:", error);
       }
     }
   };
@@ -357,7 +396,7 @@ const ProductList = () => {
       Categoria: null,
       Subcategoria: null,
       Unidad: null,
-      precio_compra: null
+      precio_compra: null,
     });
     setFilteredData(dataSource);
   };
@@ -615,6 +654,7 @@ const ProductList = () => {
             </div>
           </div>
         </div>
+        <AddInventory DataProducto={selectedProduct}/>
         <EditProduct DataProducto={selectedProduct} />
       </div>
     </div>

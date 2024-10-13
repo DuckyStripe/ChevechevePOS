@@ -10,7 +10,6 @@ export const all_routes = {
   pos: "/pos",
   addproduct: "/add-product",
   productlist: "/product-list",
-  expiredproduct: "/expired-products",
   lowstock: "/low-stocks",
   categorylist: "/category-list",
   subcategories: "/sub-categories",

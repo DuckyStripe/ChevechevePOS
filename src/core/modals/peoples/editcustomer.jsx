@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-// Asegúrate de que ImageWithBasePath esté importado correctamente, y cualquier otra dependencia necesaria esté disponible.
+import axios from "axios";
+import Cookies from "js-cookie";
 
 const EditCustomer = ({ CustomerData }) => {
   const [formData, setFormData] = useState({
@@ -26,7 +27,9 @@ const EditCustomer = ({ CustomerData }) => {
       });
     }
   }, [CustomerData]);
-
+  useEffect(() => {
+    console.log("Current formData:", formData);
+  }, [formData]);
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -40,7 +43,9 @@ const EditCustomer = ({ CustomerData }) => {
     }
     if (!formData.correo) {
       errors.correo = "El correo es obligatorio.";
-    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.correo)) {
+    } else if (
+      !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.correo)
+    ) {
       errors.correo = "El correo no es válido.";
     }
     if (!formData.telefono) {
@@ -60,19 +65,34 @@ const EditCustomer = ({ CustomerData }) => {
     e.preventDefault();
     if (validateForm()) {
       try {
-        toast.success("Cliente modificado exitosamente");
+        const token = Cookies.get("authToken");
+        const formDataToSend = new FormData();
+        formDataToSend.append("idCliente", formData.id);
+        formDataToSend.append("nombre", formData.nombre);
+        formDataToSend.append("correo", formData.correo);
+        formDataToSend.append("telefono", formData.telefono);
+        formDataToSend.append("direccion", formData.direccion);
+        const config = {
+          method: "post",
+          url: "https://cheveposapi.codelabs.com.mx/Endpoints/Update/updateCliente.php",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          data: formDataToSend,
+        };
+        try {
+          const response = await axios.request(config);
 
-        // Resetea el formulario después de enviar
-        // setFormData({
-        //   id: "",
-        //   nombre: "",
-        //   correo: "",
-        //   telefono: "",
-        //   direccion: "",
-        // });
-
-        // Simula un clic en el botón de cancelar para cerrar el modal
-        document.querySelector(".btn-cancel").click();
+          if (response.data.success) {
+            toast.success("Cliente actualizado correctamente.");
+            // Limpiar o redirigir según sea necesario
+            window.location.reload();
+          } else {
+            toast.error(`Error: ${response.data.message}`);
+          }
+        } catch (error) {
+          toast.error(`Error: ${error.message}`);
+        }
       } catch (error) {
         console.error("Error al enviar datos: ", error);
         toast.error("Error al modificar el cliente");
@@ -110,14 +130,17 @@ const EditCustomer = ({ CustomerData }) => {
                           <label className="form-label">Customer Name</label>
                           <input
                             type="text"
-                            className={`form-control ${formErrors.nombre ? "is-invalid" : ""}`}
+                            className={`form-control ${
+                              formErrors.nombre ? "is-invalid" : ""
+                            }`}
                             name="nombre"
                             value={formData.nombre}
                             onChange={handleInputChange}
                           />
                           {formErrors.nombre && (
-                            <div className="invalid-feedback">{formErrors.nombre}</div>
-
+                            <div className="invalid-feedback">
+                              {formErrors.nombre}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -126,13 +149,17 @@ const EditCustomer = ({ CustomerData }) => {
                           <label className="form-label">Email</label>
                           <input
                             type="email"
-                            className={`form-control ${formErrors.correo ? "is-invalid" : ""}`}
+                            className={`form-control ${
+                              formErrors.correo ? "is-invalid" : ""
+                            }`}
                             name="correo"
                             value={formData.correo}
                             onChange={handleInputChange}
                           />
                           {formErrors.correo && (
-                            <div className="invalid-feedback">{formErrors.correo}</div>
+                            <div className="invalid-feedback">
+                              {formErrors.correo}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -141,13 +168,17 @@ const EditCustomer = ({ CustomerData }) => {
                           <label className="form-label">Phone</label>
                           <input
                             type="text"
-                            className={`form-control ${formErrors.telefono ? "is-invalid" : ""}`}
+                            className={`form-control ${
+                              formErrors.telefono ? "is-invalid" : ""
+                            }`}
                             name="telefono"
                             value={formData.telefono}
                             onChange={handleInputChange}
                           />
                           {formErrors.telefono && (
-                            <div className="invalid-feedback">{formErrors.telefono}</div>
+                            <div className="invalid-feedback">
+                              {formErrors.telefono}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -156,13 +187,17 @@ const EditCustomer = ({ CustomerData }) => {
                           <label className="form-label">Address</label>
                           <input
                             type="text"
-                            className={`form-control ${formErrors.direccion ? "is-invalid" : ""}`}
+                            className={`form-control ${
+                              formErrors.direccion ? "is-invalid" : ""
+                            }`}
                             name="direccion"
                             value={formData.direccion}
                             onChange={handleInputChange}
                           />
                           {formErrors.direccion && (
-                            <div className="invalid-feedback">{formErrors.direccion}</div>
+                            <div className="invalid-feedback">
+                              {formErrors.direccion}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -175,7 +210,11 @@ const EditCustomer = ({ CustomerData }) => {
                       >
                         Cancelar
                       </button>
-                      <button type="submit" className="btn btn-submit" data-bs-dismiss="modal" >
+                      <button
+                        type="submit"
+                        className="btn btn-submit"
+                        data-bs-dismiss="modal"
+                      >
                         Guardar
                       </button>
                     </div>

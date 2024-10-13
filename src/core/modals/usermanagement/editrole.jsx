@@ -2,14 +2,16 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types"; // Importa PropTypes
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
+import Cookies from "js-cookie";
 
 const EditRole = ({ RolData }) => {
   const [formErrors, setFormErrors] = useState({});
-  const [, setidRolstate] = useState("");//idRolstate
+  const [, setidRolstate] = useState(""); //idRolstate
   const [NombreRol, setNombreRol] = useState("");
   const [formData, setFormData] = useState({
     id: "",
-    nombre_rol: ""
+    nombre_rol: "",
   });
 
   useEffect(() => {
@@ -18,15 +20,17 @@ const EditRole = ({ RolData }) => {
       setNombreRol(RolData.nombre_rol || "");
       setFormData({
         id: RolData.id || "",
-        nombre_rol: RolData.nombre_rol || ""
+        nombre_rol: RolData.nombre_rol || "",
       });
     }
   }, [RolData]);
-
+  useEffect(() => {
+    console.log("Current formData:", formData);
+  }, [formData]);
   const resetFormData = () => {
     setFormData({
       id: "",
-      nombre_rol: ""
+      nombre_rol: "",
     });
     setFormErrors({});
   };
@@ -35,12 +39,32 @@ const EditRole = ({ RolData }) => {
     e.preventDefault();
     if (validateForm()) {
       try {
-        toast.success("Rol modificado exitosamente");
-        
-        resetFormData();
+        const token = Cookies.get("authToken");
+        const formDataToSend = new FormData();
+        formDataToSend.append("idRol", formData.id);
+        formDataToSend.append("nombre_rol", formData.nombre_rol);
+        console.log("Formata", formData);
+        const config = {
+          method: "post",
+          url: "https://cheveposapi.codelabs.com.mx/Endpoints/Update/updateRol.php",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          data: formDataToSend,
+        };
+        try {
+          const response = await axios.request(config);
 
-        // Simula un clic en el botón de cancelar para cerrar el modal
-        document.querySelector(".btn-cancel").click();
+          if (response.data.success) {
+            toast.success("Rol actualizado correctamente.");
+            // Limpiar o redirigir según sea necesario
+            window.location.reload();
+          } else {
+            toast.error(`Error: ${response.data.message}`);
+          }
+        } catch (error) {
+          toast.error(`Error: ${error.message}`);
+        }
       } catch (error) {
         console.error("Error al enviar datos: ", error);
         toast.error("Error al agregar el rol");
@@ -68,7 +92,7 @@ const EditRole = ({ RolData }) => {
     setNombreRol(newRolename);
     setFormData((prevState) => ({
       ...prevState,
-      nombre_rol: newRolename
+      nombre_rol: newRolename,
     }));
   };
 
@@ -140,7 +164,7 @@ const EditRole = ({ RolData }) => {
 EditRole.propTypes = {
   RolData: PropTypes.shape({
     id: PropTypes.number.isRequired,
-    nombre_rol: PropTypes.string.isRequired
-  })
+    nombre_rol: PropTypes.string.isRequired,
+  }),
 };
 export default EditRole;

@@ -46,7 +46,7 @@ const AddCustomer = () => {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  
+
   const resetFormData = () => {
     setFormData({
       customerName: "",
@@ -73,15 +73,15 @@ const AddCustomer = () => {
         const response = await axios.request(config);
 
         if (response.data.success === true) {
-          toast.success("Rol agregado exitosamente");
+          toast.success("Cliente agregado exitosamente");
           resetFormData();
           window.location.reload();
         } else {
-          toast.error(response.data.message || "Error al guardar el Rol.");
+          toast.error(response.data.message || "Error al guardar el Cliente.");
         }
       } catch (error) {
         console.error("Error al enviar datos: ", error);
-        toast.error("Error al agregar el rol");
+        toast.error("Error al agregar el Cliente");
       }
     }
   };

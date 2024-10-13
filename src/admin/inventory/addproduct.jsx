@@ -76,7 +76,21 @@ const AddProduct = () => {
       reader.readAsDataURL(file);
     }
   };
-
+  const closemodal = () => {
+    setProductData({
+      nombre: "",
+      unidad: null,
+      categoria: null,
+      subcategoria: null,
+      precioCosto: "",
+      precioVenta: "",
+      precioMayoreo: "",
+      cantidadActual: "",
+      cantidadMinima: "",
+      imagen: null
+    });
+    setPreviewImage(null);
+  }
   // Función para eliminar la imagen cargada
   const handleRemoveImage = () => {
     setPreviewImage(null);
@@ -145,7 +159,7 @@ const AddProduct = () => {
 
     if (Object.keys(errors).length > 0) {
       Object.values(errors).forEach((error) => {
-        toast.error(error); // Usa react-toastify para mostrar los errores
+        toast.error(error);
       });
       return;
     }
@@ -162,10 +176,17 @@ const AddProduct = () => {
     formData.append("precio_venta", productData.precioVenta);
     formData.append("cantidad", productData.cantidadActual);
     formData.append("cantidad_minima", productData.cantidadMinima);
-    if (productData.imagen) {
+
+    // Comprueba si la imagen ha cambiado añadiéndola solo si es diferente
+    if (
+      productData.imagen &&
+      (typeof productData.imagen !== "string" || !productData.imagen.startsWith("http"))
+    ) {
       formData.append("imagen_producto", productData.imagen);
     }
+
     console.log(productData);
+
     const config = {
       method: "post",
       url: "https://cheveposapi.codelabs.com.mx/Endpoints/Insert/InsertProduct.php",
@@ -174,7 +195,9 @@ const AddProduct = () => {
       },
       data: formData
     };
+
     console.log(config);
+
     try {
       const response = await axios.request(config);
 
@@ -195,7 +218,7 @@ const AddProduct = () => {
         });
 
         // Redireccionar a otra ruta
-        navigate(all_routes.productlist); // Cambia "/newroute" por la ruta que deseas redirigir.
+        navigate(all_routes.productlist);
       } else {
         toast.error(`Error: ${response.data.message}`);
       }
@@ -543,7 +566,7 @@ const AddProduct = () => {
           </div>
           <div className="col-lg-12">
             <div className="btn-addproduct mb-4">
-              <button type="button" className="btn btn-cancel me-2">
+              <button type="button" className="btn btn-cancel me-2" onClick={closemodal}>
                 Cancelar
               </button>
               <Link className="btn btn-submit" onClick={handleFormSubmit}>
