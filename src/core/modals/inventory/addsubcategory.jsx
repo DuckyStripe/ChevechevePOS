@@ -3,7 +3,7 @@ import Select from "react-select";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { fetchCategories } from "../../../Data/Inventario/category";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css"; // Asegúrate de importar los estilos del toast
 
 const AddSubcategory = () => {
@@ -103,7 +103,6 @@ const AddSubcategory = () => {
 
   return (
     <div>
-      <ToastContainer />
       <div className="modal fade" id="add-category">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">
           <div className="modal-content">

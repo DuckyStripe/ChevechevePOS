@@ -5,7 +5,7 @@ import { all_routes } from "../../Router/all_routes";
 import { loginSimulation } from "../../Data/login"; // Importamos la función de login
 import { Copyright } from "../../core/Copy/Copyright";
 import "react-toastify/dist/ReactToastify.css";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 
 const Signin = () => {
@@ -75,18 +75,6 @@ const Signin = () => {
   const route = all_routes;
   return (
     <div className="main-wrapper">
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
       <div className="account-content">
         <div className="login-wrapper bg-img">
           <div className="login-content">

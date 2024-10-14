@@ -3,7 +3,7 @@ import { DatePicker } from "antd";
 import { Calendar } from "feather-icons-react/build/IconComponents";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const AddPurchases = () => {
@@ -100,7 +100,6 @@ const AddPurchases = () => {
 
   return (
     <div>
-      <ToastContainer />
       <div className="modal fade" id="add-units">
         <div className="modal-dialog purchase modal-dialog-centered stock-adjust-modal">
           <div className="modal-content">

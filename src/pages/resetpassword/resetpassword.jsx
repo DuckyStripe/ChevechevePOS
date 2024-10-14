@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { all_routes } from "../../Router/all_routes";
 import { Copyright } from "../../core/Copy/Copyright";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { encriptarContrasena } from "../../Data/DataEncrypt";
 
@@ -84,7 +84,6 @@ const Resetpassword = () => {
 
   return (
     <div className="main-wrapper">
-      <ToastContainer />
       <div className="account-content">
         <div className="login-wrapper reset-pass-wrap bg-img">
           <div className="login-content">

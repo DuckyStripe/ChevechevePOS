@@ -75,8 +75,11 @@ const ViewSale = ({ ticketId }) => {
       printWindow.print();
       printWindow.close();
     }, 500);
+    window.location.reload();
   };
-
+  const handlerefresh = () => {
+    window.location.reload();
+  };
   const ModalBody = styled.div`
     padding: 20px;
     font-family: Arial, sans-serif;
@@ -264,21 +267,15 @@ const ViewSale = ({ ticketId }) => {
                       <tbody>
                         <tr>
                           <td>Sub Total :</td>
-                          <td className="text-end">
-                            ${saleData?.subtotal}
-                          </td>
+                          <td className="text-end">${saleData?.subtotal}</td>
                         </tr>
                         <tr>
                           <td>IVA :</td>
-                          <td className="text-end">
-                            ${saleData?.impuesto}
-                          </td>
+                          <td className="text-end">${saleData?.impuesto}</td>
                         </tr>
                         <tr>
                           <td>Total :</td>
-                          <td className="text-end">
-                            ${saleData?.total  }
-                          </td>
+                          <td className="text-end">${saleData?.total}</td>
                         </tr>
                         {/* <tr>
                           <td>Cambio :</td>
@@ -302,9 +299,12 @@ const ViewSale = ({ ticketId }) => {
               <p>**IVA acreditable según la legislación vigente.</p>
 
               <p>¡Gracias por su preferencia!</p>
-              <button onClick={handlePrint} className="btn btn-primary">
-              Imprimir Ticket
-            </button>
+                <button onClick={handlePrint} className="btn btn-primary me-2">
+                  Imprimir Ticket
+                </button>
+                <button onClick={handlerefresh} className="btn btn-primary"  data-bs-dismiss="modal">
+                  Cerrar
+                </button>
             </InvoiceBar>
           </ModalBody>
         </ModalContent>
@@ -314,7 +314,7 @@ const ViewSale = ({ ticketId }) => {
 };
 
 ViewSale.propTypes = {
-  ticketId: PropTypes.any // Cambiado a any para simplificar
+  ticketId: PropTypes.any, // Cambiado a any para simplificar
 };
 
 export default ViewSale;

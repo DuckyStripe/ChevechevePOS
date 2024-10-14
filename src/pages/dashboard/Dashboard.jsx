@@ -96,41 +96,44 @@ const Dashboard = () => {
       const data = await fetchDataProfit();
       setprofit(data);
 
-      // Inicia con el año más reciente
-      if (data.years && data.years.length > 0) {
-        setSelectedYear(Math.max(...data.years));
-      }
+      // Verifica si hay datos válidos primero
+      if (data && data.years && data.years.length > 0 && data.data) {
+        // Encuentra el año más reciente
+        const mostRecentYear = Math.max(...data.years);
+        setSelectedYear(mostRecentYear);
 
-      // Suponiendo que `data` sigue el formato especificado en la pregunta,
-      // actualizamos chartOptions basado en el año seleccionado:
-      if (data && data.data) {
-        const selectedYearData = data.data[Math.max(...data.years)];
+        // Asegúrate de que `selectedYearData` existe
+        const selectedYearIndex = data.years.indexOf(mostRecentYear);
+        const selectedYearData = data.data[selectedYearIndex];
 
-        const sales = selectedYearData.sales;
-        const purchases = selectedYearData.purchases;
+        if (selectedYearData) {
+          const sales = selectedYearData.sales ?? 0;
+          const purchases = selectedYearData.purchases ?? 0;
 
-        const allValues = [...sales, ...purchases];
-        const minValue = Math.min(...allValues);
-        const maxValue = Math.max(...allValues);
+          const allValues = [...sales, ...purchases];
+          const minValue = Math.min(...allValues);
+          const maxValue = Math.max(...allValues);
 
-        setChartOptions(prevOptions => ({
-          ...prevOptions,
-          series: [
-            { name: "Sales", data: sales },
-            { name: "Purchases", data: purchases }
-          ],
-          yaxis: {
-            ...prevOptions.yaxis,
-            min: minValue,
-            max: maxValue
-          },
-          xaxis: {
-            ...prevOptions.xaxis,
-            categories: data.categories
-          }
-        }));
+          setChartOptions(prevOptions => ({
+            ...prevOptions,
+            series: [
+              { name: "Sales", data: sales },
+              { name: "Purchases", data: purchases }
+            ],
+            yaxis: {
+              ...prevOptions.yaxis,
+              min: minValue,
+              max: maxValue
+            },
+            xaxis: {
+              ...prevOptions.xaxis,
+              categories: data.categories
+            }
+          }));
+        }
       }
     };
+
 
     loadRecentProducts();
     loadProducts();

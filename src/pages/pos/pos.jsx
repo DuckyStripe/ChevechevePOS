@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import ImageWithGenericUrl from "../../core/img/imagewithURL";
+import ImageWithGenericUrlCheve from "../../core/img/imagewithURLCheve";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
 import {
   RotateCw,
@@ -18,13 +18,14 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import AddCustomer from "../../core/modals/peoples/addcustomer";
 import ViewOrders from "../../core/modals/pos/recentorders";
-import {
-  fetchCustomerData,
-  fetchCategoriesData,
-  fetchProductsData,
-  fetchProductsByCategory
-} from "../../Data/pos";
+import { fetchCustomerData, fetchCategoriesData } from "../../Data/pos";
+import { fetchProductsPOS } from "../../Data/Inventario/products";
 import ViewSale from "../../core/modals/inventory/ViewSale";
+import { toast } from "react-toastify";
+import axios from "axios";
+import Cookies from "js-cookie";
+import * as bootstrap from "bootstrap";
+window.bootstrap = bootstrap;
 
 const Pos = () => {
   const [categories, setCategorias] = useState([]);
@@ -38,50 +39,70 @@ const Pos = () => {
   const [total, setTotal] = useState("MX$0.00");
   const [selectedTicketId, setSelectedTicketId] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [filteredProductList, setFilteredProductList] = useState([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [SelectedCustomer, setSelectedCustomer] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
       const categorias = await fetchCategoriesData();
-      const productList = await fetchProductsData();
+      const productList = await fetchProductsPOS();
       const clientes = await fetchCustomerData();
-      // const LastPurchase = await fetchLastPurchaseData();
+
+      //const LastPurchase = await fetchLastPurchaseData();
+      const totalItems = categorias.reduce(
+        (sum, categoria) => sum + categoria.items,
+        0
+      );
+      const maxId = Math.max(...categorias.map((categoria) => categoria.id));
+      const newId = maxId + 1; // Asignar un nuevo ID basado en el máximo valor existente
+      const newCategoria = {
+        id: newId,
+        title: "Todas",
+        items: totalItems,
+      };
+
+      categorias.unshift(newCategoria);
       setCategorias(categorias);
       setProductlist(productList);
       setCustomers(clientes);
-      // setLastPurchase(LastPurchase);
+      setFilteredProductList(productList);
     };
+    initializeData();
+  }, []);
+
+  useEffect(() => {
     if (selectedCategory) {
-      fetchProductsByCategory(selectedCategory.id) // Utiliza .id si el objeto categoría tienen una propiedad id
-        .then((fetchedProducts) => {
-          setProductlist(fetchedProducts);
-        })
-        .catch((error) => {
-          console.error("Error fetching products:", error);
-        });
-    }else{
-
-      initializeData();
+      if (selectedCategory === "Todas") {
+        // Si la categoría seleccionada es "Todas", muestra toda la lista de productos
+        setFilteredProductList(productlist);
+      } else {
+        // Filtra la lista de productos basada en la categoría seleccionada
+        const filteredList = productlist.filter(
+          (product) => product.Categoria === selectedCategory
+        );
+        setFilteredProductList(filteredList);
+      }
     }
-
-  }, [selectedCategory]);
-
-
+  }, [selectedCategory, productlist]);
   const handleCategoryChange = (selectedOption) => {
-    setSelectedCategory(selectedOption)
-
-    const prouctosbyCategory = async () => {
-      const prouctosbyCategory=await fetchProductsByCategory(selectedOption);
-      setProductlist(prouctosbyCategory);
-    };
-    prouctosbyCategory();
+    setSelectedCategory(selectedOption.title);
   };
-
+  useEffect(() => {}, [
+    selectedTicketId,
+    SelectedCustomer,
+    selectedPaymentMethod,
+  ]);
   const clearAll = () => {
     setCartItems(0);
     setCart([]); // Ensure cart is set to an empty array
     setSubTotal(0);
     setIVA(0);
     setTotal(0);
+    setSelectedTicketId([]);
+    setSelectedCustomer([]);
+    setSelectedPaymentMethod(null);
   };
   function convertirAPesosMexicanos(valor) {
     // Asegúrate de que el valor sea un número
@@ -95,15 +116,32 @@ const Pos = () => {
     // Formatea el número a pesos mexicanos con dos decimales
     return `MX$${numero.toFixed(2)}`;
   }
+  const validateCartData = () => {
+    const errors = {};
+    if (cart.length === 0) {
+      errors.cart = "No se puede crear una orden vacía.";
+    }
+    if (!selectedPaymentMethod) {
+      errors.selectedPaymentMethod = "Debe seleccionar un método de pago.";
+    }
+    if (
+      !SelectedCustomer ||
+      SelectedCustomer == null ||
+      SelectedCustomer == undefined
+    ) {
+      errors.SelectedCustomer = "Debe seleccionar un cliente.";
+    }
 
+    return errors;
+  };
   const addToCart = async (item) => {
     if (
       !item ||
       !item.id ||
-      isNaN(item.precio) ||
-      item.precio <= 0 ||
-      isNaN(item.cantidad) ||
-      item.cantidad <= 0
+      isNaN(item.precio_venta) ||
+      item.precio_venta <= 0 ||
+      isNaN(item.cantidadCarrito) ||
+      item.cantidadCarrito <= 0
     ) {
       console.error("Información del producto no válida");
       return;
@@ -119,15 +157,19 @@ const Pos = () => {
         updatedCart = [...prevCart];
         const updatedProduct = {
           ...updatedCart[existingProductIndex],
-          cantidad: updatedCart[existingProductIndex].cantidad + 1,
+          cantidadCarrito:
+            updatedCart[existingProductIndex].cantidadCarrito + 1,
           total:
-            (updatedCart[existingProductIndex].cantidad + 1) *
-            updatedCart[existingProductIndex].precio,
+            (updatedCart[existingProductIndex].cantidadCarrito + 1) *
+            updatedCart[existingProductIndex].precio_venta,
         };
         updatedCart[existingProductIndex] = updatedProduct;
       } else {
         // Añadir producto nuevo con su total inicial
-        const newProduct = { ...item, total: item.cantidad * item.precio };
+        const newProduct = {
+          ...item,
+          total: item.cantidadCarrito * item.precio_venta,
+        };
         updatedCart = [...prevCart, newProduct];
       }
 
@@ -149,16 +191,18 @@ const Pos = () => {
 
     setCartItems(cartItems + 1);
   };
-
+  const handlePaymentMethodClick = (method) => {
+    setSelectedPaymentMethod(method);
+  };
   const handleIncrement = (id) => {
     setCart((prevCart) => {
       const updatedCart = prevCart.map((item) => {
         if (item.id === id) {
-          if (item.cantidad < item.Disponibilidad) {
+          if (item.cantidadCarrito < item.cantidad) {
             return {
               ...item,
-              cantidad: item.cantidad + 1,
-              total: (item.cantidad + 1) * item.precio,
+              cantidadCarrito: item.cantidadCarrito + 1,
+              total: (item.cantidadCarrito + 1) * item.precio_venta,
             };
           } else {
             Swal.fire({
@@ -172,16 +216,30 @@ const Pos = () => {
         return item;
       });
 
+      calculateAndSetTotals(updatedCart); // Actualiza los totales después de cambiar el carrito
+
       return updatedCart;
     });
   };
 
+  const calculateAndSetTotals = (cart) => {
+    const newSubTotal = cart.reduce(
+      (accum, product) => accum + product.total,
+      0
+    );
+    const newIVA = newSubTotal * 0.16;
+    const newTotal = newSubTotal + newIVA;
+
+    setSubTotal(newSubTotal);
+    setIVA(newIVA);
+    setTotal(newTotal);
+  };
   const handleDecrement = (id) => {
     setCart((prevCart) => {
       const updatedCart = prevCart
         .map((item) => {
           if (item.id === id) {
-            const newCantidad = item.cantidad - 1;
+            const newCantidad = item.cantidadCarrito - 1;
             if (newCantidad < 0) {
               console.error("Cantidad no puede ser negativa");
               return item;
@@ -189,13 +247,15 @@ const Pos = () => {
 
             return {
               ...item,
-              cantidad: newCantidad,
-              total: newCantidad * item.precio,
+              cantidadCarrito: newCantidad,
+              total: newCantidad * item.precio_venta,
             };
           }
           return item;
         })
-        .filter((item) => item.cantidad > 0);
+        .filter((item) => item.cantidadCarrito > 0);
+
+      calculateAndSetTotals(updatedCart); // Actualiza los totales después de cambiar el carrito
 
       return updatedCart;
     });
@@ -210,7 +270,7 @@ const Pos = () => {
   const settings = {
     dots: false,
     autoplay: false,
-    slidesToShow: 5,
+    slidesToShow: categories.length,
     margin: 0,
     speed: 500,
     responsive: [
@@ -267,8 +327,77 @@ const Pos = () => {
       }
     });
   };
+  const handleFormSubmit = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    const token = Cookies.get("authToken");
+    const errors = validateCartData();
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach((error) => {
+        toast.error(error);
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const cartData = {
+      products: cart.map((item) => ({
+        productId: item.id,
+        cantidadCarrito: item.cantidadCarrito,
+      })),
+    };
+
+    const config = {
+      method: "post",
+      url: "https://cheveposapi.codelabs.com.mx/Endpoints/Insert/InsertPOSVenta.php",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      data: JSON.stringify({
+        productos: cartData.products,
+        metodo_pago: selectedPaymentMethod,
+        cliente_id: SelectedCustomer.id,
+      }),
+    };
+
+    try {
+      const response = await axios.request(config);
+
+      if (response.data.success) {
+        if (response.data.venta_id) {
+          setSelectedTicketId(response.data.venta_id);
+        }
+        toast.success("Orden creada correctamente.");
+
+        const modalElement = document.getElementById("payment-completed");
+        if (modalElement && bootstrap.Modal.getInstance(modalElement)) {
+          const paymentCompletedModal = bootstrap.Modal.getInstance(modalElement);
+          paymentCompletedModal.show();
+        } else if (modalElement) {
+          // Crea la instancia del modal si no existe
+          const paymentCompletedModal = new bootstrap.Modal(modalElement);
+          paymentCompletedModal.show();
+        } else {
+          console.error("Modal element not found!");
+        }
+      } else {
+        toast.error(`Error: ${response.data.message}`);
+      }
+    } catch (error) {
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
+  const handleChangeCustomer = (selectedOption) => {
+    // Actualiza el estado con el cliente seleccionado
+    setSelectedCustomer(selectedOption);
+  };
   return (
     <div>
+      {/* Same as */}
       <div className="page-wrapper pos-pg-wrapper ms-0">
         <div className="content pos-design p-0">
           <div className="btn-row d-sm-flex align-items-center">
@@ -305,9 +434,12 @@ const Pos = () => {
                       id={category.id}
                       className="pos-slick-item"
                     >
-                      <Link to="#" onClick={()=>handleCategoryChange(category.id)}>
-                        <ImageWithGenericUrl
-                          src={category.image}
+                      <Link
+                        to="#"
+                        onClick={() => handleCategoryChange(category)}
+                      >
+                        <ImageWithBasePath
+                          src="assets/img/icons/dash1.svg"
                           alt={category.title}
                           height={50} // Especifica la altura deseada
                           width={50}
@@ -328,7 +460,7 @@ const Pos = () => {
                   <div className="tabs_container">
                     <div className="container">
                       <div className="row">
-                        {productlist.map((product) => (
+                        {filteredProductList.map((product) => (
                           <div
                             className="col-sm-6 col-md-4 col-lg-3"
                             key={product.id}
@@ -339,9 +471,9 @@ const Pos = () => {
                                 className="img-bg"
                                 onClick={() => addToCart(product)}
                               >
-                                <ImageWithGenericUrl
-                                  src={product.image}
-                                  alt={product.title}
+                                <ImageWithGenericUrlCheve
+                                  src={product.imagen_producto}
+                                  alt={product.nombre_producto}
                                   height={100} // Especifica la altura deseadacurved={true}
                                   curved={true}
                                   width={100} // Especifica el ancho deseado
@@ -354,15 +486,17 @@ const Pos = () => {
 
                               <div className="card-body">
                                 <h6 className="cat-name">
-                                  <Link to="#">{product.category}</Link>
+                                  <Link to="#">{product.Categoria}</Link>
                                 </h6>
                                 <h6 className="product-name">
-                                  <Link to="#">{product.ProductName}</Link>
+                                  <Link to="#">{product.nombre_producto}</Link>
                                 </h6>
                                 <div className="d-flex align-items-center justify-content-between price">
-                                  <span>{product.Disponibilidad}</span>
+                                  <span>{product.cantidad}</span>
                                   <p>
-                                    {convertirAPesosMexicanos(product.precio)}
+                                    {convertirAPesosMexicanos(
+                                      product.precio_venta
+                                    )}
                                   </p>
                                 </div>
                               </div>
@@ -377,12 +511,6 @@ const Pos = () => {
             </div>
             <div className="col-md-12 col-lg-4 ps-0">
               <aside className="product-order-list">
-                {/* <div className="head d-flex align-items-center justify-content-between w-100">
-                  <div className="">
-                    <h5>Ticket</h5>
-                    <span>Transaction ID : #{LastPurchase.id}</span>
-                  </div>
-                </div> */}
                 <div className="head customer-info block-section">
                   <h6>Informacion Cliente</h6>
                   <div className="input-block d-flex align-items-center">
@@ -391,6 +519,8 @@ const Pos = () => {
                         options={customers}
                         classNamePrefix="react-select"
                         placeholder="Selecciona una opcion"
+                        onChange={handleChangeCustomer} // Usa la función de cambio aquí
+                        value={SelectedCustomer}
                       />
                     </div>
                     <div className="page-btn">
@@ -430,8 +560,8 @@ const Pos = () => {
                         >
                           <div className="d-flex align-items-center product-info">
                             <div className="img-bg">
-                              <ImageWithGenericUrl
-                                src={item.image}
+                              <ImageWithGenericUrlCheve
+                                src={item.imagen_producto}
                                 alt="Products"
                                 height={100} // Especifica la altura deseada
                                 width={100}
@@ -439,11 +569,13 @@ const Pos = () => {
                               />
                             </div>
                             <div className="info">
-                              <span>{item.category}</span>
+                              <span>{item.Categoria}</span>
                               <h6>
-                                <Link to="#">{item.ProductName}</Link>
+                                <Link to="#">{item.nombre_producto}</Link>
                               </h6>
-                              <p>{convertirAPesosMexicanos(item.precio)}</p>
+                              <p>
+                                {convertirAPesosMexicanos(item.precio_venta)}
+                              </p>
                             </div>
                           </div>
                           <div className="qty-item text-center">
@@ -466,7 +598,7 @@ const Pos = () => {
                               type="text"
                               className="form-control text-center"
                               name="qty"
-                              value={item.cantidad}
+                              value={item.cantidadCarrito}
                               readOnly
                             />
                             <OverlayTrigger
@@ -536,22 +668,38 @@ const Pos = () => {
                   <h6>Metodo de pago</h6>
                   <div className="row d-flex align-items-center justify-content-center methods">
                     <div className="col-md-6 col-lg-4 item">
-                      <div className="default-cover">
+                      <div
+                        className={` ${
+                          selectedPaymentMethod === "Efectivo"
+                            ? "selected"
+                            : "default-cover"
+                        }`}
+                        onClick={() => handlePaymentMethodClick("Efectivo")}
+                      >
                         <Link to="#">
                           <ImageWithBasePath
                             src="assets/img/icons/cash-pay.svg"
-                            alt="Payment Method"
+                            alt="Método de pago Efectivo"
                           />
                           <span>Efectivo</span>
                         </Link>
                       </div>
                     </div>
                     <div className="col-md-6 col-lg-4 item">
-                      <div className="default-cover">
-                        <Link to="#">
+                      <div
+                        className={` ${
+                          selectedPaymentMethod === "Transferencia"
+                            ? "selected"
+                            : "default-cover"
+                        }`}
+                        onClick={() =>
+                          handlePaymentMethodClick("Transferencia")
+                        }
+                      >
+                        <Link>
                           <ImageWithBasePath
                             src="assets/img/icons/credit-card.svg"
-                            alt="Payment Method"
+                            alt="Método de pago Transferencia"
                           />
                           <span>Transferencia</span>
                         </Link>
@@ -560,21 +708,13 @@ const Pos = () => {
                   </div>
                 </div>
                 <div className="d-grid btn-block">
-                  <Link className="btn btn-secondary" to="#">
-                    Grand Total : {convertirAPesosMexicanos(total)}
-                  </Link>
-                </div>
-                <div className="btn-row d-sm-flex align-items-center justify-content-between">
                   <Link
-                    to="#"
-                    className="btn btn-success btn-icon flex-fill"
-                    data-bs-toggle="modal"
-                    data-bs-target="#payment-completed"
+                    className={`btn btn-secondary ${
+                      isSubmitting ? "disabled" : ""
+                    }`}
+                    onClick={!isSubmitting ? handleFormSubmit : null}
                   >
-                    <span className="me-1 d-flex align-items-center">
-                      <i data-feather="credit-card" className="feather-16" />
-                    </span>
-                    Pagar
+                    Total a pagar: {convertirAPesosMexicanos(total)}
                   </Link>
                 </div>
               </aside>
@@ -606,7 +746,6 @@ const Pos = () => {
                     className="btn btn-primary flex-fill me-1"
                     data-bs-toggle="modal"
                     data-bs-target="#invoice_details" // Cambiar a coincide con el id del modal
-                    onClick={() => setSelectedTicketId()}
                   >
                     Imprime Ticket
                   </button>

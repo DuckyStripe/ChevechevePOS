@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -88,7 +88,6 @@ const AddCustomer = () => {
 
   return (
     <>
-      <ToastContainer />
       {/* Add Customer */}
       <div className="modal fade" id="add-units">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">

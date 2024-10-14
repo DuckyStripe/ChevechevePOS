@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -41,9 +41,9 @@ const AddRole = () => {
           },
           data: formData
         };
-        
+
         const response = await axios.request(config);
-        
+
         if (response.data.success===true) {
           toast.success("Rol agregado exitosamente");
           resetFormData();
@@ -64,7 +64,6 @@ const AddRole = () => {
 
   return (
     <div>
-      <ToastContainer />
       {/* Add Role */}
       <div className="modal fade" id="add-units" ref={modalRef}>
         <div className="modal-dialog modal-dialog-centered custom-modal-two">

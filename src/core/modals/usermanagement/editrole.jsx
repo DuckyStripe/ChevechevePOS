@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types"; // Importa PropTypes
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -25,7 +25,6 @@ const EditRole = ({ RolData }) => {
     }
   }, [RolData]);
   useEffect(() => {
-    console.log("Current formData:", formData);
   }, [formData]);
   const resetFormData = () => {
     setFormData({
@@ -43,7 +42,6 @@ const EditRole = ({ RolData }) => {
         const formDataToSend = new FormData();
         formDataToSend.append("idRol", formData.id);
         formDataToSend.append("nombre_rol", formData.nombre_rol);
-        console.log("Formata", formData);
         const config = {
           method: "post",
           url: "https://cheveposapi.codelabs.com.mx/Endpoints/Update/updateRol.php",
@@ -98,7 +96,6 @@ const EditRole = ({ RolData }) => {
 
   return (
     <div>
-      <ToastContainer />
       <div className="modal fade" id="edit-units">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">
           <div className="modal-content">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 // import { all_routes } from "../../../Router/all_routes";
 import PropTypes from "prop-types";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import axios from "axios";
 import Cookies from "js-cookie";
 
@@ -35,7 +35,6 @@ const AddInventory = ({ DataProducto }) => {
         precio_venta: parseFloat(DataProducto.precio_venta) || 0,   // Convierte a número
       });
     }
-    console.log(DataProducto)
   }, [DataProducto]); // Volver a ejecutar si DataProducto cambia
   const handleQuantityChange = (e) => {
     setQuantity(e.target.value);
@@ -120,7 +119,6 @@ const AddInventory = ({ DataProducto }) => {
 
   return (
     <>
-    <ToastContainer/>
       {/* Add or Remove Inventory */}
       <div className="modal fade" id="add-units-category">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">

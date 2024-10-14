@@ -37,6 +37,30 @@ export const fetchProducts = async () => {
     return { success: false, error: error.message };
   }
 };
+export const fetchProductsPOS = async () => {
+  const token = Cookies.get('authToken'); // Asegúrate de que esto se llame "authToken" como en tu uso de cookies
+
+  const config = {
+    method: 'get',
+    url: 'https://cheveposapi.codelabs.com.mx/Endpoints/Gets/getProductsPOS.php',
+    headers: {
+      'Authorization': `Bearer ${token}` // Añade el token como Bearer token en los headers
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+
+    if (response.data.success) {
+      const data = response.data.products;
+      return data;
+    } else {
+      return { success: false, message: response.data.message };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
 export const fetchProductsByID = async (id) => {
   const token = Cookies.get('authToken'); // Asegúrate de que esto se llame "authToken" como en tu uso de cookies
   const formData = new FormData();
@@ -55,7 +79,7 @@ export const fetchProductsByID = async (id) => {
 
     if (response.data.success) {
       const data = response.data.Data[0];
-  
+
 
       return data;
     } else {

@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";  // Importa useHistory
 import { all_routes } from "../../Router/all_routes";
 import { Copyright } from "../../core/Copy/Copyright";
 import { encriptarContrasena } from '../../Data/DataEncrypt';
-import { ToastContainer, toast } from 'react-toastify';
+import {  toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
 const Forgotpassword = () => {
@@ -97,7 +97,6 @@ const Forgotpassword = () => {
           </div>
         </div>
       </div>
-      <ToastContainer />
     </div>
   );
 };

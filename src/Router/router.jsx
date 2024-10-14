@@ -9,6 +9,7 @@ import ThemeSettings from "../InitialPage/themeSettings";
 import Error404 from "../pages/errorpages/error404";
 import Loader from "../loader/loader";
 import ProtectedRoute from '../core/auth/protectedroute'
+import { ToastContainer } from "react-toastify";
 
 const AllRoutes = () => {
   const data = useSelector((state) => state.toggle_header);
@@ -42,6 +43,18 @@ const AllRoutes = () => {
 
   return (
     <div>
+            <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
       <Routes>
         <Route path="/pos" element={<ProtectedRoute element={<Pospages />} />}>
           {posRoutes.map((route, id) => (

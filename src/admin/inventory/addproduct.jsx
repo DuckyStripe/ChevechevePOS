@@ -10,7 +10,7 @@ import {
 // products.js
 import axios from "axios";
 import Cookies from "js-cookie";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // import ImageWithBasePath from "../../core/img/imagewithbasebath";
@@ -185,8 +185,6 @@ const AddProduct = () => {
       formData.append("imagen_producto", productData.imagen);
     }
 
-    console.log(productData);
-
     const config = {
       method: "post",
       url: "https://cheveposapi.codelabs.com.mx/Endpoints/Insert/InsertProduct.php",
@@ -195,9 +193,6 @@ const AddProduct = () => {
       },
       data: formData
     };
-
-    console.log(config);
-
     try {
       const response = await axios.request(config);
 
@@ -235,7 +230,6 @@ const AddProduct = () => {
 
   return (
     <div className="page-wrapper">
-      <ToastContainer />
       <div className="content">
         <div className="page-header">
           <div className="add-item d-flex">

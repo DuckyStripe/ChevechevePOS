@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 const AddCategoryList = () => {
   const [formData, setFormData] = useState({
@@ -39,7 +39,7 @@ const AddCategoryList = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const token = Cookies.get('authToken');
-  
+
     const formErrors = validateFormData();
     if (Object.keys(formErrors).length === 0) {
       try {
@@ -55,9 +55,9 @@ const AddCategoryList = () => {
             estatus: formData.estatus ? 1 : 0
           }
         };
-  
+
         const response = await axios.request(config);
-  
+
         if (response.data.success) {
             toast.success('Categoría creada con éxito');
             window.location.reload();
@@ -72,10 +72,9 @@ const AddCategoryList = () => {
       setErrors(formErrors);
     }
   };
-  
+
   return (
     <div>
-    <ToastContainer/>
       <div className="modal fade" id="add-category">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">
           <div className="modal-content">

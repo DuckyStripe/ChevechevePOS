@@ -45,63 +45,63 @@ export const publicRoutes = [
     route: Route
   },
   {
-    id: 117,
+    id: 4,
     path: "/",
     name: "Root",
     element: <Navigate to="/signin" />,
     route: Route
   },
   {
-    id: 99,
+    id: 5,
     path: routes.pos,
     name: "pos",
     element: <Pos />,
     route: Route
   },
   {
-    id: 59,
+    id: 6,
     path: routes.lowstock,
     name: "lowstock",
     element: <LowStock />,
     route: Route
   },
   {
-    id: 60,
+    id: 7,
     path: routes.categorylist,
     name: "categorylist",
     element: <CategoryList />,
     route: Route
   },
   {
-    id: 64,
+    id: 8,
     path: routes.subcategories,
     name: "subcategories",
     element: <SubCategories />,
     route: Route
   },
   {
-    id: 84,
+    id: 9,
     path: routes.customers,
     name: "customers",
     element: <Customers />,
     route: Route
   },
   {
-    id: 90,
+    id: 10,
     path: routes.salesreport,
     name: "salesreport",
     element: <SalesReport />,
     route: Route
   },
   {
-    id: 91,
+    id: 11,
     path: routes.purchasereport,
     name: "purchasereport",
     element: <PurchaseOrderReport />,
     route: Route
   },
   {
-    id: 99,
+    id: 12,
     path: routes.profitloss,
     name: "profitloss",
     element: <ProfitLoss />,
@@ -109,14 +109,14 @@ export const publicRoutes = [
   },
 
   {
-    id: 104,
+    id: 13,
     path: routes.users,
     name: "users",
     element: <Users />,
     route: Route
   },
   {
-    id: 105,
+    id: 14,
     path: routes.rolespermission,
     name: "rolespermission",
     element: <RolesPermissions />,
@@ -133,35 +133,35 @@ export const pagesRoute = [
     route: Route
   },
   {
-    id: 7,
+    id: 2,
     path: routes.forgotPassword,
     name: "forgotPassword",
     element: <Forgotpassword />,
     route: Route
   },
   {
-    id: 9,
+    id: 3,
     path: routes.resetpassword,
     name: "resetpassword",
     element: <Resetpassword />,
     route: Route
   },
   {
-    id: 12,
+    id: 4,
     path: routes.emailverification,
     name: "emailverification",
     element: <EmailVerification />,
     route: Route
   },
   {
-    id: 18,
+    id: 5,
     path: routes.error404,
     name: "error404",
     element: <Error404 />,
     route: Route
   },
   {
-    id: 19,
+    id: 6,
     path: routes.error500,
     name: "error500",
     element: <Error500 />,

@@ -184,7 +184,7 @@
             color:  $text-color;
         }
         &:hover {
-            border-color: $primary;    
+            border-color: $primary;
             border-radius: 5px;
             h6 {
                 a {
@@ -203,7 +203,7 @@
             &.owl-next {
                 margin-left: 5px;
             }
-            &.owl-prev { 
+            &.owl-prev {
                 margin-right: 5px;
             }
             &.owl-next, &.owl-prev {
@@ -306,7 +306,7 @@
         }
     }
 }
-.product-wrap{ 
+.product-wrap{
     height: 34vh;
     overflow: auto;
 
@@ -546,7 +546,7 @@ aside {
                             overflow: hidden;
                             display: block;
                         }
-
+                        border-radius: 1rem;
                     }
                     &:hover {
                         background-color: $gray-200;
@@ -554,8 +554,41 @@ aside {
                         img {
                             filter: invert(75%) sepia(66%) saturate(1955%) hue-rotate(327deg) brightness(103%) contrast(102%);
                         }
+                        border-radius: 1rem;
                     }
                 }
+                .selected {
+                    @include transition(all 0.5s ease);
+                    a {
+                        box-shadow: $box-shadow-sm;
+                        @include margin-padding(null, 10px 15px);
+                        text-align: center;
+                        display: block;
+                        font-size: $font-size-15;
+                        color: $secondary;
+                        background-color: $gray-400;
+                        span {
+                            white-space: nowrap;
+                            text-overflow: ellipsis;
+                            overflow: hidden;
+                            display: block;
+                        }
+                        img{
+                            filter: invert(75%) sepia(66%) saturate(1955%) hue-rotate(327deg) brightness(103%) contrast(102%);
+                            color: $secondary;
+                        }
+                        border-radius: 1rem;
+
+                    }
+                    &:hover {
+                        background-color: $gray-500;
+                        border-color: $secondary;
+                        img {
+                            filter: invert(75%) sepia(66%) saturate(1955%) hue-rotate(327deg) brightness(103%) contrast(102%);
+                        }
+                        border-radius: 1rem;
+                    }
+                  }
             }
         }
         .btn-block {
@@ -587,7 +620,7 @@ aside {
                 }
                 &:hover {
                     background-color: $secondary;
-                    border-color: $secondary;      
+                    border-color: $secondary;
                 }
             }
         }
@@ -671,7 +704,7 @@ aside {
                     border-bottom: 1px dashed $text-color;
                 }
             }
-            tbody{ 
+            tbody{
 
                 tr {
                     td {
@@ -687,7 +720,7 @@ aside {
                                     color: $secondary;
                                 }
                             }
-                        }    
+                        }
                     }
                 }
             }
@@ -796,7 +829,7 @@ aside {
         }
     }
     &.upload-modal {
-        .modal-body{ 
+        .modal-body{
             .drag-drop {
                 position: relative;
                 padding: 20px;
@@ -858,7 +891,7 @@ aside {
             right:24px;
             margin:0px;
             left:  auto;
-            top: calc(100% - 300px); 
+            top: calc(100% - 300px);
             width: 600px;
         }
         .progress {

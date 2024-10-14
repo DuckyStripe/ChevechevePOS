@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Select from "react-select";
 import PropTypes from "prop-types";
 import { fetchRolesAvaible } from "../../../Data/Inventario/users";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import {encriptarContrasena} from "../../../Data/DataEncrypt";
 import axios from "axios";
@@ -29,7 +29,6 @@ const EditUser = ({ UserData }) => {
     initializeData();
   }, [UserData]);
   useEffect(() => {
-    console.log("Nuevo Proucto:",Datauser)
   }, [Datauser]);
   const handleTogglePassword = () => {
     setShowPassword((prevShowPassword) => !prevShowPassword);
@@ -154,10 +153,8 @@ const handlesubmit = async () => {
   };
   return (
     <div>
-      <ToastContainer/>
       {/* Edit User */}
       <div className="modal fade" id="edit-units">
-      <ToastContainer/>
         <div className="modal-dialog modal-dialog-centered custom-modal-two">
           <div className="modal-content">
             <div className="page-wrapper-new p-0">

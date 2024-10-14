@@ -32,10 +32,8 @@ const Users = () => {
   const initializeData = async () => {
     const users = await fetchUsers();
     setDataSource(users);
-    console.log(users);
 
     const rolesAvailable = await fetchRolesAvaible();
-    console.log(rolesAvailable)
     const transformedUsers = users.map((User) => { // Directamente mapeado
       const rol_id = rolesAvailable.find(cat => cat.label === User.nombre_rol)?.value || null;
 
@@ -136,9 +134,7 @@ const Users = () => {
     XLSX.writeFile(workbook, fileName);
   };
   const handleEditClick = (Users) => {
-    console.log("datamodal",dataModal)
     const userForModal = dataModal.find(users => users.id === Users.id);
-    console.log("userfor modal",userForModal)
     setSelectedUser(userForModal);
   };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -28,7 +28,6 @@ const EditCustomer = ({ CustomerData }) => {
     }
   }, [CustomerData]);
   useEffect(() => {
-    console.log("Current formData:", formData);
   }, [formData]);
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -102,7 +101,6 @@ const EditCustomer = ({ CustomerData }) => {
 
   return (
     <>
-      <ToastContainer />
       {/* Edit Customer */}
       <div className="modal fade" id="edit-units">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">

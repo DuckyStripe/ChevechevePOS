@@ -15,7 +15,7 @@ import {
   PlusCircle,
   X,
 } from "feather-icons-react/build/IconComponents";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import axios from "axios";
 import Cookies from "js-cookie";
 import PropTypes from "prop-types";
@@ -232,7 +232,6 @@ const EditProduct = ({ DataProducto }) => {
   };
   return (
     <div>
-      <ToastContainer />
       <div className="modal fade" id="edit-product">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">
           <div className="modal-content">

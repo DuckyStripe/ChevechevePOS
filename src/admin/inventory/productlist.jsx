@@ -17,11 +17,13 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import EditProduct from "../../core/modals/inventory/editproduct";
 import AddInventory from "../../core/modals/inventory/add2inventory";
+
 import {
   fetchCategories,
   fetchSubCategories,
   fetchUnidad,
-} from "../../Data/Inventario/category"; // I
+} from "../../Data/Inventario/category";
+
 // Iconos
 import {
   ChevronUp,

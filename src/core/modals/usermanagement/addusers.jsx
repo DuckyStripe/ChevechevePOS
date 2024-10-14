@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Select from "react-select";
 import { fetchRolesAvaible } from "../../../Data/Inventario/users";
-import { ToastContainer, toast } from "react-toastify";
+import {  toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -46,7 +46,7 @@ const AddUsers = () => {
   const handleTogglePassword = () => {
     setShowPassword((prevShowPassword) => !prevShowPassword);
   };
-  
+
 
   const handleToggleConfirmPassword = () => {
     setConfirmPassword((prevShowPassword) => !prevShowPassword);
@@ -128,7 +128,6 @@ const handleRoleChange = (selectedOption) => {
           data: formDatas
         };
         const response = await axios.request(config);
-        console.log(response);
         if (response.data.success===true) {
           resetFormData();
 
@@ -148,7 +147,6 @@ const handleRoleChange = (selectedOption) => {
 
   return (
     <div>
-      <ToastContainer />
       {/* Add User */}
       <div className="modal fade" id="add-units">
         <div className="modal-dialog modal-dialog-centered custom-modal-two">
