@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import FeatherIcon from "feather-icons-react";
 import ImageWithBasePath from "../../core/img/imagewithbasebath";
-//import {   XCircle } from "react-feather"; //Settings, User,Search
-// import { all_routes } from "../../Router/all_routes";
 import { fetchUserData, fetchNotifications } from "../../Data/User";
-import Cookies from 'js-cookie';
+import Cookies from "js-cookie";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap.bundle.min";
 
 const Header = () => {
   // const route = all_routes;
@@ -21,7 +21,7 @@ const Header = () => {
     const loadData = async () => {
       const userData = await fetchUserData();
       setUser(userData);
-      
+
       const notificationsData = await fetchNotifications();
       setNotifications(notificationsData);
     };
@@ -48,7 +48,7 @@ const Header = () => {
     return () => {
       document.removeEventListener("mouseover", handleMouseover);
     };
-  }, []); 
+  }, []);
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(
@@ -83,7 +83,7 @@ const Header = () => {
 
   const handleLogout = () => {
     // Elimina el token de la cookie
-    Cookies.remove('authToken');
+    Cookies.remove("authToken");
   };
 
   const handlesidebar = () => {
@@ -153,7 +153,6 @@ const Header = () => {
         >
           <Link to="/admin-dashboard" className="logo logo-normal">
             <ImageWithBasePath src="assets/img/logo.png" alt="img" />
-
           </Link>
           <Link to="/admin-dashboard" className="logo logo-white">
             <ImageWithBasePath src="assets/img/logo-white.png" alt="img" />
@@ -194,13 +193,10 @@ const Header = () => {
         <ul className="nav user-menu">
           {/* Search */}
           <li className="nav-item nav-searchinputs">
-            <div className="top-nav-search">
-            </div>
+            <div className="top-nav-search"></div>
           </li>
           {/* /Search */}
 
-
- 
           {/* /Flag */}
           <li className="nav-item nav-item-box">
             <Link
@@ -234,36 +230,51 @@ const Header = () => {
                 </Link> */}
               </div>
               <div className="noti-content">
-              <ul className="notification-list">
-                {notifications.map((notification) => (
-                  <li className="notification-message active" key={notification.id}>
-                    <div className="media d-flex">
-                      <span className="avatar flex-shrink-0">
-                      <ImageWithBasePath alt="img" src={`assets/img/icons/${notification.img}`} />
-                      </span>
-                      <div className="media-body flex-grow-1">
-                        <p className="noti-details">El usuario:{" "}
-                          <span className="noti-title">{notification.user}</span> realizo la accion{" "}
-                          <span className="noti-title">{notification.message}</span>
-                        </p>
-                        <p className="noti-time">
-                          <span className="notification-time">{notification.time}</span>
-                        </p>
+                <ul className="notification-list">
+                  {notifications.map((notification) => (
+                    <li
+                      className="notification-message active"
+                      key={notification.id}
+                    >
+                      <div className="media d-flex">
+                        <span className="avatar flex-shrink-0">
+                          <ImageWithBasePath
+                            alt="img"
+                            src={`assets/img/icons/${notification.img}`}
+                          />
+                        </span>
+                        <div className="media-body flex-grow-1">
+                          <p className="noti-details">
+                            El usuario:{" "}
+                            <span className="noti-title">
+                              {notification.user}
+                            </span>{" "}
+                            realizo la accion{" "}
+                            <span className="noti-title">
+                              {notification.message}
+                            </span>
+                          </p>
+                          <p className="noti-time">
+                            <span className="notification-time">
+                              {notification.time}
+                            </span>
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </li>
           {/* /Notifications */}
 
           <li className="nav-item dropdown has-arrow main-drop">
-            <Link
-              to="#"
+            <a
+              href="#"
               className="dropdown-toggle nav-link userset"
               data-bs-toggle="dropdown"
+              aria-expanded="false"
             >
               <span className="user-info">
                 <span className="user-letter">
@@ -274,17 +285,17 @@ const Header = () => {
                   />
                 </span>
                 <span className="user-detail">
-                {user ? (
-                  <>
-                    <span className="user-name">{`${user.nombre}`}</span>
-                    <span className="user-role">{user.nombre_rol}</span>
-                  </>
-                ) : (
-                  <span>Cargando usuario...</span>
-                )}
+                  {user ? (
+                    <>
+                      <span className="user-name">{`${user.nombre}`}</span>
+                      <span className="user-role">{user.nombre_rol}</span>
+                    </>
+                  ) : (
+                    <span>Cargando usuario...</span>
+                  )}
                 </span>
               </span>
-            </Link>
+            </a>
             <div className="dropdown-menu menu-drop-user">
               <div className="profilename">
                 <div className="profileset">
@@ -296,26 +307,23 @@ const Header = () => {
                     <span className="status online" />
                   </span>
                   <div className="profilesets">
-                  {user ? (
-                  <>
-                    <span className="user-name">{`${user.nombre}`}</span> <br></br>
-                    <span className="user-role">{user.nombre_rol}</span>
-                  </>
-                ) : (
-                  <span>Cargando usuario...</span>
-                )}
+                    {user ? (
+                      <>
+                        <span className="user-name">{`${user.nombre}`}</span>{" "}
+                        <br />
+                        <span className="user-role">{user.nombre_rol}</span>
+                      </>
+                    ) : (
+                      <span>Cargando usuario...</span>
+                    )}
                   </div>
                 </div>
                 <hr className="m-0" />
-                {/* <Link className="dropdown-item" to={route.profile}>
-                  <User className="me-2" /> My Profile
-                </Link>
-                <Link className="dropdown-item" to={route.generalsettings}>
-                  <Settings className="me-2" />
-                  Settings
-                </Link> */}
-                <hr className="m-0" />
-                <Link className="dropdown-item logout pb-0" to="/signin" onClick={handleLogout}>
+                <Link
+                  className="dropdown-item logout pb-0"
+                  to="/signin"
+                  onClick={handleLogout}
+                >
                   <ImageWithBasePath
                     src="assets/img/icons/log-out.svg"
                     alt="img"
@@ -346,8 +354,8 @@ const Header = () => {
               Settings
             </Link> */}
             <Link className="dropdown-item" to="signin" onClick={handleLogout}>
-            Cerrar Sesión
-          </Link>
+              Cerrar Sesión
+            </Link>
           </div>
         </div>
         {/* /Mobile Menu */}
