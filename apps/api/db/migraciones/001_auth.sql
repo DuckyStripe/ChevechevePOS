@@ -302,12 +302,17 @@ end $$;
 create function app.fn_ultimo_dueno() returns trigger
 language plpgsql as $$
 begin
-  -- Solo importa si la fila era un dueno activo; si quedan otros, bien.
-  -- El candado serializa los commits: dos transacciones que desactivan duenos distintos no pasan a la vez
-  -- (la segunda cuenta despues de que la primera confirmo). Clave fija 862002.
+  -- Solo importa si la fila era un dueno activo y deja de serlo (desactivado, otro rol o borrado).
+  -- El candado serializa los commits de esos casos: dos transacciones que desactivan duenos distintos no pasan
+  -- a la vez (la segunda cuenta despues de que la primera confirmo). Clave fija 862002.
+  if not old.activo or not exists (select 1 from app.rol r where r.id = old.rol_id and r.es_sistema) then
+    return null;
+  end if;
+  if TG_OP = 'UPDATE' and new.activo and new.rol_id = old.rol_id then
+    return null;
+  end if;
   perform pg_advisory_xact_lock(862002);
-  if old.activo and exists (select 1 from app.rol r where r.id = old.rol_id and r.es_sistema)
-     and not exists (
+  if not exists (
        select 1 from app.usuario u join app.rol r on r.id = u.rol_id
        where u.activo and r.es_sistema
      ) then

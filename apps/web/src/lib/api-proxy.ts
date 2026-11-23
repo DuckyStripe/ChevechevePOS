@@ -29,6 +29,37 @@ export function origenValido(req: NextRequest): boolean {
 }
 
 /**
+ * Lee el cuerpo con tope de bytes: rechaza por content-length antes de leer y corta el flujo al pasarse.
+ * Devuelve null si excede (el llamador responde 413 ARCHIVO_GRANDE).
+ */
+export async function leerCuerpoLimitado(req: NextRequest, max = MAX_BODY_BYTES): Promise<Uint8Array<ArrayBuffer> | null> {
+  const declarado = Number(req.headers.get("content-length") ?? 0);
+  if (declarado > max) return null;
+  const trozos: Uint8Array[] = [];
+  let total = 0;
+  const lector = req.body?.getReader();
+  if (lector) {
+    for (;;) {
+      const { done, value } = await lector.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > max) {
+        await lector.cancel().catch(() => undefined);
+        return null;
+      }
+      trozos.push(value);
+    }
+  }
+  const salida = new Uint8Array(total);
+  let pos = 0;
+  for (const t of trozos) {
+    salida.set(t, pos);
+    pos += t.byteLength;
+  }
+  return salida;
+}
+
+/**
  * BFF: reenvia la peticion a la API. El navegador nunca habla con la API ni ve el JWT:
  * se lee de la cookie httpOnly y se manda como Bearer. `Authorization`, `Cookie` y
  * `X-Cliente-Token` entrantes se descartan (solo se copia content-type).
@@ -38,10 +69,11 @@ export async function proxyToBackend(req: NextRequest, ruta: string): Promise<Ne
   const conCuerpo = req.method !== "GET" && req.method !== "HEAD";
   if (conCuerpo && !origenValido(req)) return errorBff("ORIGEN_INVALIDO", 403);
 
-  let cuerpo: ArrayBuffer | undefined;
+  let cuerpo: Uint8Array<ArrayBuffer> | undefined;
   if (conCuerpo) {
-    cuerpo = await req.arrayBuffer();
-    if (cuerpo.byteLength > MAX_BODY_BYTES) return errorBff("ARCHIVO_GRANDE", 413);
+    const leido = await leerCuerpoLimitado(req);
+    if (!leido) return errorBff("ARCHIVO_GRANDE", 413);
+    cuerpo = leido;
   }
 
   const headers = new Headers({ "x-visitante-ip": ipVisitante(req.headers) });
@@ -64,7 +96,9 @@ export async function proxyToBackend(req: NextRequest, ruta: string): Promise<Ne
     return timeout ? errorBff("TIEMPO_AGOTADO", 504) : errorBff("API_NO_DISPONIBLE", 502);
   }
 
-  const salida = new NextResponse(await respuesta.text(), {
+  // 204/205/304 no admiten cuerpo: new Response("") con esos estados lanza.
+  const sinCuerpo = [204, 205, 304].includes(respuesta.status);
+  const salida = new NextResponse(sinCuerpo ? null : await respuesta.text(), {
     status: respuesta.status,
     headers: { "content-type": respuesta.headers.get("content-type") ?? "application/json" },
   });

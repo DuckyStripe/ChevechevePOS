@@ -447,11 +447,11 @@ Funciones, vistas y disparadores 002:
 |---|---|
 | `trg_producto_con_pieza` (constraint trigger AFTER INSERT ON producto, deferrable initially deferred) | Al commit debe existir una presentación `factor = 1`, si no `PRODUCTO_SIN_PIEZA`. |
 | `trg_presentacion_factor_inmutable` BEFORE UPDATE OF factor, producto_id | `FACTOR_INMUTABLE`. Presentaciones no se borran: `activa = false`. |
-| `fn_precio(p_presentacion_id, p_lista_precio_id) returns numeric` | Si hay `precio_oferta` vigente para esa presentación (y esa lista o todas), el menor de oferta y precio (§2.12 A8). Si no: precio de esa lista; si no hay, el de la lista predeterminada; si tampoco, `null`. |
+| `fn_precio(p_presentacion_id, p_lista_precio_id) returns numeric` (stable: depende de la fecha local) | Base = precio de esa lista; si no hay, el de la lista predeterminada. Ofertas vigentes (`fn_fecha_local(now()) between desde and hasta`) de esa presentación con esa lista o `lista_precio_id is null`: resultado = `least(base, min(oferta))` (`least` ignora `null`: oferta sin precio base = la oferta). Sin base ni oferta → `null`. |
 | `trg_movimiento_aplicar` → `fn_aplicar_movimiento()` BEFORE INSERT ON movimiento_inventario | 1) `INSERT … ON CONFLICT DO NOTHING` existencia y `SELECT … FOR UPDATE`. 2) `nueva = cantidad_actual + NEW.cantidad`; `< 0` → `STOCK_INSUFICIENTE` (detalle `{producto_id, disponible, solicitado}`). **No hay existencia negativa, tampoco para `contra_pedido`**: la compra se registra antes de cargar la ruta (§2.7). 3) Costo: **entrada** → `NEW.costo_unitario` obligatorio; `promedio = round((q·p + c·cu)/(q + c), 6)`. **`cancelacion_compra`** → usa el `costo_unitario` dado; `promedio = nueva = 0 ? p : greatest(0, round((q·p + c·cu)/nueva, 6))` (c negativo). **Otras salidas** → `NEW.costo_unitario := p`, promedio sin cambio. 4) Llena `existencia_resultante`, `costo_promedio_resultante`; actualiza `existencia`. |
 | `trg_movimiento_inmutable` BEFORE UPDATE/DELETE | `MOVIMIENTO_INMUTABLE`. Corregir = movimiento contrario. |
 | `trg_existencia_protegida` BEFORE INSERT/UPDATE/DELETE ON existencia | Si `pg_trigger_depth() < 2` → `EXISTENCIA_SOLO_POR_MOVIMIENTO`. |
-| `fn_ajustar_inventario(p_usuario_id, p_sucursal_id, p_producto_id, p_tipo text, p_piezas integer, p_costo_unitario numeric default null, p_motivo text default null, p_causa_merma text default null) returns bigint` | `p_tipo ∈ ('inventario_inicial','ajuste_entrada','ajuste_salida','merma')`, `p_piezas > 0`. Entrada sin costo → costo promedio vigente; `inventario_inicial` exige costo. `merma` exige causa. `motivo` obligatorio salvo `inventario_inicial`. |
+| `fn_ajustar_inventario(p_usuario_id, p_sucursal_id, p_producto_id, p_tipo text, p_piezas integer, p_costo_unitario numeric default null, p_motivo text default null, p_causa_merma text default null) returns bigint` | `p_tipo ∈ ('inventario_inicial','ajuste_entrada','ajuste_salida','merma')`, `p_piezas > 0`. Entrada sin costo → costo promedio vigente; `inventario_inicial` exige costo. `merma` exige causa. `motivo` obligatorio salvo `inventario_inicial`. Cualquiera de estas reglas rota → `AJUSTE_NO_VALIDO` (la API ya filtró con zod; llega solo por bug). |
 | `fn_contar_inventario(p_usuario_id, p_sucursal_id, p_producto_id, p_piezas_contadas integer, p_motivo text) returns bigint` | Crea `ajuste_entrada`/`ajuste_salida` por la diferencia a costo promedio; `null` si no hay diferencia. |
 | `fn_buscar_productos(p_texto text, p_limite int default 30) returns table(producto_id, puntaje)` (stable) | Tolerante (§7): `fn_normalizar` del texto; coincide por palabra en nombre, marca y `alias` con `%` / `word_similarity` de `pg_trgm` (umbral 0.3) y ordena por puntaje. La usa `?buscar` del panel. |
 | `v_precio_bajo_costo` | Por `precio ⋈ presentacion ⋈ existencia (sucursal 1)` activos: `presentacion_id, lista_precio_id, producto, presentacion, lista, precio, costo_presentacion = round(costo_promedio·factor, 2), diferencia = precio − costo_presentacion` donde `precio < costo_presentacion` y `costo_promedio > 0`. Solo se expone con `costos.ver`. |
@@ -511,7 +511,7 @@ create index idx_compra_linea_producto on app.compra_linea (producto_id);
 |---|---|
 | `fn_registrar_compra(p_usuario_id bigint, p_sucursal_id bigint, p_datos jsonb, p_hash text) returns table(compra_id bigint, repetida boolean)` | `pg_advisory_xact_lock(hashtext(clave))`; clave existente: mismo hash → `(id, true)`, distinto → `IDEMPOTENCIA_CONFLICTO`. Proveedor activo; ≥ 1 línea (`COMPRA_VACIA`); presentación activa con `se_compra` (`PRESENTACION_NO_VALIDA`). Inserta compra (folio `C`), líneas y un movimiento `compra` por línea **ordenado por `producto_id`**. `total = Σ importe`. `p_datos`: `{clave_idempotencia, proveedor_id, folio_proveedor?, fecha, condicion_pago, fecha_surtido?, notas?, lineas:[{presentacion_id, cantidad, costo_presentacion, caduca_el?}]}`. |
 | `fn_cancelar_compra(p_usuario_id, p_compra_id, p_motivo text) returns void` | `COMPRA_YA_CANCELADA`; movimiento `cancelacion_compra` por línea. Sin existencia suficiente → `STOCK_INSUFICIENTE` y no se cancela nada. |
-| `v_por_caducar` | Sin lotes, se **supone PEPS físico**: la existencia actual corresponde a las compras más recientes. Por producto, líneas de compras `registrada` con `caduca_el` ordenadas de la más nueva a la más vieja; `acumulado = sum(piezas) over (… desc)`; se queda cada línea mientras `acumulado − piezas < existencia`, con `piezas_estimadas = least(piezas, existencia − (acumulado − piezas))`. Columnas: `producto_id, producto, compra_folio, caduca_el, piezas_estimadas, dias_restantes = caduca_el − hoy local`. El reporte filtra `dias_restantes ≤ dias_aviso_caducidad`. |
+| `v_por_caducar` | Sin lotes, se **supone PEPS físico**: la existencia actual corresponde a las compras más recientes. Por producto, **todas** las líneas de compras `registrada` (con o sin `caduca_el`: una compra reciente sin fecha también ocupa existencia) ordenadas de la más nueva a la más vieja (`compra.fecha desc, compra_linea.id desc`); `acumulado = sum(piezas) over (… desc)`; se queda cada línea mientras `acumulado − piezas < existencia`, y al final solo las que tienen `caduca_el`, con `piezas_estimadas = least(piezas, existencia − (acumulado − piezas))`. Columnas: `producto_id, producto, compra_folio, caduca_el, piezas_estimadas, dias_restantes = caduca_el − hoy local`. El reporte filtra `dias_restantes ≤ dias_aviso_caducidad`. |
 
 Sin estado «borrador»: la compra registrada es mercancía recibida. El borrador vive en el cliente.
 Permisos 003: `compras.ver, compras.registrar, compras.cancelar`.
@@ -1542,7 +1542,9 @@ Se quitan `SESSION_SECRET`, `SESSION_MAX_AGE`, `SESSION_COOKIE_SECURE` y `JWT_EX
 - Éxito: el recurso tal cual. Listas: `{ items: [...], total, pagina, por_pagina }` (`?pagina=1&por_pagina=50`, máx 200).
 - Error: `{ "error": { "codigo": "STOCK_INSUFICIENTE", "mensaje": "texto para humano", "detalles": {...} } }`.
 - Dinero string `"123.45"`; cantidades entero; coordenadas string `"19.432600"`; fechas de negocio
-  `YYYY-MM-DD`; marcas de tiempo ISO-8601 UTC.
+  `YYYY-MM-DD`; marcas de tiempo ISO-8601 UTC. **Ids `bigint` viajan como string** (`"42"`, tal cual los da
+  `pg`); en params y cuerpos se aceptan string de dígitos o entero (`idEsquema` de `comun/ids.ts`).
+- Alta (`POST` que crea un recurso) → `201` con el recurso; acciones sobre uno existente → `200` o `204`.
 - Alta idempotente: `201` la primera vez, `200` con el mismo cuerpo si se repite la clave. Hash = `sha256`
   del JSON canónico del cuerpo (llaves ordenadas) sin `clave_idempotencia`.
 - Validación zod antes que permiso fino; `400` antes que `409`.
@@ -1553,13 +1555,13 @@ Se quitan `SESSION_SECRET`, `SESSION_MAX_AGE`, `SESSION_COOKIE_SECURE` y `JWT_EX
 
 | HTTP | Códigos |
 |---|---|
-| 400 | `VALIDACION` (detalles = issues de zod), `IMAGEN_NO_VALIDA` |
+| 400 | `VALIDACION` (detalles = issues de zod), `IMAGEN_NO_VALIDA`, `CONTRASENA_INCORRECTA` (contraseña actual mal en `POST /auth/contrasena`: nunca 401, el BFF trata 401 como sesión perdida) |
 | 401 | `NO_AUTENTICADO`, `SESION_CERRADA`, `CREDENCIALES_INVALIDAS`, `ENLACE_INVALIDO`, `PIN_REQUERIDO` (detalle `{tiene_pin}`), `PIN_INCORRECTO` (detalle `{intentos_restantes}`) |
 | 403 | `SIN_PERMISO` (detalle `{permiso}`), `SIN_PERMISO_PRECIO`, `CAMBIO_CONTRASENA_REQUERIDO`, `ORIGEN_INVALIDO`, `TURNO_AJENO`, `RUTA_AJENA`, `SOLO_APP` |
 | 404 | `NO_ENCONTRADO` |
 | 409 | `IDEMPOTENCIA_CONFLICTO`, `STOCK_INSUFICIENTE`, `PRECIO_NO_DEFINIDO`, `PRESENTACION_NO_VALIDA`, `VENTA_VACIA`, `COMPRA_VACIA`, `PEDIDO_VACIO`, `PEDIDO_MINIMO`, `PEDIDO_NO_EDITABLE`, `PEDIDO_CAMBIO`, `PEDIDO_EN_RUTA`, `PEDIDO_EN_OTRA_RUTA`, `PEDIDO_ESPERANDO_CLIENTE`, `PROPUESTA_CERRADA`, `LINEA_NO_VALIDA`, `PEDIDO_VENCIDO`, `PRECIOS_CAMBIARON`, `SIN_PRIMERA_COMPRA`, `PIN_YA_DEFINIDO`, `SIN_PROPUESTA`, `AVISO_NO_PENDIENTE`, `PEDIDO_NO_ASIGNABLE`, `AJUSTE_NO_VALIDO`, `ESTADO_NO_VALIDO`, `FECHA_NO_VALIDA`, `CLIENTE_INACTIVO`, `RUTA_NO_EDITABLE`, `RUTA_VACIA`, `RUTA_NO_TERMINADA`, `PARADAS_NO_CUADRAN`, `PARADA_DUPLICADA`, `REPARTIDOR_NO_VALIDO`, `BODEGA_SIN_UBICACION`, `FALTA_SURTIR`, `ENTREGA_EXCEDE_PEDIDO`, `ENTREGA_VACIA`, `PAGOS_NO_CUADRAN`, `EFECTIVO_INSUFICIENTE`, `CREDITO_SIN_CLIENTE`, `LIMITE_CREDITO_EXCEDIDO`, `TURNO_NO_ABIERTO`, `TURNO_NO_VALIDO`, `TURNO_YA_ABIERTO`, `CAJA_OCUPADA`, `VENTA_YA_CANCELADA`, `VENTA_CON_DEVOLUCIONES`, `VENTA_CON_ABONOS`, `DEVOLUCION_EXCEDE_VENDIDO`, `COMPRA_YA_CANCELADA`, `ABONO_EXCEDE_SALDO`, `CUENTA_NO_VALIDA`, `APLICACION_NO_CUADRA`, `ABONO_YA_CANCELADO`, `DUPLICADO` (violación `uq_`), `ROL_EN_USO`, `ROL_SISTEMA`, `ULTIMO_DUENO`, `FACTOR_INMUTABLE`, `PRODUCTO_SIN_PIEZA`, `PLANTILLA_NO_EXISTE`, `MOVIMIENTO_INMUTABLE`, `EXISTENCIA_SOLO_POR_MOVIMIENTO` (estas dos solo si un bug escribe directo; se loguean) |
 | 413 | `ARCHIVO_GRANDE` (también el BFF si el cuerpo pasa de 1 MB) |
-| 429 | `USUARIO_BLOQUEADO` (detalle `{reintentar_en}`), `ENLACE_BLOQUEADO`, `PIN_EN_ESPERA` (detalle `{segundos}`), `DEMASIADAS_PETICIONES` |
+| 429 | `USUARIO_BLOQUEADO` (detalle `{reintentar_en}` en segundos), `ENLACE_BLOQUEADO`, `PIN_EN_ESPERA` (detalle `{segundos}`), `DEMASIADAS_PETICIONES` |
 | 500 | `ERROR_INTERNO` (cualquier otro; sin detalles al cliente) |
 | 502 / 504 | `API_NO_DISPONIBLE` / `TIEMPO_AGOTADO` (solo el BFF, cuando no llega a la API) |
 
@@ -1588,15 +1590,15 @@ usuario del token.
 | GET `/api/permisos` | usuarios.gestionar | — | `[{codigo, modulo, descripcion}]` | — |
 | POST `/api/roles`, PATCH `/api/roles/:id` | usuarios.gestionar | `{nombre, descripcion?, permisos:[codigo]}` (PATCH: parcial; `permisos` reemplaza) | rol | 409 `DUPLICADO`, `ROL_SISTEMA` |
 | DELETE `/api/roles/:id` | usuarios.gestionar | — | 204 | 409 `ROL_SISTEMA`, `ROL_EN_USO` (tiene usuarios) |
-| GET `/api/configuracion` | sesion | — | claves de §2.1 + `sucursal:{lat, lng}` | — |
+| GET `/api/configuracion` | sesion | — | objeto plano `{<clave>: valor, …, sucursal:{lat, lng}}` (todas las claves de §2.1 con su valor jsonb tal cual; `lat`/`lng` string o `null`) | — |
 | PATCH `/api/configuracion` | configuracion.editar | subconjunto (incl. ubicación de la bodega) | igual | 400 |
 | GET `/api/plantillas` | configuracion.editar | `?canal` | `[{clave, canal, titulo, texto, variables}]` | — |
 | PATCH `/api/plantillas/:clave` | configuracion.editar | `{titulo?, texto}` | plantilla (no se crean ni borran claves desde la API) | 400, 404 |
 | POST `/api/plantillas/:clave/vista-previa` | configuracion.editar | `{vars}` | `{titulo, texto}` | 404 |
-| GET `/api/auditoria` | auditoria.ver | `?tabla&registro_id&usuario_id&desde&hasta&pagina` | lista | — |
+| GET `/api/auditoria` | auditoria.ver | `?tabla&registro_id&usuario_id&desde&hasta&pagina` | lista de filas de `auditoria` (`{id, usuario_id, usuario_nombre, cliente_id, tabla, registro_id, accion, antes, despues, creado_en}`), más nueva primero | — |
 | GET `/api/notificaciones` | sesion (propias) | `?no_leidas&pagina` | lista `{id, evento, titulo, cuerpo, datos, creado_en, leida_en}` | — |
 | POST `/api/notificaciones/leer` | sesion | `{ids?:[…]}` (sin ids = todas) | `{sin_leer}` | — |
-| GET/PUT `/api/notificaciones/preferencias` | sesion | `{preferencias:[{evento, push}]}` | igual | — |
+| GET/PUT `/api/notificaciones/preferencias` | sesion | `{preferencias:[{evento, push}]}` | igual; `GET` trae **todos** los eventos del `CHECK` (sin fila guardada = `push: true`) | — |
 | GET `/api/tablero` (F9) | sesion (pantalla `/reportes`) | — | KPIs de dinero e inventario, sin contadores operativos (esos son de `/despacho`): `{ventas_hoy?, utilidad_mes?, cxc_total?, cxc_vencido?, bajo_minimo?, por_caducar?, precios_bajo_costo?}`, cada campo solo con el permiso de su reporte | — |
 
 El panel consulta `GET /api/auth/yo` cada 30 s para el contador de la campana (`shortcut`: sondeo, sin
@@ -1606,11 +1608,11 @@ WebSocket; subir a SSE si se vuelve lento).
 
 | Método y ruta | Permiso | Cuerpo / query | Respuesta | Errores |
 |---|---|---|---|---|
-| GET/POST `/api/categorias`, PATCH `/api/categorias/:id` | ver: catalogo.ver; escribir: catalogo.editar | `{nombre, orden?, activa?}` | categoría | 409 `DUPLICADO` |
+| GET/POST `/api/categorias`, PATCH `/api/categorias/:id` | ver: catalogo.ver; escribir: catalogo.editar | `{nombre, orden?, margen_objetivo?, activa?}` (`margen_objetivo` string `"0.2000"` o `null`) | categoría | 409 `DUPLICADO` |
 | GET/POST `/api/marcas`, PATCH `/api/marcas/:id` | igual | `{nombre, activa?}` | marca | 409 |
-| GET `/api/productos` | catalogo.ver | `?buscar&categoria_id&marca_id&proveedor_id&modo_surtido&activo&bajo_minimo&pagina` | lista `Producto = {id, nombre, sku, categoria, marca, contenido_ml, tipo_envase, imagen, modo_surtido, proveedor, existencia_minima, activo, existencia, comprometido, costo_promedio?, ultimo_costo?, presentaciones:[{id, nombre, factor, codigo_barras, se_vende, se_compra, activa, precios:[{lista_precio_id, precio}]}]}` (`costo_*` solo con costos.ver) | — |
+| GET `/api/productos` | catalogo.ver | `?buscar&categoria_id&marca_id&proveedor_id&modo_surtido&activo&bajo_minimo&pagina` (`buscar` usa `fn_buscar_productos` y ordena por puntaje) | lista `Producto = {id, nombre, sku, descripcion, alias, categoria, marca, contenido_ml, tipo_envase, imagen, modo_surtido, margen_objetivo, proveedor, existencia_minima, activo, existencia, comprometido (0 hasta F3, `v_comprometido`), costo_promedio?, ultimo_costo? (`costo_unitario` del último movimiento `compra`, o `null`), presentaciones:[{id, nombre, factor, codigo_barras, se_vende, se_compra, activa, precios:[{lista_precio_id, precio}]}]}` (`costo_*` solo con costos.ver) | — |
 | GET `/api/productos/:id` | catalogo.ver | — | `Producto` | 404 |
-| POST `/api/productos` | catalogo.editar | `{nombre, categoria_id, marca_id?, sku?, descripcion?, contenido_ml?, tipo_envase?, modo_surtido?, proveedor_id?, existencia_minima, presentaciones:[{nombre, factor, codigo_barras?, se_vende?, se_compra?}]}` (incluye factor 1) | 201 `Producto` | 409 `PRODUCTO_SIN_PIEZA`, `DUPLICADO` |
+| POST `/api/productos` | catalogo.editar | `{nombre, categoria_id, marca_id?, sku?, descripcion?, alias?, contenido_ml?, tipo_envase?, modo_surtido?, margen_objetivo?, proveedor_id?, existencia_minima, presentaciones:[{nombre, factor, codigo_barras?, se_vende?, se_compra?}]}` (incluye factor 1) | 201 `Producto` | 409 `PRODUCTO_SIN_PIEZA`, `DUPLICADO` |
 | PATCH `/api/productos/:id` | catalogo.editar | campos del producto | `Producto` | — |
 | PUT `/api/productos/:id/imagen` | catalogo.editar | multipart `imagen` (≤ 800 px) y `miniatura` (240 px, ≤ 30 KB) (§4.5; jpg/png/webp por firma de bytes, ≤ 1 MB; el navegador reduce antes de subir) | `{imagen}` | 400 `IMAGEN_NO_VALIDA`, 413 |
 | GET `/api/imagenes/:archivo` | publica | — (nombre validado con la regex de `producto.imagen`, o su `-240`) | imagen (`Cache-Control: public, max-age=31536000, immutable`) | 404 |
@@ -1620,8 +1622,8 @@ WebSocket; subir a SSE si se vuelve lento).
 | GET/POST `/api/listas-precio`, PATCH `/api/listas-precio/:id` | ver: sesion; escribir: precios.editar | | lista | 409 |
 | PUT `/api/precios` | precios.editar | `{precios:[{presentacion_id, lista_precio_id, precio}]}` (≤ 500) | `{actualizados, advertencias?:[{presentacion_id, lista_precio_id, precio, costo_presentacion}]}` (advertencias solo con costos.ver) | 400 |
 | GET `/api/precios/bajo-costo` | costos.ver | `?lista_precio_id` | `{filas: v_precio_bajo_costo}` | — |
-| GET `/api/catalogo-venta` | ventas.crear o pedidos.capturar | `?lista_precio_id` | `[ArticuloPos = {presentacion_id, producto_id, producto, presentacion, factor, codigo_barras, categoria_id, marca, imagen, precio, existencia_piezas, disponible_piezas}]` | — |
-| GET `/api/inventario/existencias` | inventario.ver | `?buscar&categoria_id&modo_surtido&bajo_minimo&pagina` | lista `{producto_id, producto, categoria, modo_surtido, cantidad, confirmadas, cargadas, cajas, sueltas, existencia_minima, costo_promedio?, valor?}` | — |
+| GET `/api/catalogo-venta` (**F3**: su primer consumidor es `/pedidos/nuevo` y `disponible_piezas` necesita `v_comprometido`; en F2 ningún rol tiene estos permisos) | ventas.crear o pedidos.capturar | `?lista_precio_id` | `[ArticuloPos = {presentacion_id, producto_id, producto, presentacion, factor, codigo_barras, categoria_id, marca, imagen, precio, existencia_piezas, disponible_piezas}]` | — |
+| GET `/api/inventario/existencias` | inventario.ver | `?buscar&categoria_id&modo_surtido&bajo_minimo&pagina` | lista `{producto_id, producto, categoria, modo_surtido, cantidad, confirmadas, cargadas, cajas, sueltas, existencia_minima, costo_promedio?, valor?}` (`confirmadas`/`cargadas` = 0 hasta F3; `cajas = cantidad / f`, `sueltas = cantidad % f` con `f` = mayor `factor` de sus presentaciones activas; `valor = round(cantidad·costo_promedio, 2)` en SQL) | — |
 | GET `/api/inventario/movimientos` | inventario.ver | `?producto_id&tipo&causa_merma&desde&hasta&pagina` | lista | — |
 | POST `/api/inventario/ajustes` | inventario.ajustar | `{producto_id, tipo, piezas, costo_unitario?, motivo?, causa_merma?}` | 201 movimiento | 409 `STOCK_INSUFICIENTE` |
 | POST `/api/inventario/conteos` | inventario.ajustar | `{producto_id, piezas_contadas, motivo}` | 201 o 200 `{sin_diferencia:true}` | — |
@@ -1756,9 +1758,9 @@ actualizaciones solo leen archivos publicados (§4.6) y no tocan la base.
 
 | Método y ruta | Permiso | Cuerpo / query | Respuesta | Errores |
 |---|---|---|---|---|
-| GET `/api/compras/:id/margenes` (F2, `/compras/[id]`) | compras.ver + costos.ver | — | `fn_margenes_compra` | 404 |
+| GET `/api/compras/:id/margenes` (F2, `/compras/[id]`) | compras.ver + costos.ver (« + » = los dos: `config.permiso` lleva el primero y la ruta exige el segundo con `exigirPermiso` → 403 `SIN_PERMISO {permiso}`) | — | `fn_margenes_compra` | 404 |
 | GET `/api/precios/sugeridos` (F2, `/precios`) | precios.editar + costos.ver | `?producto_ids` | `[{presentacion_id, lista_precio_id, precio, precio_sugerido, margen, objetivo}]` | — |
-| GET/POST `/api/ofertas`, PATCH/DELETE `/api/ofertas/:id` (F2, `/precios`) | ver: catalogo.ver; escribir: precios.editar | `{presentacion_id, lista_precio_id?, precio, desde, hasta, motivo}` | oferta | 400 |
+| GET/POST `/api/ofertas`, PATCH/DELETE `/api/ofertas/:id` (F2, `/precios`) | ver: catalogo.ver; escribir: precios.editar | GET `?presentacion_id&vigentes&pagina` (`vigentes` = `hasta ≥ hoy local`); cuerpo `{presentacion_id, lista_precio_id?, precio, desde, hasta, motivo}` (`hasta ≥ desde`; PATCH parcial sin `presentacion_id`) | 201 oferta `{id, presentacion_id, producto, presentacion, lista_precio_id, lista, precio, precio_normal, desde, hasta, motivo, vigente}`; DELETE 204 | 400 |
 | POST `/api/pedidos/interpretar` (F3, `/pedidos/nuevo`) | pedidos.capturar | `{cliente_id, texto}` (≤ 2000) | `{lineas:[{texto, cantidad, presentacion_id?, color:'verde'|'amarillo'|'rojo', candidatos:[{presentacion_id, producto, presentacion, precio, puntaje}]}]}` | 400 |
 | POST `/api/publico/pedidos/:id/aceptar` (F3, `/pedido/mis-pedidos/[id]`) | cliente | `{total_visto}` | seguimiento | 409 `PEDIDO_VENCIDO`, `PRECIOS_CAMBIARON`, `ESTADO_NO_VALIDO` |
 | GET/POST `/api/promociones`, PATCH/DELETE `/api/promociones/:id` (F5, `/surtido/promociones`) | ver: surtido.ver; escribir: compras.registrar | `{proveedor_id, presentacion_id, costo_presentacion, minimo_cantidad?, desde, hasta, notas?}` | promoción | 400 |

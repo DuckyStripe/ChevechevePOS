@@ -8,6 +8,8 @@ import { cerrarPool } from "./db/database.js";
 import { z } from "zod";
 import { AppError, mapearError } from "./comun/errores.js";
 import { saludRoutes } from "./modulos/salud/rutas.js";
+import { permisosPlugin } from "./comun/permisos.js";
+import { modulos } from "./modulos/index.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -44,7 +46,14 @@ export async function buildApp() {
     } else {
       e = mapearError(err);
     }
-    if (e.statusCode >= 500) req.log.error({ err }, "error no controlado");
+    if (e.statusCode >= 500) {
+      // detail/where de pg pueden traer valores de filas (telefonos, hashes): no se loguean.
+      const seguro = { ...(err as Record<string, unknown>) };
+      delete seguro.detail;
+      delete seguro.where;
+      const ex = err as Error;
+      req.log.error({ err: { ...seguro, type: ex.name, message: ex.message, stack: ex.stack } }, "error no controlado");
+    }
     return reply.code(e.statusCode).send({ error: { codigo: e.codigo, mensaje: e.mensaje, ...(e.detalles === undefined ? {} : { detalles: e.detalles }) } });
   });
 
@@ -53,14 +62,21 @@ export async function buildApp() {
     return reply.code(e.statusCode).send({ error: { codigo: e.codigo, mensaje: e.mensaje } });
   });
 
+  // BFF y otros clientes mandan POST sin cuerpo con content-type json: se acepta como "sin cuerpo".
+  const jsonSeguro = app.getDefaultJsonParser("error", "error"); // secure-json-parse de Fastify
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (req, cuerpo, done) => {
+    if (cuerpo === "") return done(null, undefined);
+    jsonSeguro(req, cuerpo as string, done);
+  });
+
+  // Antes que cualquier ruta: el hook onRoute valida config.permiso y el preHandler autentica.
+  await app.register(permisosPlugin);
+
   // Sondas fuera del prefijo: las usa Docker y no pasan por el BFF.
   await app.register(saludRoutes);
 
   // Todos los modulos de negocio van bajo /api.
-  await app.register(async (api) => {
-    // await api.register(modulo, { prefix: "/modulo" });
-    api.get("/", async () => ({ nombre: "ChevechevePOS API" }));
-  }, { prefix: "/api" });
+  await app.register(modulos, { prefix: "/api" });
 
   app.addHook("onClose", async () => {
     await cerrarPool();

@@ -43,8 +43,23 @@ API, por módulo: `apps/api/src/modulos/<modulo>/rutas.ts`, `servicio.ts`, `esqu
 pruebas `apps/api/test/<modulo>.test.ts` y de invariantes SQL en `apps/api/test/sql/NNN_*.test.ts` (Postgres real,
 solo la base `chevechevepos_pruebas`; las de la fase en curso se corren, ver `CLAUDE.md`). Brief ejecutable de
 cada fase: `docs/fases/FN.md`.
-Web: panel en `apps/web/src/app/(panel)/<ruta>/`, páginas del cliente en `apps/web/src/app/(publico)/`,
-componentes en `apps/web/src/componentes/<modulo>/`. Cascarón: `apps/mobile/` (F4, sin pantallas de negocio).
+Web: panel en `apps/web/src/app/(panel)/(operacion)/<ruta>/` (el grupo `(operacion)` tiene un layout que manda a
+`/cambiar-contrasena` si `debe_cambiar_contrasena`; solo `cambiar-contrasena/`, `error.tsx`, `loading.tsx` y el
+layout del panel viven directo en `(panel)/`), páginas del cliente en `apps/web/src/app/(publico)/`,
+componentes en `apps/web/src/componentes/<modulo>/` y el kit compartido en `apps/web/src/componentes/ui/`
+(botón, campo, tarjeta, tabla, diálogo, aviso de error, esqueleto, vacío, insignia, paginación). Tipos de
+respuesta en `apps/web/src/lib/tipos.ts` (cada fase agrega los suyos). Cascarón: `apps/mobile/` (F4, sin pantallas de negocio).
+
+Convenciones de la API (hechas en F1, obligatorias desde F2): cada ruta declara `config.permiso`; `zod` en el
+borde con `<esquema>.parse(req.query|params|body)` (error → 400 `VALIDACION`); ids con `idEsquema`/`paramId` de
+`comun/ids.ts` (string en la respuesta); toda escritura en `conUsuario(req.usuario!.id, c => …)` de
+`comun/transaccion.ts` (`conCliente` para el enlace); listas con `esquemaPagina` + `count(*) over() as total` +
+`listadoDeFilas` de `comun/paginacion.ts`; idempotencia con `hashSolicitud` de `comun/idempotencia.ts`;
+imágenes con `guardarImagen`/`extensionPorBytes` de `comun/archivos.ts`; errores con `new AppError(CODIGO,
+detalles?)` de `comun/errores.ts` (código nuevo = fila nueva en su tabla y en §4.3). Alta → `reply.code(201)`.
+
+**Validación por fase (regla del dueño): solo lint + typecheck + pruebas** (`npm run prueba --prefix apps/api`
+contra la base de pruebas). **Nada de builds** (`next build`, `docker build`, APK/EAS) hasta terminar el plan completo.
 
 > F0 dejó `apps/api/src/modules/salud/salud-routes.ts` (inglés). F1 lo mueve a
 > `apps/api/src/modulos/salud/rutas.ts` una sola vez; desde ahí todo usa `modulos/`. `modulos/index.ts` lo crea F1.
@@ -149,11 +164,12 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 | `/proveedores` | Proveedores | `GET/POST /proveedores`, `PATCH /proveedores/:id` | `/compras` |
 | `/catalogos` | Categorías y marcas (con margen objetivo por categoría) | `GET/POST /categorias`, `PATCH /categorias/:id`, `GET/POST /marcas`, `PATCH /marcas/:id` | — |
 | `/configuracion` | Negocio, bodega, reglas, zonas, vehículos, cajas, calendario de demanda, lealtad (F11), respaldos (última prueba) | `GET/PATCH /configuracion`, `GET/POST /zonas`, `PATCH /zonas/:id`, `GET/POST /vehiculos`, `PATCH /vehiculos/:id`, `POST /cajas`, `PATCH /cajas/:id`, `GET/PUT /fechas-demanda` | `/configuracion/plantillas` |
-| `/configuracion/plantillas` | Textos de WhatsApp, push y pantallas | `GET /plantillas`, `PATCH /plantillas/:clave`, `POST /plantillas/:clave/vista-previa` | — |
+| `/configuracion/plantillas` | Textos de WhatsApp, push y pantallas: lista por canal, editar con vista previa (solo `{{variables}}` de su lista) | `GET /plantillas`, `PATCH /plantillas/:clave`, `POST /plantillas/:clave/vista-previa` | Volver: `/configuracion` |
 | `/usuarios` · `/roles` | Personal y permisos | `GET/POST /usuarios`, `PATCH /usuarios/:id`, `POST /usuarios/:id/{contrasena,cerrar-sesiones}`, `GET /roles`, `GET /permisos`, `POST /roles`, `PATCH/DELETE /roles/:id` | — |
-| `/auditoria` | Bitácora | `GET /auditoria` | — |
+| `/auditoria` | Bitácora: filtros tabla, usuario, registro y fechas; cada fila con quién (`usuario_nombre`) y antes/después | `GET /auditoria` | — |
 | `/reportes` · `/reportes/*` | KPIs de dinero e inventario (portada, F9) y cada reporte (incl. ganancia por cliente y por ruta, F9) | `GET /tablero`, `GET /reportes/*` | — |
-| `/login` · `/cambiar-contrasena` | Entrar; cambiar la propia contraseña | `POST /auth/login` (BFF), `POST /auth/contrasena` | `/` |
+| `/login` | Entrar (fuera del panel; errores llanos, «Espera N minutos» si está bloqueado) | `POST /auth/login` (BFF) | `/` |
+| `/cambiar-contrasena` | Cambiar la propia contraseña; única pantalla abierta con `debe_cambiar_contrasena` (fuera de `(operacion)`) | `POST /auth/contrasena` (400 `CONTRASENA_INCORRECTA` si la actual está mal) | `/` |
 
 ### Enlace del cliente (`apps/web/src/app/(publico)`)
 
@@ -208,6 +224,8 @@ fuera del servidor y una **prueba de restauración** hecha y anotada (CONTRATOS 
 ## F1 — Auth, usuarios, roles, configuración, plantillas, notificaciones
 
 Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/F1.md`.
+**Estado (2026-11-23): implementada, sin commit, en revisión** (revisor + prueba manual del dueño). Lo que la
+implementación fijó está en `docs/fases/F1.md` («Hechos de la implementación»).
 
 - **Alinear el andamiaje con CONTRATOS §3.1 y §4.1** (primer paso de F1):
   - En `.env.example`, `env.ts`, los dos compose y `README.md`: quitar `SESSION_SECRET`,
@@ -241,9 +259,11 @@ Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/
 
 ## F2 — Catálogo, inventario, proveedores, compras
 
+Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/F2.md`.
+
 - Migraciones `002_catalogo_inventario.sql`, `003_compras.sql`.
 - API: módulos `categorias`, `marcas`, `productos` (presentaciones, imagen + miniatura, alias,
-  `fn_buscar_productos`, `catalogo-venta`), `precios` (con advertencias bajo costo), `inventario` (por
+  `fn_buscar_productos`, `presentaciones/codigo/:codigo`; `catalogo-venta` pasa a F3), `precios` (listas, ofertas) (con advertencias bajo costo), `inventario` (por
   caducar), `proveedores`, `compras`, `imagenes` (pública).
 - Web: `app/img/[archivo]/route.ts` (caché inmutable).
 - Pantallas: `/productos`, `/productos/nuevo`, `/productos/[id]` (presentaciones con nombre para el
@@ -273,7 +293,7 @@ El corazón. Tres agentes en paralelo tras fijar la migración: API, panel, pág
 
 - Migración `004_clientes_pedidos.sql`.
 - API: módulos `zonas`, `clientes` (ubicación por texto pegado/coordenadas, aceptar propuesta, enlace con
-  token cifrado, equivalentes en `productos`), `pedidos` (captura, confirmar, ajustar, faltantes,
+  token cifrado, equivalentes en `productos`; `GET /catalogo-venta` en `productos`, movido de F2), `pedidos` (captura, confirmar, ajustar, faltantes,
   sugerencias, propuestas, cancelar, reprogramar), `avisos`, `despacho`, `publico` (cliente, catálogo con
   frecuentes y `ETag`, favoritos, pedidos, seguimiento, responder faltante, ubicación; límites de
   `@fastify/rate-limit`); tarea `vencer-faltantes`.

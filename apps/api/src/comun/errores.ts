@@ -4,6 +4,7 @@ type Fila = readonly [estado: number, mensaje: string];
 
 const TABLA: Record<string, Fila> = {
   VALIDACION: [400, "Hay datos que no son validos. Revisa e intenta de nuevo."],
+  CONTRASENA_INCORRECTA: [400, "La contrasena actual no es correcta."],
   IMAGEN_NO_VALIDA: [400, "La imagen no es valida. Usa una foto JPG, PNG o WebP."],
 
   NO_AUTENTICADO: [401, "Inicia sesion para continuar."],
