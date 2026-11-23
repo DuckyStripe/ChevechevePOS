@@ -9,7 +9,11 @@ const esquema = z.object({
   HOST: z.string().default("0.0.0.0"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL es obligatoria"),
   JWT_SECRET: z.string().min(32, "JWT_SECRET debe tener al menos 32 caracteres"),
-  JWT_EXPIRES_IN: z.string().default("8h"),
+  SECRETO_ENLACES: z.string().min(32, "SECRETO_ENLACES debe tener al menos 32 caracteres"),
+  SESION_WEB_HORAS: z.coerce.number().positive().default(12),
+  SESION_APP_DIAS: z.coerce.number().positive().default(30),
+  FCM_CUENTA_SERVICIO: z.string().optional(),
+  ARCHIVOS_DIR: z.string().min(1).default("/datos/archivos"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_WINDOW: z.coerce.number().int().positive().default(60000),
@@ -27,9 +31,11 @@ export function leerEntorno(origen: NodeJS.ProcessEnv = process.env): Entorno {
   }
   const env = resultado.data;
   if (env.NODE_ENV === "production") {
-    const bajo = env.JWT_SECRET.toLowerCase();
-    if (MARCAS_DE_EJEMPLO.some((m) => bajo.includes(m))) {
-      throw new Error("JWT_SECRET parece un valor de ejemplo: define uno aleatorio en produccion");
+    for (const nombre of ["JWT_SECRET", "SECRETO_ENLACES"] as const) {
+      const bajo = env[nombre].toLowerCase();
+      if (MARCAS_DE_EJEMPLO.some((m) => bajo.includes(m))) {
+        throw new Error(`${nombre} parece un valor de ejemplo: define uno aleatorio en produccion`);
+      }
     }
   }
   return env;

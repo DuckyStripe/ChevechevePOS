@@ -60,11 +60,18 @@ services:
       PORT: "3860"
       HOST: 0.0.0.0
       JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET con al menos 32 caracteres aleatorios}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      SESION_WEB_HORAS: ${SESION_WEB_HORAS:-12}
+      SESION_APP_DIAS: ${SESION_APP_DIAS:-30}
+      SECRETO_ENLACES: ${SECRETO_ENLACES:?define SECRETO_ENLACES con al menos 32 caracteres aleatorios}
+      FCM_CUENTA_SERVICIO: ${FCM_CUENTA_SERVICIO:-}
+      ARCHIVOS_DIR: /datos/archivos
       LOG_LEVEL: ${LOG_LEVEL:-info}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60000}
       RUN_MIGRATIONS_ON_BOOT: ${RUN_MIGRATIONS_ON_BOOT:-true}
+    volumes:
+      - archivos:/datos/archivos
+      - respaldos:/respaldos:ro
     expose:
       - "3860"
     networks:
@@ -91,8 +98,7 @@ services:
       PORT: "3760"
       API_INTERNAL_URL: http://chevechevepos-api:3860
       BACKEND_TIMEOUT_MS: ${BACKEND_TIMEOUT_MS:-15000}
-      SESSION_SECRET: ${SESSION_SECRET:?define SESSION_SECRET con al menos 32 caracteres aleatorios (firma la cookie de sesion)}
-      SESSION_MAX_AGE: ${SESSION_MAX_AGE:-28800}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
     expose:
       - "3760"
     networks:
@@ -101,6 +107,33 @@ services:
           - chevechevepos-web
       dokploy-network:
 
+  # Copias diarias (CONTRATOS §3.2). Configurar RESPALDO_DESTINO y montar rclone.conf en
+  # RESPALDO_RCLONE_CONF (Dokploy: Advanced > Mounts); sin ellos el estado queda ok=false.
+  respaldo:
+    build: ./infra/respaldo
+    restart: unless-stopped
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: chevechevepos-db
+      PGUSER: ${POSTGRES_USER:?define POSTGRES_USER en el entorno}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en el entorno}
+      PGDATABASE: ${POSTGRES_DB:?define POSTGRES_DB en el entorno}
+      RESPALDO_DESTINO: ${RESPALDO_DESTINO:-}
+      RESPALDO_RCLONE_CONF: ${RESPALDO_RCLONE_CONF:-/run/secrets/rclone.conf}
+    volumes:
+      - respaldos:/respaldos
+      - archivos:/datos/archivos:ro
+    networks:
+      - internal
+
 networks:
   internal:
   dokploy-network:
@@ -108,3 +141,5 @@ networks:
 
 volumes:
   db_data:
+  archivos:
+  respaldos:

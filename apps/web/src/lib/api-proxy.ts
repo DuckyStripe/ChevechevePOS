@@ -1,24 +1,47 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getBackendUrl } from "./backend-url";
+import { COOKIE_JWT } from "./cookies";
 import { ipVisitante } from "./ip-visitante";
-import { COOKIE_JWT, COOKIE_SESION } from "./sesion";
 
 const TIMEOUT_MS = Number(process.env.BACKEND_TIMEOUT_MS ?? 15000);
 const MAX_BODY_BYTES = 1_048_576;
 
+const MENSAJES = {
+  ORIGEN_INVALIDO: "La peticion no viene de esta pagina.",
+  ARCHIVO_GRANDE: "El archivo es demasiado grande.",
+  API_NO_DISPONIBLE: "No se pudo contactar al servidor. Revisa tu conexion e intenta de nuevo.",
+  TIEMPO_AGOTADO: "El servidor tardo demasiado en responder. Intenta de nuevo.",
+} as const;
+
+export function errorBff(codigo: keyof typeof MENSAJES, status: number): NextResponse {
+  return NextResponse.json({ error: { codigo, mensaje: MENSAJES[codigo] } }, { status });
+}
+
+/** Las escrituras solo valen si el `Origin` es el host propio (frena CSRF; con SameSite=Lax es la segunda barrera). */
+export function origenValido(req: NextRequest): boolean {
+  const origen = req.headers.get("origin");
+  if (!origen) return false;
+  try {
+    return new URL(origen).host === (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host);
+  } catch {
+    return false;
+  }
+}
+
 /**
- * BFF: reenvia la peticion a la API. El navegador nunca habla con la API ni ve
- * el JWT: se lee de la cookie httpOnly y se manda como Bearer.
+ * BFF: reenvia la peticion a la API. El navegador nunca habla con la API ni ve el JWT:
+ * se lee de la cookie httpOnly y se manda como Bearer. `Authorization`, `Cookie` y
+ * `X-Cliente-Token` entrantes se descartan (solo se copia content-type).
  * `ruta` es el path en la API, p. ej. "/api/productos".
  */
 export async function proxyToBackend(req: NextRequest, ruta: string): Promise<NextResponse> {
   const conCuerpo = req.method !== "GET" && req.method !== "HEAD";
+  if (conCuerpo && !origenValido(req)) return errorBff("ORIGEN_INVALIDO", 403);
+
   let cuerpo: ArrayBuffer | undefined;
   if (conCuerpo) {
     cuerpo = await req.arrayBuffer();
-    if (cuerpo.byteLength > MAX_BODY_BYTES) {
-      return NextResponse.json({ codigo: "CUERPO_GRANDE", mensaje: "Peticion demasiado grande" }, { status: 413 });
-    }
+    if (cuerpo.byteLength > MAX_BODY_BYTES) return errorBff("ARCHIVO_GRANDE", 413);
   }
 
   const headers = new Headers({ "x-visitante-ip": ipVisitante(req.headers) });
@@ -38,29 +61,14 @@ export async function proxyToBackend(req: NextRequest, ruta: string): Promise<Ne
     });
   } catch (err) {
     const timeout = err instanceof Error && err.name === "TimeoutError";
-    return NextResponse.json(
-      { codigo: timeout ? "TIEMPO_AGOTADO" : "API_NO_DISPONIBLE", mensaje: "No se pudo contactar al servidor" },
-      { status: timeout ? 504 : 502 },
-    );
+    return timeout ? errorBff("TIEMPO_AGOTADO", 504) : errorBff("API_NO_DISPONIBLE", 502);
   }
 
-  const texto = await respuesta.text();
-  const salida = new NextResponse(texto, {
+  const salida = new NextResponse(await respuesta.text(), {
     status: respuesta.status,
     headers: { "content-type": respuesta.headers.get("content-type") ?? "application/json" },
   });
-
-  if (respuesta.status === 401) {
-    let codigo: unknown;
-    try {
-      codigo = (JSON.parse(texto) as { codigo?: unknown }).codigo;
-    } catch {
-      // cuerpo no JSON: no es SESION_CERRADA
-    }
-    if (codigo === "SESION_CERRADA") {
-      salida.cookies.delete(COOKIE_JWT);
-      salida.cookies.delete(COOKIE_SESION);
-    }
-  }
+  // Cualquier 401 (sesion cerrada, token invalido) deja la cookie inservible: se borra.
+  if (respuesta.status === 401) salida.cookies.delete(COOKIE_JWT);
   return salida;
 }

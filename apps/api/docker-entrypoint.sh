@@ -28,5 +28,10 @@ if [ "${RUN_MIGRATIONS_ON_BOOT:-true}" = "true" ]; then
   su-exec node node scripts/migrar.mjs
 fi
 
+# Volumen de archivos (imagenes y comprobantes): carpetas y duenio antes de bajar privilegios.
+ARCHIVOS_DIR="${ARCHIVOS_DIR:-/datos/archivos}"
+mkdir -p "$ARCHIVOS_DIR/imagenes" "$ARCHIVOS_DIR/comprobantes"
+chown -R node:node "$ARCHIVOS_DIR"
+
 # node directo (no npm) para que sea PID 1 y reciba SIGTERM.
 exec su-exec node node dist/app.js

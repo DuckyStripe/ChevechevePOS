@@ -5,8 +5,9 @@ import rateLimit from "@fastify/rate-limit";
 import { env } from "./config/env.js";
 import { opcionesLogger } from "./config/logger.js";
 import { cerrarPool } from "./db/database.js";
-import { mapearError } from "./db/errores.js";
-import { saludRoutes } from "./modules/salud/salud-routes.js";
+import { z } from "zod";
+import { AppError, mapearError } from "./comun/errores.js";
+import { saludRoutes } from "./modulos/salud/rutas.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -26,12 +27,30 @@ export async function buildApp() {
     },
     // Los healthchecks de Docker no cuentan contra el limite.
     allowList: (req) => req.url === "/health" || req.url === "/ready",
+    // Fastify lanza lo que devuelve: pasa por el error handler y sale con el formato comun.
+    errorResponseBuilder: () => new AppError("DEMASIADAS_PETICIONES"),
   });
 
   app.setErrorHandler((err, req, reply) => {
-    const e = mapearError(err);
+    const estado = (err as { statusCode?: number }).statusCode;
+    let e;
+    if (err instanceof z.ZodError) {
+      e = mapearError(new AppError("VALIDACION", err.issues));
+    } else if (estado === 413) {
+      e = mapearError(new AppError("ARCHIVO_GRANDE"));
+    } else if (estado && estado >= 400 && estado < 500) {
+      // Errores de Fastify (JSON mal formado, tipo de contenido...): son del cliente.
+      e = mapearError(new AppError("VALIDACION"));
+    } else {
+      e = mapearError(err);
+    }
     if (e.statusCode >= 500) req.log.error({ err }, "error no controlado");
-    return reply.code(e.statusCode).send({ codigo: e.code, mensaje: e.message, detalles: e.details });
+    return reply.code(e.statusCode).send({ error: { codigo: e.codigo, mensaje: e.mensaje, ...(e.detalles === undefined ? {} : { detalles: e.detalles }) } });
+  });
+
+  app.setNotFoundHandler((_req, reply) => {
+    const e = mapearError(new AppError("NO_ENCONTRADO"));
+    return reply.code(e.statusCode).send({ error: { codigo: e.codigo, mensaje: e.mensaje } });
   });
 
   // Sondas fuera del prefijo: las usa Docker y no pasan por el BFF.

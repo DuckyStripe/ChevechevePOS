@@ -23,9 +23,9 @@ RUN apk add --no-cache wget su-exec
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
-# Migraciones y su aplicador: el entrypoint los ejecuta en cada arranque.
+# Migraciones y scripts (migrar.mjs lo ejecuta el entrypoint; crear-dueno.mjs a mano).
 COPY --from=builder /app/db/migraciones ./db/migraciones
-COPY --from=builder /app/scripts/migrar.mjs ./scripts/migrar.mjs
+COPY --from=builder /app/scripts ./scripts
 
 # npm no se usa en runtime: el entrypoint lanza node directo (PID 1 recibe SIGTERM).
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx

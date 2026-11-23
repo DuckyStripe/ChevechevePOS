@@ -32,11 +32,26 @@ cd apps/web && npm install && npm run dev
 
 Validación: `npm run lint` y `npm run typecheck` en `apps/api`; `npm run lint` y `npx tsc --noEmit` en `apps/web`.
 
+Pruebas de la API: `npm run prueba --prefix apps/api` (con `db` de desarrollo arriba). Recrea y migra la base
+`chevechevepos_pruebas` (el script rechaza cualquier otro host, puerto o base) y corre vitest;
+`npm run prueba --prefix apps/api -- test/sql` corre solo las pruebas SQL.
+
 ## Variables de entorno
 
-Ver `.env.example`. Obligatorias en producción: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`,
-`JWT_SECRET` y `SECRETO_ENLACES` (mín. 32 caracteres; la API rechaza valores de ejemplo).
-Lista completa en `docs/CONTRATOS.md` §3.1. El andamiaje todavía trae `SESSION_SECRET`: F1 lo quita.
+Ver `.env.example` y la tabla completa en `docs/CONTRATOS.md` §3.1. Obligatorias en producción:
+`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `JWT_SECRET` y `SECRETO_ENLACES` (mín. 32 caracteres;
+la API rechaza valores de ejemplo). Opcionales: `SESION_WEB_HORAS` (12), `SESION_APP_DIAS` (30),
+`FCM_CUENTA_SERVICIO` (ruta a un JSON montado), `ARCHIVOS_DIR` (`/datos/archivos`), `COOKIE_SECURE`
+(`true` en producción), `DATABASE_URL_PRUEBAS` (solo local). La sesión del panel es la cookie `chv_jwt`;
+no existen `SESSION_SECRET` ni `JWT_EXPIRES_IN`.
+
+## Respaldos
+
+El servicio `respaldo` de `docker-compose.yml` hace cada día a las 03:00 (hora de Ciudad de México)
+`pg_dump` y un `tar` de los archivos (14 diarios + 8 semanales) y los copia con rclone a `RESPALDO_DESTINO`.
+En Dokploy hay que definir `RESPALDO_DESTINO` y montar el `rclone.conf` en `RESPALDO_RCLONE_CONF`
+(por omisión `/run/secrets/rclone.conf`); sin ellos el estado queda `ok=false`. La API lo muestra en
+`GET /health` (`respaldo`). Detalle y prueba de restauración: `docs/CONTRATOS.md` §3.2.
 
 ## Despliegue en Dokploy
 
