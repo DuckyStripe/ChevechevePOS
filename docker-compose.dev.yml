@@ -1,0 +1,71 @@
+# ChevechevePOS - desarrollo local.
+#   cp .env.example .env
+#   docker compose -f docker-compose.dev.yml up -d --build
+name: chevechevepos
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER en .env (copia .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env (copia .env.example)}
+      POSTGRES_DB: ${POSTGRES_DB:?define POSTGRES_DB en .env (copia .env.example)}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c 'select 1' >/dev/null 2>&1
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    ports:
+      - "${DB_PORT:-5436}:5432"
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?define POSTGRES_USER en .env}:${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}@db:5432/${POSTGRES_DB:?define POSTGRES_DB en .env}
+      NODE_ENV: production
+      PORT: "3860"
+      HOST: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET con al menos 32 caracteres en .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60000}
+      RUN_MIGRATIONS_ON_BOOT: ${RUN_MIGRATIONS_ON_BOOT:-true}
+    ports:
+      - "${API_PORT:-3860}:3860"
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3760"
+      API_INTERNAL_URL: http://api:3860
+      BACKEND_TIMEOUT_MS: ${BACKEND_TIMEOUT_MS:-15000}
+      SESSION_SECRET: ${SESSION_SECRET:?define SESSION_SECRET con al menos 32 caracteres en .env}
+      SESSION_MAX_AGE: ${SESSION_MAX_AGE:-28800}
+      # Sin HTTPS en local: la cookie no puede ser `secure`.
+      SESSION_COOKIE_SECURE: "false"
+    ports:
+      - "${WEB_PORT:-3760}:3760"
+
+volumes:
+  db_data:

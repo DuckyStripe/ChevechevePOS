@@ -1,0 +1,110 @@
+# ChevechevePOS - despliegue en Dokploy (compose POR DEFECTO).
+# Dokploy usa ./docker-compose.yml si no se le indica otro, asi que este es el de
+# produccion. Desarrollo: docker-compose.dev.yml (pedirlo con -f).
+#
+# En Dokploy: aplicacion tipo "Compose". Domains: servicio `web`, puerto 3760.
+# La API NO se publica: sin etiquetas de Traefik. El front es un BFF y habla
+# con ella por la red interna (API_INTERNAL_URL).
+#
+# Las variables criticas llevan ${VAR:?mensaje}: si faltan, Compose aborta el
+# despliegue en vez de interpolar cadena vacia.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER en el entorno}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en el entorno}
+      POSTGRES_DB: ${POSTGRES_DB:?define POSTGRES_DB en el entorno}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      # 127.0.0.1 y no localhost: dentro del contenedor localhost puede resolver a ::1.
+      test:
+        - CMD-SHELL
+        - PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c 'select 1' >/dev/null 2>&1
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    networks:
+      internal:
+        aliases:
+          - chevechevepos-db
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    mem_limit: 768m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?define POSTGRES_USER en el entorno}:${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en el entorno}@chevechevepos-db:5432/${POSTGRES_DB:?define POSTGRES_DB en el entorno}
+      NODE_ENV: production
+      PORT: "3860"
+      HOST: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET con al menos 32 caracteres aleatorios}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60000}
+      RUN_MIGRATIONS_ON_BOOT: ${RUN_MIGRATIONS_ON_BOOT:-true}
+    expose:
+      - "3860"
+    networks:
+      internal:
+        aliases:
+          - chevechevepos-api
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3760"
+      API_INTERNAL_URL: http://chevechevepos-api:3860
+      BACKEND_TIMEOUT_MS: ${BACKEND_TIMEOUT_MS:-15000}
+      SESSION_SECRET: ${SESSION_SECRET:?define SESSION_SECRET con al menos 32 caracteres aleatorios (firma la cookie de sesion)}
+      SESSION_MAX_AGE: ${SESSION_MAX_AGE:-28800}
+    expose:
+      - "3760"
+    networks:
+      internal:
+        aliases:
+          - chevechevepos-web
+      dokploy-network:
+
+networks:
+  internal:
+  dokploy-network:
+    external: true
+
+volumes:
+  db_data:
