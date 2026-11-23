@@ -115,6 +115,11 @@ async function autenticarCliente(req: FastifyRequest): Promise<ClienteEnlace> {
   return r.rows[0];
 }
 
+/** Permiso extra de rutas «A + B» (CONTRATOS §4.4): `config.permiso` lleva A y la ruta exige B antes de tocar la base. */
+export function exigirPermiso(req: FastifyRequest, codigo: string): void {
+  if (!req.usuario?.permisos.includes(codigo)) throw new AppError("SIN_PERMISO", { permiso: codigo });
+}
+
 export const permisosPlugin = fp(async (app: FastifyInstance) => {
   app.addHook("onRoute", (opts) => validarRuta(opts.url, opts.method, opts.config?.permiso));
 

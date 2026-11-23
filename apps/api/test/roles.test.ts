@@ -31,7 +31,7 @@ describe("GET /api/roles y /api/permisos", () => {
     const roles = res.json() as Array<{ nombre: string; es_sistema: boolean; permisos: string[]; num_usuarios: number }>;
     expect(roles.map((r) => r.nombre)).toEqual(expect.arrayContaining(["Dueño", "Administrador", "Repartidor", "Cajero", "Almacenista"]));
     const admin = roles.find((r) => r.nombre === "Administrador")!;
-    expect(admin).toMatchObject({ es_sistema: false, permisos: ["auditoria.ver", "configuracion.editar"] });
+    expect(admin).toMatchObject({ es_sistema: false, permisos: ["auditoria.ver", "catalogo.editar", "catalogo.ver", "compras.registrar", "compras.ver", "configuracion.editar", "inventario.ajustar", "inventario.ver", "proveedores.gestionar"] });
     expect(roles.find((r) => r.nombre === "Dueño")!.num_usuarios).toBeGreaterThanOrEqual(1);
   });
   it("lista permisos", async () => {

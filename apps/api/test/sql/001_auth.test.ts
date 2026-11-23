@@ -47,7 +47,7 @@ describe("migracion 001", () => {
     expect(roles.rows.filter((x) => x.es_sistema)).toHaveLength(1);
 
     const perm = async (rol: string) =>
-      (await pool.query("select permiso_codigo from app.rol_permiso rp join app.rol r on r.id = rp.rol_id where r.nombre = $1 order by 1", [rol]))
+      (await pool.query("select permiso_codigo from app.rol_permiso rp join app.rol r on r.id = rp.rol_id where r.nombre = $1 and permiso_codigo in ('auditoria.ver','configuracion.editar','usuarios.gestionar') order by 1", [rol]))
         .rows.map((x) => x.permiso_codigo);
     expect(await perm("Dueño")).toEqual(["auditoria.ver", "configuracion.editar", "usuarios.gestionar"]);
     expect(await perm("Administrador")).toEqual(["auditoria.ver", "configuracion.editar"]);

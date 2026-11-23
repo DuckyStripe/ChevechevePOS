@@ -14,16 +14,18 @@ export function extensionPorBytes(b: Buffer): "jpg" | "png" | "webp" | null {
   return null;
 }
 
-/** Guarda una imagen en ARCHIVOS_DIR/<sub>/<sha256>.<ext> (escritura atomica) y devuelve el nombre. */
-export async function guardarImagen(sub: "imagenes" | "comprobantes", datos: Buffer): Promise<string> {
+/** Guarda una imagen en ARCHIVOS_DIR/<sub>/<sha256>.<ext> (escritura atomica) y devuelve el nombre.
+ *  Con `nombre` (sin extension, p. ej. `<hash>-240`) se usa ese en vez del hash propio. */
+export async function guardarImagen(sub: "imagenes" | "comprobantes", datos: Buffer, nombre?: string): Promise<string> {
+  if (nombre !== undefined && !/^[0-9a-f]{64}(-240)?$/.test(nombre)) throw new Error("nombre de imagen no valido");
   if (datos.length > LIMITE_BYTES) throw new AppError("ARCHIVO_GRANDE");
   const ext = extensionPorBytes(datos);
   if (!ext) throw new AppError("IMAGEN_NO_VALIDA");
-  const nombre = `${createHash("sha256").update(datos).digest("hex")}.${ext}`;
+  const archivo = `${nombre ?? createHash("sha256").update(datos).digest("hex")}.${ext}`;
   const dir = join(env.ARCHIVOS_DIR, sub);
   await mkdir(dir, { recursive: true });
   const tmp = join(dir, `.${randomUUID()}.tmp`);
   await writeFile(tmp, datos);
-  await rename(tmp, join(dir, nombre));
-  return nombre;
+  await rename(tmp, join(dir, archivo));
+  return archivo;
 }

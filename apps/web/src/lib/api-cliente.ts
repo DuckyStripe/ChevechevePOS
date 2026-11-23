@@ -31,3 +31,20 @@ export async function llamar<T = null>(
     error: { status: r.status, codigo: e?.codigo ?? "ERROR_INTERNO", mensaje: e?.mensaje ?? "Algo salió mal. Intenta de nuevo.", detalles: e?.detalles },
   };
 }
+
+/** Subida de archivos (multipart) al BFF. Sin `content-type`: el navegador pone el boundary. Tope del BFF: 1 MB. */
+export async function subirArchivo<T = null>(ruta: string, formulario: FormData, metodo: "PUT" | "POST" = "PUT"): Promise<Resultado<T>> {
+  let r: Response;
+  try {
+    r = await fetch(`/api${ruta}`, { method: metodo, body: formulario, cache: "no-store" });
+  } catch {
+    return { ok: false, error: { status: 0, codigo: "SIN_RED", mensaje: "No hay conexión. No se guardó nada; revisa tu señal e intenta otra vez." } };
+  }
+  const datos = r.status === 204 ? null : await r.json().catch(() => null);
+  if (r.ok) return { ok: true, datos: datos as T };
+  const e = (datos as { error?: Partial<ErrorApi> } | null)?.error;
+  return {
+    ok: false,
+    error: { status: r.status, codigo: e?.codigo ?? "ERROR_INTERNO", mensaje: e?.mensaje ?? "Algo salió mal. Intenta de nuevo.", detalles: e?.detalles },
+  };
+}
