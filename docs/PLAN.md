@@ -116,7 +116,7 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 |---|---|---|---|
 | `/surtido` | Qué comprar para una fecha | `GET /surtido`, `GET /surtido/mensaje`, `POST /surtido/publicar` (incluye compra inteligente: sugerido por demanda y promociones, F5) | `/compras/nueva?surtido=`, `/surtido/promociones`, Siguiente: `/rutas` |
 | `/compras/nueva` | Registrar lo que se compró | `POST /compras` | Volver: `/surtido`; al guardar: `/compras/[id]` (margen) |
-| `/compras` · `/compras/[id]` | Historial y cancelar compra | `GET /compras`, `GET /compras/:id`, `POST /compras/:id/cancelar`, `GET /compras/:id/margenes` (tabla de margen tras registrar) | `/proveedores`, `/precios?producto_ids=` (corregir precios) |
+| `/compras` · `/compras/[id]` | Historial (`?proveedor_id=&estado=&desde=&hasta=`) y cancelar compra | `GET /compras`, `GET /compras/:id`, `POST /compras/:id/cancelar`, `GET /compras/:id/margenes` (tabla de margen tras registrar) | `/proveedores`, `/precios?producto_ids=&volver=/compras/<id>` (corregir precios); con `COMPRA_CON_SALIDAS`: `/inventario/ajustes?modo=costo&producto_id=&volver=/compras/<id>` |
 | `/surtido/promociones` | Promociones del distribuidor (F5) | `GET/POST /promociones`, `PATCH/DELETE /promociones/:id` | Volver: `/surtido` |
 
 **3. Cargar y rutas**
@@ -157,11 +157,11 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 |---|---|---|---|
 | `/clientes` · `/clientes/nuevo` | Buscar y dar de alta clientes; marcas amarillas (visitas sin pedido, inactivo, dispositivo nuevo; la notificación de la alerta abre `?alerta=`); estado del link (Activo / Sin activar / Dado de baja con fecha, motivo y quién / Sin link) y filtro; **dar de baja links** (uno o varios seleccionados, con motivo y confirmación; cada fila con alerta tiene «Dar de baja link» de un toque que abre esa confirmación; nunca automático, C21) | `GET /clientes`, `POST /clientes`, `POST /clientes/enlaces/revocar` | `/clientes/[id]` |
 | `/clientes/[id]` | Todo lo del cliente salvo cobrar; semáforo de fiado y límite sugerido (F7); estado de cuenta imprimible 80 mm; «lo de siempre» sí/no; enlace: dispositivos, restablecer PIN, generar (tras primera compra o forzado) | `GET/PATCH /clientes/:id`, `PUT /clientes/:id/ubicacion`, `POST /clientes/:id/ubicacion/aceptar`, `POST /clientes/:id/enlace`, `POST /clientes/:id/saldo-inicial`, `GET /clientes/:id/estado-cuenta`, `GET /clientes/:id/dispositivos`, `DELETE /clientes/:id/dispositivos/:id`, `POST /clientes/:id/pin/restablecer` | `/cobrar?cliente=`, `/pedidos/nuevo?cliente_id`, bandeja con `?nuevo=wa_estado_cuenta|wa_recordatorio_saldo|wa_enlace_cliente&cliente=`, «Dar de baja link» → `/clientes?revocar=<id>` (abre la confirmación ya seleccionada; la acción es de `/clientes`) |
-| `/productos` · `/productos/nuevo` · `/productos/[id]` | Producto, presentaciones, foto, alias, equivalentes (precios solo se ven) | `GET/POST /productos`, `GET/PATCH /productos/:id`, `PUT/DELETE /productos/:id/imagen`, `POST /productos/:id/presentaciones`, `PATCH /presentaciones/:id`, `GET/PUT /productos/:id/equivalentes` | `/precios?producto_ids=`, `/inventario?producto_id=` |
-| `/precios` | Cambiar precios; ofertas (por caducar / promoción); margen y precio sugerido | `GET/POST /listas-precio`, `PATCH /listas-precio/:id`, `PUT /precios`, `GET /precios/bajo-costo`, `GET /precios/sugeridos`, `GET/POST /ofertas`, `PATCH/DELETE /ofertas/:id` | `/productos/[id]` |
-| `/inventario` | Existencias, kárdex, por caducar (solo lectura) | `GET /inventario/existencias`, `GET /inventario/movimientos`, `GET /inventario/por-caducar` | `/inventario/ajustes`, `/precios?oferta=<presentacion>` (poner oferta a lo que caduca) |
-| `/inventario/ajustes` | Ajuste, merma, conteo, inventario inicial | `POST /inventario/ajustes`, `POST /inventario/conteos` | `/inventario` |
-| `/proveedores` | Proveedores | `GET/POST /proveedores`, `PATCH /proveedores/:id` | `/compras` |
+| `/productos` · `/productos/nuevo` · `/productos/[id]` | Producto, presentaciones, foto, alias, equivalentes (F3; precios solo se ven) | `GET/POST /productos`, `GET/PATCH /productos/:id`, `PUT/DELETE /productos/:id/imagen`, `POST /productos/:id/presentaciones`, `PATCH /presentaciones/:id`, `GET/PUT /productos/:id/equivalentes` (F3) | `/precios?producto_ids=<id>&volver=/productos/<id>`, `/inventario?producto_id=` |
+| `/precios` | Cambiar precios; ofertas (por caducar / promoción); margen y precio sugerido. Parámetros: `?producto_ids=` (filtra), `?oferta=<presentacion_id>` (abre el alta de oferta `por_caducar`), `?volver=` (solo rutas internas) | `GET/POST /listas-precio`, `PATCH /listas-precio/:id`, `PUT /precios`, `GET /precios/bajo-costo`, `GET /precios/sugeridos`, `GET/POST /ofertas`, `PATCH/DELETE /ofertas/:id` | `/productos/[id]`, Volver: `?volver=` |
+| `/inventario` | Existencias, kárdex (`?producto_id=`), por caducar (solo lectura) | `GET /inventario/existencias`, `GET /inventario/movimientos`, `GET /inventario/por-caducar` | `/inventario/ajustes`, `/precios?oferta=<presentacion>&producto_ids=&volver=/inventario` (poner oferta a lo que caduca) |
+| `/inventario/ajustes` | Ajuste, merma, conteo, inventario inicial y **«Corregir costo»** (revaluación; solo con `precios.editar` + `costos.ver`). `?modo=costo&producto_id=` abre «Corregir costo» con el producto puesto; `?volver=` (solo rutas internas) | `POST /inventario/ajustes`, `POST /inventario/conteos`, `POST /inventario/revaluaciones` | `/inventario` o `?volver=` |
+| `/proveedores` | Proveedores | `GET/POST /proveedores`, `PATCH /proveedores/:id` | `/compras?proveedor_id=<id>` |
 | `/catalogos` | Categorías y marcas (con margen objetivo por categoría) | `GET/POST /categorias`, `PATCH /categorias/:id`, `GET/POST /marcas`, `PATCH /marcas/:id` | — |
 | `/configuracion` | Negocio, bodega, reglas, zonas, vehículos, cajas, calendario de demanda, lealtad (F11), respaldos (última prueba) | `GET/PATCH /configuracion`, `GET/POST /zonas`, `PATCH /zonas/:id`, `GET/POST /vehiculos`, `PATCH /vehiculos/:id`, `POST /cajas`, `PATCH /cajas/:id`, `GET/PUT /fechas-demanda` | `/configuracion/plantillas` |
 | `/configuracion/plantillas` | Textos de WhatsApp, push y pantallas: lista por canal, editar con vista previa (solo `{{variables}}` de su lista) | `GET /plantillas`, `PATCH /plantillas/:clave`, `POST /plantillas/:clave/vista-previa` | Volver: `/configuracion` |
@@ -260,6 +260,8 @@ implementación fijó está en `docs/fases/F1.md` («Hechos de la implementació
 ## F2 — Catálogo, inventario, proveedores, compras
 
 Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/F2.md`.
+**Estado (2026-11-23): implementada, sin commit, en revisión** (revisor + prueba manual del dueño). Lo que la
+implementación fijó está en `docs/fases/F2.md` («Hechos de la implementación») y ya en CONTRATOS.
 
 - Migraciones `002_catalogo_inventario.sql`, `003_compras.sql`.
 - API: módulos `categorias`, `marcas`, `productos` (presentaciones, imagen + miniatura, alias,
@@ -270,7 +272,7 @@ Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/
   cliente, foto, alias, modo de surtido, proveedor habitual; precios y kárdex solo de lectura, enlazan a `/precios` e
   `/inventario`), `/precios` (matriz;
   celdas bajo costo marcadas; listas de precio), `/catalogos` (categorías con orden, marcas),
-  `/inventario` (existencias, kárdex y por caducar), `/inventario/ajustes` (merma con causa),
+  `/inventario` (existencias, kárdex y por caducar), `/inventario/ajustes` (merma con causa; «Corregir costo»),
   `/proveedores`, `/compras`, `/compras/nueva` (escáner, caducidad opcional
   por línea, borrador local, clave al abrir), `/compras/[id]`.
 - **Lote (CONTRATOS §2.12 A1, A8)**: margen objetivo en producto/categoría/config; `/compras/[id]` muestra
@@ -288,6 +290,9 @@ Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/
   esperado; imagen con extensión falsa → `IMAGEN_NO_VALIDA`. **UX**: P6, P8, N1–N3.
 
 ## F3 — Clientes, enlace personal, pedidos, faltantes, avisos, despacho
+
+Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/F3.md` (incluye el script
+de Eleventa como paquete E). Empieza cuando F2 está en `main`.
 
 El corazón. Tres agentes en paralelo tras fijar la migración: API, panel, páginas del cliente.
 
