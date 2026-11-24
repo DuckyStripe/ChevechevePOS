@@ -1,5 +1,6 @@
 import { datosNegocio, whatsappDe } from "@/lib/api-publico";
 import { T } from "@/lib/textos-publico";
+import { Corcholata } from "@/componentes/ui/marca";
 
 export const metadata = { title: "Link sin vigencia" };
 
@@ -10,8 +11,9 @@ export default async function Invalido({ searchParams }: { searchParams: Promise
   const datos = await datosNegocio();
   const whatsapp = whatsappDe(datos);
   return (
-    <main className="flex flex-col items-start gap-4 pt-10">
-      <h1 className="text-2xl font-bold">{sinServicio ? T.sinServicio : datos.textos?.enlace_invalido || `${T.invalidoTitulo}. ${T.invalidoTexto}`}</h1>
+    <main className="flex min-h-[70dvh] flex-col items-center justify-center gap-5 pt-10 text-center">
+      <Corcholata className="size-16" />
+      <h1 className="font-titulo text-2xl font-bold text-balance">{sinServicio ? T.sinServicio : datos.textos?.enlace_invalido || `${T.invalidoTitulo}. ${T.invalidoTexto}`}</h1>
       {!sinServicio && whatsapp && (
         <a href={`https://wa.me/${whatsapp}`} className="inline-flex min-h-14 items-center rounded-xl bg-exito-relleno px-6 text-lg font-bold text-white">
           {T.invalidoBoton}
