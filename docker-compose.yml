@@ -25,7 +25,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?define POSTGRES_DB en el entorno}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_datos:/var/lib/postgresql/data
     healthcheck:
       # 127.0.0.1 y no localhost: dentro del contenedor localhost puede resolver a ::1.
       test:
@@ -144,7 +144,9 @@ networks:
     external: true
 
 volumes:
-  db_data:
+  # db_datos (no db_data): el primer despliegue de prueba dejó en db_data migraciones viejas sin datos reales;
+  # ese volumen se dejó intacto y se puede borrar en el servidor.
+  db_datos:
   archivos:
   actualizaciones:
   respaldos:

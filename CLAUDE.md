@@ -112,7 +112,9 @@ Todo en español (identificadores sin acentos, comentarios en español).
   chacha la rotación dejaba vivo el token hijo.
 - IP del visitante: solo `apps/web/src/lib/ip-visitante.ts`, y **solo la entrada más a la derecha** de
   `X-Forwarded-For` (la que agrega Traefik). `X-Real-Ip` se ignora porque el cliente puede escribirla, y
-  la de la izquierda de XFF también. IPv6 se agrupa por /64. En el BFF la cookie gana sobre `Authorization`.
+  la de la izquierda de XFF también. Detrás de Cloudflare (túnel `cloudflared` o nube naranja) ese par es
+  privado o de Cloudflare y entonces, y solo entonces, se usa `CF-Connecting-IP` (`lib/ip-cloudflare.ts`); sin eso
+  todas las tiendas caerían en una cubeta. IPv6 se agrupa por /64. En el BFF la cookie gana sobre `Authorization`.
 - **Ninguna espera automática dura más de 15 minutos** (C21): ni la del PIN ni la de un ataque al enlace.
 - Archivos subidos (comprobantes, fotos): tipo por **bytes mágicos**, nunca por `Content-Type`; tamaño
   limitado antes de leer el cuerpo. Nunca loguear su contenido, teléfonos completos ni tokens de link.

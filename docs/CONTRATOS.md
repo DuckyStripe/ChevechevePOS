@@ -1652,7 +1652,8 @@ Se quitan `SESSION_SECRET`, `SESSION_MAX_AGE`, `SESSION_COOKIE_SECURE` y `JWT_EX
   `X-Cliente-Token` del cliente; agrega `X-Visitante-Ip`. **`X-Visitante-Ip`** (única fuente:
   `apps/web/src/lib/ip-visitante.ts`) = la entrada **más a la derecha** de `X-Forwarded-For` (la escribe el
   único proxy de confianza, Traefik); **`X-Real-Ip` se ignora** y lo de la izquierda también (los escribe el
-  cliente). Solo decide cubetas de límite de tasa, nunca concede acceso. La API agrupa por cubeta
+  cliente). Si ese par es de una red privada (túnel `cloudflared`) o de los rangos de Cloudflare
+  (`lib/ip-cloudflare.ts`), se usa `CF-Connecting-IP` (la fija Cloudflare); con otro par se ignora. Solo decide cubetas de límite de tasa, nunca concede acceso. La API agrupa por cubeta
   (`cubetaIp` en `comun/permisos.ts`): IPv4 tal cual, **IPv6 por /64** (un teléfono recorre miles de
   direcciones de su /64), sin IP `desconocida`. Métodos no GET exigen `Origin` = host propio
   (`403 ORIGEN_INVALIDO`; el WebView manda el `Origin` del panel). En `401` borra la cookie. Nunca
