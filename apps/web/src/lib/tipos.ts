@@ -362,7 +362,7 @@ export type Despacho = {
   rutas?: { lista: { id: string; folio: string; nombre: string | null; estado: string; repartidor: string; paradas: number; entregadas: number }[]; por_cargar: number; en_curso: number; por_liquidar?: number }; // F6; por_liquidar F7
   cierre?: { transferencias_por_verificar: number; turnos_mostrador_abiertos: number }; // F7
   avisos_pendientes?: number;
-  respaldo?: { ultimo: string | null; ok: boolean; vencido: boolean };
+  respaldo?: { ultimo: string | null; ok: boolean; local: boolean; descarga: string | null; vencido: boolean; falta_copia: boolean };
 };
 
 export type ArticuloVenta = {

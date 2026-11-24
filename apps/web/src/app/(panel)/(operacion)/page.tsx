@@ -46,12 +46,16 @@ export default async function Hoy() {
       <Titulo titulo={nombre ? `Hola, ${nombre}` : "Hoy"} ayuda="Así va tu día en ChevechevePOS, paso por paso." />
       {despacho?.respaldo?.vencido && (
         <p role="alert" className="mb-4 rounded-tarjeta border border-peligro/40 bg-peligro-suave p-4 text-base font-bold text-peligro">
-          {!despacho.respaldo.ultimo
-            ? "Todavía no se ha hecho ningún respaldo de tu información."
-            : despacho.respaldo.ok
-              ? "El último respaldo tiene más de un día."
-              : "El último respaldo no se guardó fuera del servidor."}{" "}
-          Pídele a quien maneja el sistema que lo revise.
+          {!despacho.respaldo.falta_copia ? (
+            "El respaldo de tu información no se pudo hacer. Pídele a quien maneja el sistema que lo revise."
+          ) : (
+            <>
+              Guarda una copia de tu información fuera del servidor.{" "}
+              <Link href="/configuracion#sec-respaldos" className="underline underline-offset-4">
+                Descargar respaldo
+              </Link>
+            </>
+          )}
         </p>
       )}
       {!d.ok && d.error.status !== 403 && <p className="mb-4 rounded-xl bg-peligro-suave p-3 text-base font-medium text-peligro">{d.error.mensaje}</p>}

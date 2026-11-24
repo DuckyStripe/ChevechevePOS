@@ -4,6 +4,7 @@ import { contarPendientes } from "../avisos/servicio.js";
 import { leerRespaldo } from "../salud/rutas.js";
 
 const HORAS_VENCIDO = 26;
+const DIAS_DESCARGA = 7;
 
 /** `GET /despacho`: unica fuente de contadores operativos de F3. Cada bloque va solo si el usuario tiene su permiso (sin surtido, rutas ni cierre hasta sus fases). */
 export async function despacho(u: UsuarioSesion, fecha: string | undefined) {
@@ -39,9 +40,23 @@ export async function despacho(u: UsuarioSesion, fecha: string | undefined) {
   if (["rutas.liquidar", "cobranza.verificar", "caja.supervisar"].some((p) => u.permisos.includes(p))) salida.cierre = await bloqueCierre(u);
   if (u.permisos.includes("avisos.enviar")) salida.avisos_pendientes = await contarPendientes(u);
   if (u.permisos.includes("configuracion.editar")) {
-    const r = await leerRespaldo();
+    const [r, d] = await Promise.all([
+      leerRespaldo(),
+      consulta<{ descarga: string | null }>("select valor #>> '{}' as descarga from app.configuracion where clave = 'respaldo_ultima_descarga'"),
+    ]);
+    const descarga = d.rows[0]?.descarga ?? null;
     const viejo = r ? Date.now() - Date.parse(r.ultimo) > HORAS_VENCIDO * 3_600_000 : true;
-    salida.respaldo = { ultimo: r?.ultimo ?? null, ok: r?.ok ?? false, vencido: !r || !r.ok || viejo };
+    // Sin copia remota (rclone) vale una descarga manual del dueño de los ultimos DIAS_DESCARGA dias.
+    const descargaReciente = descarga !== null && Date.now() - Date.parse(descarga) <= DIAS_DESCARGA * 86_400_000;
+    salida.respaldo = {
+      ultimo: r?.ultimo ?? null,
+      ok: r?.ok ?? false,
+      local: r?.local ?? false,
+      descarga,
+      vencido: !r || !r.local || viejo || (!r.ok && !descargaReciente),
+      // El respaldo se hizo bien en el servidor y solo falta sacarlo: la pantalla ofrece descargarlo.
+      falta_copia: !!r && r.local && !viejo && !r.ok && !descargaReciente,
+    };
   }
   return salida;
 }

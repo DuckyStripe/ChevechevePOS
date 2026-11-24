@@ -86,7 +86,7 @@ describe("GET /api/despacho", () => {
 
   it("respaldo (solo configuracion.editar): sin archivo de estado = vencido en rojo; nunca con otro permiso", async () => {
     const r = (await pedir("GET", "/api/despacho", dueno.token)).json();
-    expect(r.respaldo).toEqual({ ultimo: null, ok: false, vencido: true });
+    expect(r.respaldo).toEqual({ ultimo: null, ok: false, local: false, descarga: null, vencido: true, falta_copia: false });
     expect((await pedir("GET", "/api/despacho", cajero)).json()).not.toHaveProperty("respaldo");
     void errorDe;
   });

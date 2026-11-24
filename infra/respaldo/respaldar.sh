@@ -10,15 +10,16 @@ CONF="${RESPALDO_RCLONE_CONF:-/run/secrets/rclone.conf}"
 export TZ="${TZ:-America/Mexico_City}"
 FECHA=$(date +%F)
 ERROR=""
+LOCAL=true # false si fallo el dump o el tar (la copia remota aparte)
 
 # Escribe el estado pase lo que pase (al salir, bien o mal).
 escribir_estado() {
   ahora=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   if [ -z "$ERROR" ]; then
-    printf '{"ultimo":"%s","ok":true}\n' "$ahora" > "$ESTADO.tmp"
+    printf '{"ultimo":"%s","ok":true,"local":true}\n' "$ahora" > "$ESTADO.tmp"
   else
     msg=$(printf '%s' "$ERROR" | tr -d '"\\' | tr '\n' ' ')
-    printf '{"ultimo":"%s","ok":false,"error":"%s"}\n' "$ahora" "$msg" > "$ESTADO.tmp"
+    printf '{"ultimo":"%s","ok":false,"local":%s,"error":"%s"}\n' "$ahora" "$LOCAL" "$msg" > "$ESTADO.tmp"
   fi
   mv "$ESTADO.tmp" "$ESTADO"
 }
@@ -28,8 +29,8 @@ fallo() { ERROR="${ERROR:+$ERROR; }$1"; echo "[respaldo] $1" >&2; }
 
 mkdir -p "$R/diario" "$R/semanal"
 
-pg_dump -Fc -f "$R/diario/$FECHA.dump" || { rm -f "$R/diario/$FECHA.dump"; fallo "pg_dump fallo"; }
-tar czf "$R/diario/$FECHA-archivos.tar.gz" -C /datos/archivos . || { rm -f "$R/diario/$FECHA-archivos.tar.gz"; fallo "tar de archivos fallo"; }
+pg_dump -Fc -f "$R/diario/$FECHA.dump" || { rm -f "$R/diario/$FECHA.dump"; LOCAL=false; fallo "pg_dump fallo"; }
+tar czf "$R/diario/$FECHA-archivos.tar.gz" -C /datos/archivos . || { rm -f "$R/diario/$FECHA-archivos.tar.gz"; LOCAL=false; fallo "tar de archivos fallo"; }
 
 # Domingo (date +%u = 7): copia semanal.
 if [ "$(date +%u)" = "7" ]; then

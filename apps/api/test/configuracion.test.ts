@@ -91,4 +91,13 @@ describe("PATCH /api/configuracion", () => {
     expect(errorDe(c)).toMatchObject({ codigo: "SIN_PERMISO", detalles: { permiso: "configuracion.editar" } });
     expect((await pedir("PATCH", undefined, { negocio_nombre: "X" })).statusCode).toBe(401);
   });
+
+  it("GET /respaldo: 403 sin configuracion.editar; 404 sin respaldo en disco (no anota descarga)", async () => {
+    const c = await app.inject({ method: "GET", url: "/api/configuracion/respaldo", headers: auth(tokenCajero) });
+    expect(c.statusCode).toBe(403);
+    const a = await app.inject({ method: "GET", url: "/api/configuracion/respaldo", headers: auth(tokenAdmin) });
+    expect(a.statusCode).toBe(404);
+    expect(errorDe(a).codigo).toBe("NO_ENCONTRADO");
+    expect((await pedir("GET", tokenAdmin)).json().respaldo_ultima_descarga).toBeNull();
+  });
 });

@@ -5,11 +5,12 @@ import { consulta } from "../../db/database.js";
 const ARCHIVO_RESPALDO = "/respaldos/respaldo_estado.json";
 
 /** Estado del ultimo respaldo (lo escribe el servicio `respaldo`); sin archivo o ilegible = null. */
-export async function leerRespaldo(): Promise<{ ultimo: string; ok: boolean } | null> {
+export async function leerRespaldo(): Promise<{ ultimo: string; ok: boolean; local: boolean } | null> {
   try {
-    const j = JSON.parse(await readFile(ARCHIVO_RESPALDO, "utf8")) as { ultimo?: unknown; ok?: unknown };
+    const j = JSON.parse(await readFile(ARCHIVO_RESPALDO, "utf8")) as { ultimo?: unknown; ok?: unknown; local?: unknown };
     if (typeof j.ultimo !== "string" || typeof j.ok !== "boolean") return null;
-    return { ultimo: j.ultimo, ok: j.ok };
+    // `local` = el dump del dia salio (aunque falte la copia remota); estados viejos sin el campo: solo `ok`.
+    return { ultimo: j.ultimo, ok: j.ok, local: typeof j.local === "boolean" ? j.local : j.ok };
   } catch {
     return null;
   }

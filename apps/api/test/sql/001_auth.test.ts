@@ -13,7 +13,7 @@ const CLAVES_CONFIG = [
   "margen_objetivo", "precio_redondeo", "sugerencia_dias_tolerancia", "sugerencia_vigencia_horas",
   "sugerencia_hora", "compra_cobertura_dias", "compra_promedio_dias", "semaforo_dias_rojo",
   "visitas_umbral", "visitas_dias", "inactividad_dias", "enlace_tras_primera_compra", "respaldo_ultima_prueba",
-  "lealtad_activa", "lealtad_cada", "lealtad_presentacion_regalo_id",
+  "lealtad_activa", "lealtad_cada", "lealtad_presentacion_regalo_id", "respaldo_ultima_descarga",
 ];
 
 const PUSH = [

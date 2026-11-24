@@ -160,6 +160,13 @@ export function FormConfiguracion({ config }: { config: Config }) {
           Respaldos
         </h2>
         <p className="text-base">{textoRespaldo(config.respaldo_ultima_prueba)}</p>
+        <p className="mt-3 text-base text-suave">
+          Cada noche se hace un respaldo. Descárgalo al menos una vez por semana y guárdalo en tu computadora o en tu Drive.
+          {typeof config.respaldo_ultima_descarga === "string" && ` Última descarga: ${new Date(config.respaldo_ultima_descarga).toLocaleString("es-MX", { timeZone: "America/Mexico_City", dateStyle: "medium", timeStyle: "short" })}.`}
+        </p>
+        <a href="/api/configuracion/respaldo" download className="mt-3 inline-flex min-h-12 items-center rounded-xl border border-borde px-5 text-base font-bold">
+          Descargar respaldo
+        </a>
       </Tarjeta>
 
       {error && (
