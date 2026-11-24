@@ -43,7 +43,7 @@ const PUBLICAS: Array<[metodo: string, coincide: (url: string) => boolean]> = [
   ["GET", (u) => u === "/health" || u === "/ready"],
   ["POST", (u) => u === "/api/auth/login"],
   ["GET", (u) => u === "/api/imagenes/:archivo"],
-  ["GET", (u) => u.startsWith("/api/movil/actualizaciones/")],
+  ["GET", (u) => ["manifiesto", "recursos/:hash", "apk", "apk/:archivo"].some((r) => u === `/api/movil/actualizaciones/${r}`)],
   ["GET", (u) => u === "/api/publico/negocio"],
 ];
 

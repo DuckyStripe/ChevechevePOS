@@ -10,6 +10,7 @@ import { Boton } from "@/componentes/ui/boton";
 import { AreaTexto, Campo, Selector } from "@/componentes/ui/campo";
 import { Esqueleto } from "@/componentes/ui/esqueleto";
 import { Tarjeta } from "@/componentes/ui/tarjeta";
+import { useSinGuardar } from "@/lib/cascaron";
 import { llamar } from "@/lib/api-cliente";
 import { dinero } from "@/lib/dinero";
 import type { ArticuloPos, ArticuloVenta, ClienteDetalle, ClienteFila, Lista, LineaInterpretada } from "@/lib/tipos";
@@ -63,6 +64,7 @@ export function NuevoPedido({ usuarioId, inicial }: { usuarioId: string; inicial
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [guardado, setGuardado] = useState(false);
+  useSinGuardar(b.lineas.length > 0 && !guardado);
 
   // Borrador local: sobrevive recargar o quedarse sin senal.
   useEffect(() => {

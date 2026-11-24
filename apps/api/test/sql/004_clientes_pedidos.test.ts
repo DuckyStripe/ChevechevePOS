@@ -7,6 +7,7 @@ import {
   catalogoBase, cliente, fila, notificaciones, pedido, pedidoEntregado, ROL3, usuarioF3,
   type CatalogoBase,
 } from "./ayuda-pedidos.js";
+import { rutaCon } from "./ayuda-rutas.js";
 
 afterAll(() => pool.end());
 
@@ -594,7 +595,8 @@ describe("cancelar y reprogramar (personal)", () => {
       const repro = (ped: string, fecha: string) => c.query("select app.fn_reprogramar_pedido($1, $2, $3)", [k.usuario, ped, fecha]);
       expect((await error(c, () => repro(p, "2099-01-01"))).message).toBe("ESTADO_NO_VALIDO");
       await confirmarHoy(c, k.usuario, p);
-      await c.query("update app.pedido set estado = 'no_entregado', ruta_id = 5, motivo = 'cerrado' where id = $1", [p]);
+      const ruta = await rutaCon(c, [], { fecha: await dia(c, 0), usuario: k.usuario }); // fk_pedido_ruta existe desde 007
+      await c.query("update app.pedido set estado = 'no_entregado', ruta_id = $2, motivo = 'cerrado' where id = $1", [p, ruta.id]);
       const ayer = await dia(c, -1);
       expect((await error(c, () => repro(p, ayer))).message).toBe("FECHA_NO_VALIDA");
       await repro(p, await dia(c, 2));

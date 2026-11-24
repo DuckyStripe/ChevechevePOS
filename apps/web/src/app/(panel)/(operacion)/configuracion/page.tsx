@@ -1,6 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Zonas } from "@/componentes/clientes/zonas";
+import { SeccionCalendario } from "@/componentes/surtido/seccion-calendario";
+import { SeccionVehiculos } from "@/componentes/vehiculos/seccion-vehiculos";
 import { itemsDe } from "@/componentes/productos/formato";
 import { FormConfiguracion, type Config } from "@/componentes/configuracion/form-configuracion";
 import { AvisoError, SinPermiso } from "@/componentes/ui/aviso-error";
@@ -29,6 +31,8 @@ export default async function Configuracion() {
         <ChevronRight aria-hidden className="size-6 shrink-0 text-suave" />
       </Link>
       {zonas?.ok && <Zonas zonas={itemsDe(zonas.datos)} puedeEditar={tiene(yo.datos, "clientes.editar")} />}
+      <SeccionVehiculos />
+      <SeccionCalendario />
       <FormConfiguracion config={cfg.datos} />
     </main>
   );

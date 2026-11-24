@@ -63,14 +63,18 @@ services:
       SESION_WEB_HORAS: ${SESION_WEB_HORAS:-12}
       SESION_APP_DIAS: ${SESION_APP_DIAS:-30}
       SECRETO_ENLACES: ${SECRETO_ENLACES:?define SECRETO_ENLACES con al menos 32 caracteres aleatorios}
-      FCM_CUENTA_SERVICIO: ${FCM_CUENTA_SERVICIO:-}
+      # JSON de la cuenta de servicio de Firebase, montado solo lectura abajo. Sin el archivo la API arranca y el push queda apagado (log claro).
+      FCM_CUENTA_SERVICIO: ${FCM_CUENTA_SERVICIO:-/run/secrets/fcm.json}
       ARCHIVOS_DIR: /datos/archivos
+      ACTUALIZACIONES_DIR: /datos/actualizaciones
       LOG_LEVEL: ${LOG_LEVEL:-info}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60000}
       RUN_MIGRATIONS_ON_BOOT: ${RUN_MIGRATIONS_ON_BOOT:-true}
     volumes:
       - archivos:/datos/archivos
+      - actualizaciones:/datos/actualizaciones
+      - ${FCM_ARCHIVO:-./secretos/fcm.json}:/run/secrets/fcm.json:ro
       - respaldos:/respaldos:ro
     expose:
       - "3860"
@@ -142,4 +146,5 @@ networks:
 volumes:
   db_data:
   archivos:
+  actualizaciones:
   respaldos:

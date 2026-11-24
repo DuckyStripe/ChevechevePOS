@@ -34,11 +34,10 @@ interface Fila {
 }
 
 /**
- * Unico lugar donde se decide que avisos ve alguien (la usan `GET /avisos` y los contadores de `GET /despacho`).
- * Con `pedidos.ver` ve todos; sin el (Repartidor) solo los de pedidos de sus rutas, y en F3 no hay rutas: ninguno.
- * TODO F6: reemplazar `false` por el filtro de pedidos en rutas del usuario.
+ * Unico lugar (TS) donde se filtra que avisos ve alguien (`GET /avisos`, contadores de `GET /despacho`, marcar): la regla vive
+ * en SQL (`fn_puede_ver_aviso`: `pedidos.ver` ve todos; el Repartidor, solo los de pedidos de sus rutas). `ph` = marcador del usuario.
  */
-export const condicionAvisosVisibles = (u: UsuarioSesion): string => (u.permisos.includes("pedidos.ver") ? "true" : "false");
+export const condicionAvisosVisibles = (ph: string): string => `app.fn_puede_ver_aviso(${ph}::bigint, a.pedido_id)`;
 
 const COLUMNAS = `a.id, a.estado, a.plantilla, a.vars, a.creado_en, a.pedido_id,
   case when c.id is null then null else json_build_object('id', c.id::text, 'nombre', c.nombre) end as cliente,
@@ -105,7 +104,7 @@ export async function listarAvisos(
 ) {
   const p: unknown[] = [f.estado];
   const arg = (v: unknown) => (p.push(v), `$${p.length}`);
-  const donde = ["a.estado = $1", condicionAvisosVisibles(u)];
+  const donde = ["a.estado = $1", condicionAvisosVisibles(arg(u.id))];
   if (f.cliente_id) donde.push(`a.cliente_id = ${arg(f.cliente_id)}`);
   if (f.pedido_id) donde.push(`a.pedido_id = ${arg(f.pedido_id)}`);
   const limite = arg(f.por_pagina);
@@ -120,13 +119,13 @@ export async function listarAvisos(
 
 /** Cuantos avisos pendientes ve este usuario (contador de `/despacho`). */
 export async function contarPendientes(u: UsuarioSesion): Promise<number> {
-  const r = await consulta<{ n: number }>(`select count(*)::int as n from app.aviso_cliente a where a.estado = 'pendiente' and ${condicionAvisosVisibles(u)}`);
+  const r = await consulta<{ n: number }>(`select count(*)::int as n from app.aviso_cliente a where a.estado = 'pendiente' and ${condicionAvisosVisibles("$1")}`, [u.id]);
   return r.rows[0]!.n;
 }
 
 /** Marca enviado/descartado. Repetir el mismo estado es 204; el contrario sobre uno ya cerrado es AVISO_NO_PENDIENTE (SQL). */
 export async function marcarAviso(u: UsuarioSesion, id: string, estado: "enviado" | "descartado"): Promise<void> {
-  const visible = await consulta<{ estado: string }>(`select a.estado from app.aviso_cliente a where a.id = $1 and ${condicionAvisosVisibles(u)}`, [id]);
+  const visible = await consulta<{ estado: string }>(`select a.estado from app.aviso_cliente a where a.id = $1 and ${condicionAvisosVisibles("$2")}`, [id, u.id]);
   if (!visible.rows[0]) throw new AppError("NO_ENCONTRADO");
   if (visible.rows[0].estado === estado) return;
   await conUsuario(u.id, (c) => c.query("select app.fn_marcar_aviso($1::bigint, $2::bigint, $3::text)", [u.id, id, estado]));

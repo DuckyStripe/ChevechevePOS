@@ -7,6 +7,7 @@ import { mensajeError } from "@/componentes/productos/formato";
 import { Boton } from "@/componentes/ui/boton";
 import { AreaTexto, Campo, Casilla, Selector } from "@/componentes/ui/campo";
 import { Tarjeta } from "@/componentes/ui/tarjeta";
+import { useSinGuardar } from "@/lib/cascaron";
 import { llamar } from "@/lib/api-cliente";
 import type { ClienteDetalle, ListaPrecio, Zona } from "@/lib/tipos";
 import { DIAS_LARGOS, normalizarTelefono, TIPOS_NEGOCIO } from "./formato-clientes";
@@ -22,6 +23,8 @@ export function FormCliente({ cliente, zonas, listas, puedeCredito }: { cliente?
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [sucio, setSucio] = useState(false);
+  useSinGuardar(sucio);
   const telefonoInicial = cliente?.telefono_whatsapp ? cliente.telefono_whatsapp.replace(/^52(\d{10})$/, "$1") : "";
 
   async function guardar(ev: React.FormEvent<HTMLFormElement>) {
@@ -70,7 +73,7 @@ export function FormCliente({ cliente, zonas, listas, puedeCredito }: { cliente?
 
   const dias = new Set(cliente?.dias_visita ?? []);
   return (
-    <form onSubmit={guardar} noValidate className="flex flex-col gap-4">
+    <form onChange={() => setSucio(true)} onSubmit={guardar} noValidate className="flex flex-col gap-4">
       <Tarjeta className="flex flex-col gap-4">
         <h2 className="text-lg font-bold">Datos</h2>
         <Campo etiqueta="Nombre de la tienda" name="nombre" defaultValue={cliente?.nombre} error={errores.nombre} maxLength={120} />

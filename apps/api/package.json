@@ -13,7 +13,10 @@
     "typecheck": "tsc --noEmit",
     "prueba": "node --env-file-if-exists=../../.env scripts/preparar-pruebas.mjs && vitest run",
     "migrar": "node scripts/migrar.mjs",
-    "importar:eleventa": "node scripts/importar-eleventa.mjs"
+    "importar:eleventa": "node scripts/importar-eleventa.mjs",
+    "ota:publicar": "node scripts/ota-publicar.mjs",
+    "ota:publicar-apk": "node scripts/ota-publicar-apk.mjs",
+    "ota:regresar": "node scripts/ota-regresar.mjs"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.0",

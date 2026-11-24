@@ -71,6 +71,16 @@ describe("C21: busqueda en el codigo", () => {
   });
 });
 
+describe("C21: tarea de push (F4)", () => {
+  it("envio-push solo se programa con FCM_CUENTA_SERVICIO, es la unica tarea fuera de TAREAS_F3 y no toca el acceso del cliente", () => {
+    const tareas = readFileSync(join(RAIZ, "src/tareas.ts"), "utf8");
+    expect([...tareas.matchAll(/programar\(app, "([\w-]+)"/g)].map((m) => m[1]).sort()).toEqual(["envio-push"]);
+    expect(/if \(env\.FCM_CUENTA_SERVICIO\)[\s\S]*programar\(app, "envio-push"/.test(tareas)).toBe(true);
+    const envio = readFileSync(join(RAIZ, "src/modulos/notificaciones/envio.ts"), "utf8").toLowerCase();
+    expect(envio).not.toMatch(/cliente_enlace|cliente_dispositivo|pin_hash|app\.cliente\b/);
+  });
+});
+
 describe("C21: comportamiento", () => {
   let app: FastifyInstance;
   let antes: Snapshot;

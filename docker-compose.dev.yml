@@ -42,14 +42,18 @@ services:
       SESION_WEB_HORAS: ${SESION_WEB_HORAS:-12}
       SESION_APP_DIAS: ${SESION_APP_DIAS:-30}
       SECRETO_ENLACES: ${SECRETO_ENLACES:?define SECRETO_ENLACES con al menos 32 caracteres en .env}
+      # Opcional en desarrollo: para probar push, monta el JSON (volumen de abajo, descomentado) y pon FCM_CUENTA_SERVICIO=/run/secrets/fcm.json
       FCM_CUENTA_SERVICIO: ${FCM_CUENTA_SERVICIO:-}
       ARCHIVOS_DIR: /datos/archivos
+      ACTUALIZACIONES_DIR: /datos/actualizaciones
       LOG_LEVEL: ${LOG_LEVEL:-info}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60000}
       RUN_MIGRATIONS_ON_BOOT: ${RUN_MIGRATIONS_ON_BOOT:-true}
     volumes:
       - archivos:/datos/archivos
+      - actualizaciones:/datos/actualizaciones
+      # - ./secretos/fcm.json:/run/secrets/fcm.json:ro
     ports:
       - "${API_PORT:-3860}:3860"
 
@@ -74,3 +78,4 @@ services:
 volumes:
   db_data:
   archivos:
+  actualizaciones:

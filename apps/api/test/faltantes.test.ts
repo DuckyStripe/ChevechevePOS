@@ -90,7 +90,8 @@ describe("faltante de punta a punta", () => {
 
     const r2 = await publico("POST", `/api/publico/propuestas/${f.propuesta_id}/responder`, cred, { opcion_id: opcion });
     expect(r2.statusCode).toBe(200);
-    expect(r2.json()).toMatchObject({ id: p.id, total: "930.00", etapa: "confirmado", faltantes: [] });
+    // Victoria no tiene existencia: confirmado y por surtir se ve «surtiendo» (F6: fn_requiere_surtido).
+    expect(r2.json()).toMatchObject({ id: p.id, total: "930.00", etapa: "surtiendo", faltantes: [] });
     expect(r2.json().lineas.map((l: { estado: string; cantidad: number }) => [l.estado, l.cantidad])).toEqual([["sustituida", 0], ["activa", 1], ["activa", 2]]);
     expect((await pool.query("select count(*)::int as n from app.notificacion where evento = 'faltante_respondido' and clave = $1", [`faltante:${f.propuesta_id}`])).rows[0].n).toBeGreaterThanOrEqual(1);
     const otra = await publico("POST", `/api/publico/propuestas/${f.propuesta_id}/responder`, cred, { opcion_id: opcion });

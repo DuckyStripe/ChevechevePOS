@@ -253,7 +253,7 @@ describe("faltantes: limite del cliente y avisos del personal", () => {
     });
   });
 
-  it("fn_marcar_aviso: el Repartidor (avisos.enviar sin pedidos.ver) recibe SIN_PERMISO hasta F6; el Cajero si marca", async () => {
+  it("fn_marcar_aviso: el Repartidor (avisos.enviar sin pedidos.ver) solo marca avisos de sus rutas: este no es suyo -> NO_ENCONTRADO; el Cajero si marca", async () => {
     await enTransaccion(async (c) => {
       const k = await catalogoBase(c);
       const cli = await cliente(c);
@@ -261,7 +261,7 @@ describe("faltantes: limite del cliente y avisos del personal", () => {
       const caj = await usuarioF3(c, ROL3.cajero);
       const p = await pedido(c, cli, [lin(k.caja, 2)], { captura: k.usuario });
       const av = (await fila<{ id: string }>(c, "select id from app.aviso_cliente where pedido_id = $1", [p])).id;
-      expect((await errorConDetalle(c, () => c.query("select app.fn_marcar_aviso($1, $2, 'enviado')", [rep, av]))).detalle).toEqual({ permiso: "pedidos.ver" });
+      expect((await errorConDetalle(c, () => c.query("select app.fn_marcar_aviso($1, $2, 'enviado')", [rep, av]))).message).toBe("NO_ENCONTRADO");
       await c.query("select app.fn_marcar_aviso($1, $2, 'enviado')", [caj, av]);
       expect((await fila<{ estado: string }>(c, "select estado from app.aviso_cliente where id = $1", [av])).estado).toBe("enviado");
     });

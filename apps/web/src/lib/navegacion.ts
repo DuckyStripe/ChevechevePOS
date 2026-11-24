@@ -18,7 +18,10 @@ const ORDEN: Grupo[] = ["paso1", "paso2", "paso3", "paso4", "paso5", "mostrador"
 /** F1: solo lo que existe. Cada fase agrega sus pantallas aqui, nunca antes de construirlas. */
 export const ENTRADAS: EntradaMenu[] = [
   { ruta: "/pedidos", titulo: "Pedidos", permiso: "pedidos.ver", grupo: "paso1" },
+  { ruta: "/surtido", titulo: "Surtido", permiso: "surtido.ver", grupo: "paso2" },
   { ruta: "/compras", titulo: "Compras", permiso: "compras.ver", grupo: "paso2" },
+  { ruta: "/rutas", titulo: "Rutas", permiso: "rutas.ver", grupo: "paso3" }, // F6
+  { ruta: "/reparto", titulo: "Mi ruta", permiso: "rutas.operar", grupo: "paso4" }, // F6
   { ruta: "/clientes", titulo: "Clientes", permiso: "clientes.ver", grupo: "ajustes" },
   { ruta: "/productos", titulo: "Productos", permiso: "catalogo.ver", grupo: "ajustes" },
   { ruta: "/precios", titulo: "Precios", permiso: "precios.editar", grupo: "ajustes" },

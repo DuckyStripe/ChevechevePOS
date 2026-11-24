@@ -9,6 +9,7 @@ import { Campo, Casilla } from "@/componentes/ui/campo";
 import { Dialogo } from "@/componentes/ui/dialogo";
 import { Insignia } from "@/componentes/ui/insignia";
 import { Tarjeta } from "@/componentes/ui/tarjeta";
+import { useSinGuardar } from "@/lib/cascaron";
 import { llamar } from "@/lib/api-cliente";
 import { dinero } from "@/lib/dinero";
 import type { ListaPrecio, Presentacion, Producto } from "@/lib/tipos";
@@ -23,6 +24,8 @@ function Datos({ producto, catalogos, puedeEditar }: { producto: Producto; catal
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [sucio, setSucio] = useState(false);
+  useSinGuardar(sucio);
 
   async function guardar(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault();
@@ -42,7 +45,7 @@ function Datos({ producto, catalogos, puedeEditar }: { producto: Producto; catal
   return (
     <Tarjeta>
       <h2 className="mb-4 text-lg font-bold">Datos</h2>
-      <form onSubmit={guardar} noValidate className="flex flex-col gap-4">
+      <form onChange={() => setSucio(true)} onSubmit={guardar} noValidate className="flex flex-col gap-4">
         <fieldset disabled={!puedeEditar} className="flex flex-col gap-4">
           <CamposProducto producto={producto} catalogos={catalogos} errores={errores} />
           <Casilla etiqueta="Se vende y se compra" ayuda="Si lo quitas, deja de salir en listas y buscadores. Nunca se borra." name="activo" defaultChecked={producto.activo} />

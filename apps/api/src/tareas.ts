@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
+import { env } from "./config/env.js";
 import { consulta } from "./db/database.js";
+import { cargarCuenta, crearEnviador } from "./modulos/notificaciones/envio.js";
 
 /** Tarea periodica sin solapes: si la anterior sigue corriendo, se salta el tick. Errores logueados; se detiene en onClose. */
 export function programar(app: FastifyInstance, nombre: string, ms: number, fn: () => Promise<void>): void {
@@ -35,5 +37,17 @@ export function registrarTareas(app: FastifyInstance): void {
     programar(app, t.nombre, t.cadaMs, async () => {
       await consulta(t.sql);
     });
+  }
+  // Push a los telefonos del personal (F4). Sin FCM_CUENTA_SERVICIO, o con un archivo que no sirve, no se programa y la bandeja sigue funcionando. No toca acceso de clientes (C21).
+  if (env.FCM_CUENTA_SERVICIO) {
+    const c = cargarCuenta(env.FCM_CUENTA_SERVICIO);
+    if ("error" in c) {
+      app.log.error({ tarea: "envio-push" }, `${c.error}: el envio de push queda apagado`);
+    } else {
+      const enviar = crearEnviador({ cuenta: c.cuenta, log: app.log });
+      programar(app, "envio-push", 15_000, async () => {
+        await enviar();
+      });
+    }
   }
 }

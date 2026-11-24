@@ -354,6 +354,8 @@ export type Despacho = {
     recoge?: number;
     por_zona?: { zona: string; pedidos: number; sin_ruta: number; total: string }[];
   };
+  surtido?: { productos_por_comprar: number }; // F5
+  rutas?: { lista: { id: string; folio: string; nombre: string | null; estado: string; repartidor: string; paradas: number; entregadas: number }[]; por_cargar: number; en_curso: number }; // F6
   avisos_pendientes?: number;
   respaldo?: { ultimo: string | null; ok: boolean; vencido: boolean };
 };
@@ -474,3 +476,116 @@ export type Seguimiento = {
 };
 
 export type PedidoEnviado = { id: number | string; folio: string; total: string; estado: string; texto_confirmacion: string; avisar_negocio?: { url: string } | null };
+
+// --- Cascarón Android (F4, CONTRATOS §4.6): lo que el cascarón le cuenta a la página por el puente.
+export type NovedadApp = { version: string; fecha: string; items: string[] };
+export type EstadoApp = {
+  version: string;
+  version_code: number | null;
+  ota_id: string | null;
+  ota_fecha: string | null;
+  resultado: "al_dia" | "lista" | "apk" | "sin_red";
+  novedades: NovedadApp[];
+};
+export type PushToken = { token: string | null; motivo?: "sin_permiso" | "error"; plataforma?: "android"; version?: string };
+
+// --- F5: lista de surtido y compra inteligente (CONTRATOS §2.6, §4.4). Los costos solo vienen con `costos.ver`.
+export type LineaSurtido = {
+  producto_id: number | string;
+  producto: string;
+  modo_surtido: "inventario" | "contra_pedido";
+  piezas_pedidas: number;
+  existencia: number;
+  comprometido_previo: number;
+  disponible: number;
+  piezas_a_comprar: number;
+  reponer_minimo: number;
+  presentacion_id: number | string | null;
+  presentacion: string | null;
+  factor: number | null;
+  cantidad_sugerida: number | null;
+  sugerido_demanda: number;
+  promocion_id: number | string | null;
+  ultimo_costo?: string | null;
+  costo_estimado?: string | null;
+  costo_promocion?: string | null;
+  ahorro?: string | null;
+};
+export type GrupoSurtido = {
+  proveedor_id: number | string | null;
+  proveedor: string | null;
+  telefono: string | null;
+  lineas: LineaSurtido[];
+  costo_estimado?: string | null;
+};
+export type Surtido = { fecha: string; proveedores: GrupoSurtido[]; totales: { productos: number; costo_estimado?: string | null } };
+export type MensajeSurtido = { telefono: string | null; texto: string };
+export type Promocion = {
+  id: number | string;
+  proveedor: Ref;
+  presentacion: { id: number | string; nombre: string; factor: number };
+  producto: Ref;
+  costo_presentacion: string;
+  minimo_cantidad: number;
+  desde: string;
+  hasta: string;
+  vigente: boolean;
+  notas: string | null;
+};
+export type FechaDemanda = { fecha: string; nombre: string; factor: string };
+export type CalendarioDemanda = { anio: number; items: FechaDemanda[]; total: number };
+
+// F6: rutas, orden de carga y reparto (CONTRATOS §4.4 «Rutas y reparto»).
+export type Vehiculo = { id: string; nombre: string; placas: string | null; capacidad_cajas: number | null; activo: boolean };
+export type RutaEstado = "planeada" | "cargada" | "en_curso" | "terminada" | "liquidada" | "cancelada";
+export type RutaResumen = {
+  id: string;
+  folio: string;
+  fecha: string;
+  nombre: string | null;
+  vehiculo: { id: string; nombre: string };
+  repartidor: { id: string; nombre: string };
+  estado: RutaEstado;
+  paradas: number;
+  entregadas: number;
+  distancia_km: string | null;
+};
+export type LineaRuta = { cantidad: number; presentacion: string; producto: string };
+export type ParadaRuta = {
+  id: string;
+  orden: number;
+  tipo: "entrega" | "cobro";
+  estado: "pendiente" | "visitada" | "fallida" | "omitida";
+  km_desde_anterior: string | null;
+  nota: string | null;
+  cliente: {
+    id: string;
+    nombre: string;
+    direccion: string | null;
+    referencias: string | null;
+    telefono_whatsapp: string | null;
+    lat: string | null;
+    lng: string | null;
+    zona: { id: string; nombre: string } | null;
+  };
+  pedido: { id: string; folio: string; total: string; estado: string; lineas: LineaRuta[] } | null;
+  navegar: { google: string; waze: string } | null;
+};
+export type RutaDetalle = RutaResumen & {
+  capacidad_cajas: number | null;
+  cajas_totales: number;
+  optimizada_en: string | null;
+  cargada_en: string | null;
+  iniciada_en: string | null;
+  terminada_en: string | null;
+  paradas: ParadaRuta[];
+  navegar_ruta: string[];
+};
+export type CandidatoRuta = { id: string; folio: string; cliente: { id: string; nombre: string }; estado: string; total: string; tiene_ubicacion: boolean };
+export type CandidatosRuta = { zonas: { zona: { id: string; nombre: string } | null; pedidos: CandidatoRuta[] }[] };
+export type OrdenCarga = {
+  paradas: { carga_n: number; orden: number; cliente: string; zona: string | null; pedido_folio: string | null; lineas: LineaRuta[] }[];
+  totales: { producto: string; presentacion: string; cantidad: number; piezas: number }[];
+  cajas_totales: number;
+};
+export type Repartidor = { id: string; nombre: string };

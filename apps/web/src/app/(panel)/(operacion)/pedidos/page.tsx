@@ -162,6 +162,11 @@ export default async function Pedidos({ searchParams }: { searchParams: SP }) {
         ))
       )}
       <Paginacion ruta="/pedidos" query={{ vista: vista.clave, ...filtros }} pagina={lista.datos.pagina} porPagina={lista.datos.por_pagina} total={lista.datos.total} />
+      {tiene(yo.datos, "surtido.ver") && (
+        <div className="mt-6">
+          <BotonEnlace href="/surtido">Siguiente: Surtido</BotonEnlace>
+        </div>
+      )}
     </main>
   );
 }

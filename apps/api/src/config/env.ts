@@ -13,6 +13,7 @@ const esquema = z.object({
   SESION_WEB_HORAS: z.coerce.number().positive().default(12),
   SESION_APP_DIAS: z.coerce.number().positive().default(30),
   FCM_CUENTA_SERVICIO: z.string().optional(),
+  ACTUALIZACIONES_DIR: z.string().min(1).default("/datos/actualizaciones"),
   ARCHIVOS_DIR: z.string().min(1).default("/datos/archivos"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),

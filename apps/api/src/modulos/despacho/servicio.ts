@@ -30,6 +30,12 @@ export async function despacho(u: UsuarioSesion, fecha: string | undefined) {
     );
     salida.pedidos = { ...r.rows[0], por_zona: zonas.rows };
   }
+  if (u.permisos.includes("surtido.ver")) {
+    // F5: filas de la lista de surtido de la fecha del despacho (misma regla que /surtido: fn_lista_surtido).
+    const r = await consulta<{ n: number }>("select count(*)::int as n from app.fn_lista_surtido($1, $2::date)", [u.sucursal_id, dia]);
+    salida.surtido = { productos_por_comprar: r.rows[0]!.n };
+  }
+  if (u.permisos.includes("rutas.ver") || u.permisos.includes("rutas.operar")) salida.rutas = await bloqueRutas(u, dia);
   if (u.permisos.includes("avisos.enviar")) salida.avisos_pendientes = await contarPendientes(u);
   if (u.permisos.includes("configuracion.editar")) {
     const r = await leerRespaldo();
@@ -37,4 +43,22 @@ export async function despacho(u: UsuarioSesion, fecha: string | undefined) {
     salida.respaldo = { ultimo: r?.ultimo ?? null, ok: r?.ok ?? false, vencido: !r || !r.ok || viejo };
   }
   return salida;
+}
+
+/** Bloque `rutas` (F6): con `rutas.ver` todas las de la fecha; con solo `rutas.operar`, las propias. Las canceladas no cuentan. */
+async function bloqueRutas(u: UsuarioSesion, dia: string) {
+  const r = await consulta(
+    `select r.id::text as id, r.folio, r.nombre, r.estado, us.nombre as repartidor,
+            (select count(*)::int from app.ruta_parada pa where pa.ruta_id = r.id) as paradas,
+            (select count(*)::int from app.ruta_parada pa where pa.ruta_id = r.id and pa.estado = 'visitada') as entregadas
+       from app.ruta r join app.usuario us on us.id = r.repartidor_id
+      where r.sucursal_id = $1 and r.fecha = $2::date and r.estado <> 'cancelada'
+        and ($3::boolean or r.repartidor_id = $4) order by r.id`,
+    [u.sucursal_id, dia, u.permisos.includes("rutas.ver"), u.id],
+  );
+  return {
+    lista: r.rows,
+    por_cargar: r.rows.filter((x) => x.estado === "planeada").length,
+    en_curso: r.rows.filter((x) => x.estado === "en_curso").length,
+  };
 }

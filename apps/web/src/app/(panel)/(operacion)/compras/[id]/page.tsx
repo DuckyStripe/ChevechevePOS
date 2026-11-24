@@ -53,6 +53,12 @@ export default async function PaginaCompra({ params, searchParams }: { params: P
         </p>
       )}
 
+      {registrada && !cancelada && compra.fecha_surtido && tiene(yo.datos, "surtido.ver") && (
+        <div>
+          <BotonEnlace href={`/surtido?fecha=${compra.fecha_surtido}`}>Volver a la lista de surtido</BotonEnlace>
+        </div>
+      )}
+
       <Tarjeta className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold">Lo que compraste</h2>

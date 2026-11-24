@@ -85,6 +85,7 @@ export async function limpiar(app: FastifyInstance | undefined, antes: Instantan
   try {
     await c.query("begin");
     const ids = `(select id from app.usuario where usuario like '${PREFIJO}%')`;
+    await c.query(`delete from app.notificacion_envio where notificacion_id in (select id from app.notificacion where usuario_id in ${ids})`);
     await c.query(`delete from app.notificacion where usuario_id in ${ids}`);
     await c.query(`delete from app.sesion where usuario_id in ${ids}`);
     await c.query(`update app.configuracion set actualizado_por = null where actualizado_por in ${ids}`);

@@ -11,12 +11,16 @@ import { Campo, Selector } from "@/componentes/ui/campo";
 import { DialogoConfirmar } from "@/componentes/ui/dialogo";
 import { Esqueleto } from "@/componentes/ui/esqueleto";
 import { Tarjeta } from "@/componentes/ui/tarjeta";
+import { useSinGuardar } from "@/lib/cascaron";
 import { llamar } from "@/lib/api-cliente";
 import { dinero } from "@/lib/dinero";
 import type { Producto, Proveedor } from "@/lib/tipos";
 
 type Linea = { presentacion_id: string; producto: string; presentacion: string; factor: number; cantidad: string; costo: string; caduca_el: string };
-type Borrador = { clave: string; proveedor_id: string; folio_proveedor: string; fecha: string; condicion_pago: "contado" | "credito"; lineas: Linea[] };
+type Borrador = { clave: string; proveedor_id: string; folio_proveedor: string; fecha: string; condicion_pago: "contado" | "credito"; lineas: Linea[]; fecha_surtido?: string };
+
+/** F5: lo que trae `/compras/nueva?surtido=<fecha>&proveedor_id=` desde la lista de surtido (la cantidad sugerida y el costo, ya calculados en la API). */
+export type PrecargaSurtido = { fecha_surtido: string; proveedor_id: string; lineas: Omit<Linea, "caduca_el">[] };
 
 const llave = (usuario: string) => `chv:compra-borrador:${usuario}`;
 
@@ -55,14 +59,19 @@ function totalEstimado(lineas: Linea[]): string | null {
   return alguna ? deCentavos(t) : null;
 }
 
-function Editor({ usuarioId, proveedores }: { usuarioId: string; proveedores: Proveedor[] }) {
+function Editor({ usuarioId, proveedores, precarga }: { usuarioId: string; proveedores: Proveedor[]; precarga?: PrecargaSurtido }) {
   const router = useRouter();
-  const [b, setB] = useState<Borrador>(() => leerBorrador(usuarioId));
+  const [b, setB] = useState<Borrador>(() =>
+    precarga
+      ? { ...vacio(), proveedor_id: precarga.proveedor_id, fecha_surtido: precarga.fecha_surtido, lineas: precarga.lineas.map((l) => ({ ...l, caduca_el: "" })) }
+      : leerBorrador(usuarioId),
+  );
   const [error, setError] = useState<string | null>(null);
   const [aProveedores, setAProveedores] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [guardada, setGuardada] = useState(false);
   const [reiniciar, setReiniciar] = useState(false);
+  useSinGuardar(b.lineas.length > 0 && !guardada);
 
   // Borrador local: sobrevive recargar o quedarse sin senal.
   useEffect(() => {
@@ -100,6 +109,7 @@ function Editor({ usuarioId, proveedores }: { usuarioId: string; proveedores: Pr
       proveedor_id: b.proveedor_id,
       ...(b.folio_proveedor.trim() ? { folio_proveedor: b.folio_proveedor.trim() } : {}),
       fecha: b.fecha,
+      ...(b.fecha_surtido ? { fecha_surtido: b.fecha_surtido } : {}),
       condicion_pago: b.condicion_pago,
       lineas: b.lineas.map((l) => ({
         presentacion_id: l.presentacion_id,
@@ -275,7 +285,7 @@ function Editor({ usuarioId, proveedores }: { usuarioId: string; proveedores: Pr
 const sinSuscripcion = () => () => undefined;
 
 /** `localStorage` solo existe en el navegador: se espera al montaje para no desajustar la hidratacion. */
-export function NuevaCompra({ usuarioId, proveedores }: { usuarioId: string; proveedores: Proveedor[] }) {
+export function NuevaCompra({ usuarioId, proveedores, precarga }: { usuarioId: string; proveedores: Proveedor[]; precarga?: PrecargaSurtido }) {
   const montado = useSyncExternalStore(sinSuscripcion, () => true, () => false);
   if (!montado)
     return (
@@ -284,5 +294,5 @@ export function NuevaCompra({ usuarioId, proveedores }: { usuarioId: string; pro
         <Esqueleto className="h-64" />
       </div>
     );
-  return <Editor usuarioId={usuarioId} proveedores={proveedores} />;
+  return <Editor usuarioId={usuarioId} proveedores={proveedores} precarga={precarga} />;
 }

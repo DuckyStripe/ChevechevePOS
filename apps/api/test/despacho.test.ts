@@ -38,12 +38,12 @@ describe("GET /api/despacho", () => {
     expect((await pedir("GET", "/api/despacho?fecha=ayer", dueno.token)).statusCode).toBe(400);
     const hoy = await hoyMas(0);
     const d = (await pedir("GET", "/api/despacho", almacenista)).json();
-    expect(d).toEqual({ fecha: hoy, pedidos: expect.any(Object) }); // Almacenista: solo pedidos.ver
+    expect(d).toEqual({ fecha: hoy, pedidos: expect.any(Object), surtido: { productos_por_comprar: expect.any(Number) }, rutas: { lista: expect.any(Array), por_cargar: expect.any(Number), en_curso: expect.any(Number) } }); // Almacenista: pedidos.ver, surtido.ver (F5) y rutas.ver (F6)
     const r = (await pedir("GET", "/api/despacho", repartidor)).json();
-    expect(r).toEqual({ fecha: hoy, avisos_pendientes: expect.any(Number) }); // Repartidor: avisos.enviar sin pedidos.ver
-    expect(r.avisos_pendientes).toBe(0); // en F3 no ve ninguno (sus rutas llegan en F6)
+    expect(r).toEqual({ fecha: hoy, rutas: { lista: [], por_cargar: 0, en_curso: 0 }, avisos_pendientes: expect.any(Number) }); // Repartidor: rutas.operar (solo las suyas) y avisos.enviar sin pedidos.ver
+    expect(r.avisos_pendientes).toBe(0); // sin rutas propias no ve ningun aviso (con ruta: test/avisos-repartidor.test.ts)
     const a = (await pedir("GET", "/api/despacho", admin)).json();
-    expect(Object.keys(a).sort()).toEqual(["avisos_pendientes", "fecha", "pedidos", "respaldo"]);
+    expect(Object.keys(a).sort()).toEqual(["avisos_pendientes", "fecha", "pedidos", "respaldo", "rutas", "surtido"]);
     expect(Object.keys((await pedir("GET", "/api/despacho", cajero)).json()).sort()).toEqual(["avisos_pendientes", "fecha", "pedidos"]);
     expect((await pedir("GET", "/api/despacho?fecha=2030-01-02", almacenista)).json().fecha).toBe("2030-01-02");
   });
@@ -78,9 +78,9 @@ describe("GET /api/despacho", () => {
     await pool.query("update app.propuesta_faltante set limite_en = now() + interval '30 minutes' where pedido_linea_id = $1", [l]);
     const d2 = (await pedir("GET", "/api/despacho", dueno.token)).json();
     expect(d2.pedidos.faltantes_vencen_1h).toBe(base.pedidos.faltantes_vencen_1h + 1);
-    // Sin ruta hasta F6: ningun bloque de surtido, rutas ni cierre.
-    expect(d2).not.toHaveProperty("surtido");
-    expect(d2).not.toHaveProperty("rutas");
+    // Rutas (F6) con rutas.ver; el cierre llega con F7 (el de surtido llego con F5).
+    expect(d2.surtido).toEqual({ productos_por_comprar: expect.any(Number) });
+    expect(d2.rutas).toEqual({ lista: expect.any(Array), por_cargar: expect.any(Number), en_curso: expect.any(Number) });
     expect(d2).not.toHaveProperty("cierre");
   });
 

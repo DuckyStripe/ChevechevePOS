@@ -34,6 +34,7 @@ export default async function Hoy() {
   const nombre = r.ok ? r.datos.nombre.split(" ")[0] : "";
   const despacho = d.ok ? d.datos : null;
   const p = despacho?.pedidos;
+  const verRutas = r.ok && r.datos.permisos.includes("rutas.ver"); // el repartidor (solo rutas.operar) va a /reparto
 
   return (
     <main>
@@ -53,8 +54,19 @@ export default async function Hoy() {
                   <h2 className="text-lg font-bold">{TITULOS_GRUPO[paso.grupo]}</h2>
                   <p className="text-base text-suave">{paso.texto}</p>
                 </div>
-                {paso.grupo !== "paso1" && <Insignia>Próximamente</Insignia>}
+                {paso.grupo !== "paso1" && paso.grupo !== "paso2" && paso.grupo !== "paso3" && <Insignia>Próximamente</Insignia>}
               </div>
+              {paso.grupo === "paso2" && despacho?.surtido && (
+                <div className="flex flex-col gap-2">
+                  <Contador n={despacho.surtido.productos_por_comprar} texto="Productos por comprar" href={`/surtido?fecha=${despacho.fecha}`} />
+                </div>
+              )}
+              {paso.grupo === "paso3" && despacho?.rutas && (
+                <div className="flex flex-col gap-2">
+                  <Contador n={despacho.rutas.por_cargar} texto="Rutas por cargar" href={verRutas ? `/rutas?fecha=${despacho.fecha}` : "/reparto"} />
+                  <Contador n={despacho.rutas.en_curso} texto="Rutas en camino" href={verRutas ? `/rutas?fecha=${despacho.fecha}` : "/reparto"} />
+                </div>
+              )}
               {paso.grupo === "paso1" && p && (
                 <div className="flex flex-col gap-2">
                   <Contador n={p.por_confirmar} texto="Pedidos por confirmar" href="/pedidos?vista=por-confirmar" />

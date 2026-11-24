@@ -9,13 +9,14 @@ import { interpretarMensaje } from "./interpretar.js";
 
 type Q = pg.Pool | pg.PoolClient;
 
-/** Forma `PedidoFila` (CONTRATOS §4.4). `requiere_surtido` es false hasta F5 (lista de surtido). `ruta` llega con F6. */
+/** Forma `PedidoFila` (CONTRATOS §4.4). `requiere_surtido` y `ruta` salen de SQL (`fn_requiere_surtido`, `pedido.ruta_id`). */
 const FILA = `p.id, p.folio,
   json_build_object('id', c.id::text, 'nombre', c.nombre) as cliente,
   case when z.id is null then null else json_build_object('id', z.id::text, 'nombre', z.nombre) end as zona,
   p.origen, p.estado, p.entrega_tipo, p.fecha_solicitada::text as fecha_solicitada, p.fecha_entrega::text as fecha_entrega,
   p.total, (select count(*)::int from app.pedido_linea l where l.pedido_id = p.id and l.estado in ('activa','faltante')) as num_lineas,
-  false as requiere_surtido,
+  app.fn_requiere_surtido(p.id) as requiere_surtido,
+  (select json_build_object('id', ru.id::text, 'folio', ru.folio) from app.ruta ru where ru.id = p.ruta_id) as ruta,
   (select count(*)::int from app.propuesta_faltante f join app.pedido_linea l on l.id = f.pedido_linea_id
     where l.pedido_id = p.id and f.estado = 'pendiente') as faltantes_pendientes,
   p.creado_en, p.version`;

@@ -171,7 +171,7 @@ export async function listarPedidosCliente(c: ClienteEnlace) {
     `select p.id::text as id, p.folio, p.estado as etapa, pl.texto as etiqueta, p.total::text as total, p.fecha_entrega::text as fecha_entrega, p.creado_en,
             (p.estado = 'recibido') as editable,
             (select count(*)::int from app.propuesta_faltante f join app.pedido_linea l on l.id = f.pedido_linea_id where l.pedido_id = p.id and f.estado = 'pendiente') as faltantes_pendientes,
-            null::json as reparto
+            (app.fn_reparto_pedido(p.id) - 'antes_que_tu' - 'llegada_estimada_desde' - 'llegada_estimada_hasta') as reparto
        from app.pedido p left join app.plantilla pl on pl.clave = 'estado_' || p.estado
       where p.cliente_id = $1 and p.estado <> 'propuesto'
       order by (p.estado in ('entregado','cancelado','no_entregado')), p.creado_en desc, p.id desc limit 20`,

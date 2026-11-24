@@ -1,3 +1,5 @@
+import { ActivarAvisos } from "@/componentes/cascaron/activar-avisos";
+import { EstaApp } from "@/componentes/cascaron/esta-app";
 import { ListaNotificaciones, PreferenciasAvisos } from "@/componentes/notificaciones/notificaciones";
 import { AvisoError } from "@/componentes/ui/aviso-error";
 import { BotonEnlace } from "@/componentes/ui/boton";
@@ -21,6 +23,7 @@ export default async function Notificaciones({ searchParams }: { searchParams: P
   return (
     <main>
       <Titulo titulo="Avisos" ayuda="Lo que pasó en tu negocio y necesita tu atención." />
+      <ActivarAvisos />
       <nav aria-label="Filtro" className="mb-4 flex gap-2">
         <BotonEnlace href="/notificaciones" variante={solo ? "secundario" : "primario"}>
           Todos
@@ -42,6 +45,7 @@ export default async function Notificaciones({ searchParams }: { searchParams: P
         <p className="mb-3 text-base text-suave">Todos llegan aquí. Marca los que además quieres que te suenen en el celular.</p>
         {prefs.ok ? <PreferenciasAvisos preferencias={prefs.datos.preferencias} /> : <AvisoError mensaje={prefs.error.mensaje} />}
       </Tarjeta>
+      <EstaApp />
     </main>
   );
 }

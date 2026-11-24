@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Chevecheve",
+    "slug": "chevechevepos",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "platforms": ["android"],
+    "android": {
+      "package": "com.chevechevepos.app",
+      "versionCode": 1,
+      "allowBackup": false,
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "INTERNET",
+        "POST_NOTIFICATIONS",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "WAKE_LOCK",
+        "REQUEST_INSTALL_PACKAGES"
+      ]
+    },
+    "plugins": [
+      ["expo-notifications", { "defaultChannel": "avisos" }],
+      "./plugins/con-seguridad-android.js",
+      "./plugins/con-firma-release.js"
+    ],
+    "runtimeVersion": { "policy": "appVersion" }
+  }
+}

@@ -22,7 +22,7 @@ const porToken = async (c: pg.PoolClient, token: string, disp: string | null = n
 describe("migracion 004: objetos, semillas y permisos", () => {
   it("app.migraciones tiene 000-004 y re-correr el migrador no aplica nada", async () => {
     const r = await pool.query("select archivo from app.migraciones order by archivo");
-    expect(r.rows.map((x) => x.archivo)).toEqual(["000_base.sql", "001_auth.sql", "002_catalogo_inventario.sql", "003_compras.sql", "004_clientes_pedidos.sql"]);
+    expect(r.rows.map((x) => x.archivo)).toEqual(expect.arrayContaining(["000_base.sql", "001_auth.sql", "002_catalogo_inventario.sql", "003_compras.sql", "004_clientes_pedidos.sql"]));
     const p = spawnSync(process.execPath, ["scripts/migrar.mjs"], { encoding: "utf8", env: process.env });
     expect(p.stdout).toContain("nada pendiente");
     expect(p.status).toBe(0);

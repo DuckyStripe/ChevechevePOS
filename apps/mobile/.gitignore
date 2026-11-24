@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+android/
+ios/
+google-services.json
+*.p12
+*.jks
+*.keystore
+*.env
+# Llaves privadas (el certificado público certs/certificado.pem SÍ va al repo)
+*.pem
+!certs/certificado.pem

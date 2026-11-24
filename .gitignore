@@ -10,3 +10,6 @@ coverage/
 !legacy/front-cra/.env
 *.tsbuildinfo
 next-env.d.ts
+
+# Secretos montados en contenedores (cuenta de servicio de Firebase): nunca a git
+secretos/
