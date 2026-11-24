@@ -41,7 +41,8 @@ export async function rutasRutas(app: FastifyInstance): Promise<void> {
   });
   app.post("/paradas/:id/no-entregado", { config: operar }, async (req) => {
     const { id } = paramId.parse(req.params);
-    return noEntregado(req.usuario!, id, esquemaNoEntregado.parse(req.body).motivo);
+    const d = esquemaNoEntregado.parse(req.body);
+    return noEntregado(req.usuario!, id, d.motivo, d.nota);
   });
   app.post("/:id/terminar", { config: operar }, async (req) => terminarRuta(req.usuario!, paramId.parse(req.params).id));
 }

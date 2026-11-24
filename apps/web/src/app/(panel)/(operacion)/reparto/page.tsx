@@ -19,9 +19,15 @@ export default async function MiRuta({ searchParams }: { searchParams: Promise<{
   if (!tiene(yo.datos, "rutas.operar")) return <SinPermiso />;
 
   const hoy = hoyMX();
-  const r = await apiServidor<Lista<RutaResumen>>("/rutas", { fecha: hoy, repartidor_id: String(yo.datos.id), por_pagina: "50" });
+  // Las de hoy y, de cualquier día, la que ya salió y no ha terminado (si no, se perdería a medias).
+  const mia = String(yo.datos.id);
+  const [r, abiertas] = await Promise.all([
+    apiServidor<Lista<RutaResumen>>("/rutas", { fecha: hoy, repartidor_id: mia, por_pagina: "50" }),
+    apiServidor<Lista<RutaResumen>>("/rutas", { estado: "en_curso", repartidor_id: mia, por_pagina: "50" }),
+  ]);
   if (!r.ok) return <AvisoError mensaje={r.error.mensaje} />;
-  const rutas = itemsDe(r.datos).filter((x) => x.estado !== "cancelada");
+  const vistas = new Set<string>();
+  const rutas = [...itemsDe(r.datos), ...(abiertas.ok ? itemsDe(abiertas.datos) : [])].filter((x) => x.estado !== "cancelada" && !vistas.has(x.id) && vistas.add(x.id));
 
   if (rutas.length === 0) {
     return (

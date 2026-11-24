@@ -32,12 +32,6 @@ export function ImprimirLista() {
   );
 }
 
-/** Solo digitos; un numero de 10 digitos es de Mexico (lada 52). */
-const numeroWa = (tel: string) => {
-  const d = tel.replace(/\D/g, "");
-  return d.length === 10 ? `52${d}` : d;
-};
-
 /** Arma el mensaje en la API (plantilla, sin precios) y abre WhatsApp. No es un aviso a un cliente: al volver no se marca nada (P2). */
 export function MandarWhatsApp({ fecha, proveedorId, proveedor }: { fecha: string; proveedorId: string; proveedor: string }) {
   const [cargando, setCargando] = useState(false);
@@ -46,9 +40,15 @@ export function MandarWhatsApp({ fecha, proveedorId, proveedor }: { fecha: strin
     const r = await llamar<MensajeSurtido>("GET", `/surtido/mensaje?fecha=${fecha}&proveedor_id=${proveedorId}`);
     setCargando(false);
     if (!r.ok) return void toast.error(r.error.mensaje);
-    if (!r.datos.telefono) return void toast.error(`Falta el teléfono de ${proveedor}. Agrégalo en Proveedores y vuelve a intentar.`);
-    const url = `https://wa.me/${numeroWa(r.datos.telefono)}?text=${encodeURIComponent(r.datos.texto)}`;
-    if (!window.open(url, "_blank", "noopener")) window.location.assign(url);
+    if (!r.datos.telefono) {
+      return void toast.error(r.datos.telefono_invalido ? `El teléfono de ${proveedor} no es válido. Corrígelo en Proveedores.` : `Falta el teléfono de ${proveedor}. Agrégalo en Proveedores y vuelve a intentar.`);
+    }
+    // El telefono ya viene normalizado de la API. Enlace con noopener: la pagina abierta no puede tocar esta.
+    const a = document.createElement("a");
+    a.href = `https://wa.me/${r.datos.telefono}?text=${encodeURIComponent(r.datos.texto)}`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.click();
   }
   return (
     <Boton variante="secundario" cargando={cargando} onClick={mandar}>

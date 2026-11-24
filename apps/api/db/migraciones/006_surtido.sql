@@ -28,34 +28,90 @@ create table app.fecha_demanda (
   factor numeric(4,2) not null check (factor between 0.1 and 5)
 );
 
--- ---------------------------------------------------------------- semilla del calendario (anio en curso)
+-- ---------------------------------------------------------------- semilla del calendario
 -- Quincena: dias 14-16 y 29-1 con 1.30; Jueves y Viernes Santo con 1.30 (Pascua por el algoritmo gregoriano anonimo).
 -- Semana Santa pisa a la quincena si caen el mismo dia. La auditoria se crea despues: la bitacora arranca vacia.
-do $$
+create function app.fn_sembrar_fechas_demanda(p_anio integer) returns integer
+language plpgsql as $$
 declare
-  v_y integer := extract(year from app.fn_fecha_local(now()))::integer;
   a integer; b integer; c integer; d4 integer; e integer; f integer; g integer; h integer; i integer; k integer; l integer; m integer;
   v_pascua date;
 begin
   insert into app.fecha_demanda (fecha, nombre, factor)
   select s.dia::date, 'Quincena', 1.30
-  from generate_series(make_date(v_y, 1, 1), make_date(v_y, 12, 31), interval '1 day') as s(dia)
-  where extract(day from s.dia) in (1, 14, 15, 16, 29, 30, 31);
+  from generate_series(make_date(p_anio, 1, 1), make_date(p_anio, 12, 31), interval '1 day') as s(dia)
+  where extract(day from s.dia) in (1, 14, 15, 16, 29, 30, 31)
+  on conflict (fecha) do nothing;
 
-  a := v_y % 19; b := v_y / 100; c := v_y % 100; d4 := b / 4; e := b % 4; f := (b + 8) / 25;
+  a := p_anio % 19; b := p_anio / 100; c := p_anio % 100; d4 := b / 4; e := b % 4; f := (b + 8) / 25;
   g := (b - f + 1) / 3; h := (19 * a + b - d4 - g + 15) % 30; i := c / 4; k := c % 4;
   l := (32 + 2 * e + 2 * i - h - k) % 7; m := (a + 11 * h + 22 * l) / 451;
-  v_pascua := make_date(v_y, (h + l - 7 * m + 114) / 31, ((h + l - 7 * m + 114) % 31) + 1);
+  v_pascua := make_date(p_anio, (h + l - 7 * m + 114) / 31, ((h + l - 7 * m + 114) % 31) + 1);
 
   insert into app.fecha_demanda (fecha, nombre, factor) values
     (v_pascua - 3, 'Semana Santa', 1.30), (v_pascua - 2, 'Semana Santa', 1.30)
   on conflict (fecha) do update set nombre = excluded.nombre, factor = excluded.factor;
+  return (select count(*)::integer from app.fecha_demanda where extract(year from fecha) = p_anio);
 end $$;
+
+-- Tarea periodica (idempotente): en diciembre siembra el anio que viene si no tiene ninguna fecha (si el dueno la vacio a proposito en
+-- diciembre, vuelve a sembrarla; es el costo de no guardar una bandera). Devuelve cuantas fechas sembro (0 si no tocaba).
+create function app.fn_sembrar_fechas_siguiente() returns integer
+language plpgsql as $$
+declare
+  v_hoy date := app.fn_fecha_local(now());
+  v_sig integer := extract(year from v_hoy)::integer + 1;
+begin
+  if extract(month from v_hoy) <> 12 or exists (select 1 from app.fecha_demanda where extract(year from fecha) = v_sig) then
+    return 0;
+  end if;
+  return app.fn_sembrar_fechas_demanda(v_sig);
+end $$;
+
+select app.fn_sembrar_fechas_demanda(extract(year from app.fn_fecha_local(now()))::integer);
 
 create trigger trg_auditar after insert or update or delete on app.promocion_proveedor
   for each row execute function app.fn_auditar();
 create trigger trg_auditar after insert or update or delete on app.fecha_demanda
   for each row execute function app.fn_auditar('fecha');
+
+-- ---------------------------------------------------------------- una regla: lineas que comprometen existencia
+-- Unica definicion de «linea que compromete stock»: linea `activa` de un pedido confirmado, esperando_cliente, cargado o en_ruta
+-- (las lineas en faltante, sustituidas y quitadas no cuentan). La usan v_comprometido (y por ende v_disponible), fn_lista_surtido,
+-- fn_pedido_requiere_surtido y el bloqueo de desactivar un producto. Misma forma de v_comprometido de 004, ahora encima de esta vista.
+create view app.v_linea_comprometida as
+select p.sucursal_id, p.id as pedido_id, l.id as linea_id, l.producto_id, l.piezas, p.estado as estado_pedido, p.fecha_entrega, p.ruta_id
+from app.pedido p
+join app.pedido_linea l on l.pedido_id = p.id and l.estado = 'activa'
+where p.estado in ('confirmado','esperando_cliente','cargado','en_ruta');
+
+create or replace view app.v_comprometido as
+select v.sucursal_id, v.producto_id,
+       coalesce(sum(v.piezas) filter (where v.estado_pedido in ('confirmado','esperando_cliente')), 0)::integer as confirmadas,
+       coalesce(sum(v.piezas) filter (where v.estado_pedido in ('cargado','en_ruta')), 0)::integer as cargadas
+from app.v_linea_comprometida v
+group by v.sucursal_id, v.producto_id;
+
+create index idx_compra_linea_presentacion on app.compra_linea (presentacion_id);
+
+-- Telefono para wa.me: solo digitos; 10 digitos = Mexico (se antepone 52); valido si queda de 12 o 13 digitos. Si no, null.
+create function app.fn_normalizar_telefono(p_telefono text) returns text
+language sql immutable as $$
+  select case when length(d.n) = 10 then '52' || d.n when length(d.n) in (12, 13) then d.n end
+  from (select regexp_replace(coalesce(p_telefono, ''), '\D', '', 'g') as n) d
+$$;
+
+-- No se desactiva un producto con pedidos pendientes (lo que se confirmo se tiene que surtir y entregar).
+create function app.fn_producto_con_pedidos() returns trigger
+language plpgsql as $$
+begin
+  if old.activo and not new.activo and exists (select 1 from app.v_linea_comprometida v where v.producto_id = new.id) then
+    perform app.fn_fallar('PRODUCTO_CON_PEDIDOS', jsonb_build_object('producto_id', new.id));
+  end if;
+  return new;
+end $$;
+create trigger trg_producto_con_pedidos before update of activo on app.producto
+  for each row execute function app.fn_producto_con_pedidos();
 
 -- ---------------------------------------------------------------- lista de surtido
 -- Unica regla de "que hay que comprar" (la usan GET /surtido, GET /despacho, fn_publicar_surtido, el mensaje al proveedor
@@ -70,7 +126,8 @@ returns table(
   piezas_a_comprar integer, reponer_minimo integer,
   presentacion_id bigint, presentacion text, factor integer, cantidad_sugerida integer,
   ultimo_costo numeric, costo_estimado numeric,
-  sugerido_demanda integer, promocion_id bigint, costo_promocion numeric, ahorro numeric
+  sugerido_demanda integer, promocion_id bigint, costo_promocion numeric, ahorro numeric,
+  sin_presentacion_compra boolean
 )
 language sql stable as $$
   with param as (
@@ -89,19 +146,18 @@ language sql stable as $$
     select m.producto_id, sum(-m.cantidad) as vendidas
     from app.movimiento_inventario m, demanda dm
     where m.sucursal_id = p_sucursal_id and m.tipo = 'venta'
-      and app.fn_fecha_local(m.creado_en) > app.fn_fecha_local(now()) - dm.promedio
+      and m.creado_en >= ((app.fn_fecha_local(now()) - dm.promedio + 1)::timestamp at time zone 'America/Mexico_City')
     group by m.producto_id
   ),
   pedidos as (
-    select l.producto_id,
-      coalesce(sum(l.piezas) filter (where p.estado in ('confirmado','esperando_cliente') and p.fecha_entrega = p_fecha
-                                       and (p_ruta_id is null or p.ruta_id = p_ruta_id)), 0)::integer as pedidas,
-      coalesce(sum(l.piezas) filter (where p.estado in ('cargado','en_ruta')
-                                        or (p.estado in ('confirmado','esperando_cliente') and p.fecha_entrega < p_fecha)), 0)::integer as previo
-    from app.pedido p
-    join app.pedido_linea l on l.pedido_id = p.id and l.estado = 'activa'
-    where p.sucursal_id = p_sucursal_id and p.estado in ('confirmado','esperando_cliente','cargado','en_ruta')
-    group by l.producto_id
+    select v.producto_id,
+      coalesce(sum(v.piezas) filter (where v.estado_pedido in ('confirmado','esperando_cliente') and v.fecha_entrega = p_fecha
+                                       and (p_ruta_id is null or v.ruta_id = p_ruta_id)), 0)::integer as pedidas,
+      coalesce(sum(v.piezas) filter (where v.estado_pedido in ('cargado','en_ruta')
+                                        or (v.estado_pedido in ('confirmado','esperando_cliente') and v.fecha_entrega < p_fecha)), 0)::integer as previo
+    from app.v_linea_comprometida v
+    where v.sucursal_id = p_sucursal_id
+    group by v.producto_id
   ),
   base as (
     select pr.id as pid, pr.nombre as pnombre, pr.modo_surtido as pmodo, pr.proveedor_id as pprov, pr.existencia_minima,
@@ -143,7 +199,8 @@ language sql stable as $$
          cp.pz_id, cp.pz_nombre, cp.pz_factor, cp.sugerida,
          uc.costo, round(cp.sugerida * uc.costo, 2),
          cp.demanda, pm.id, pm.costo_presentacion,
-         round((uc.costo - pm.costo_presentacion) * cp.sugerida, 2)
+         round((uc.costo - pm.costo_presentacion) * cp.sugerida, 2),
+         (cp.pz_id is null)
   from con_pres cp
   left join app.proveedor pv on pv.id = cp.pprov
   left join lateral (
@@ -154,10 +211,22 @@ language sql stable as $$
   ) uc on true
   left join lateral (
     select pp.id, pp.costo_presentacion from app.promocion_proveedor pp
-    where pp.presentacion_id = cp.pz_id and p_fecha between pp.desde and pp.hasta and pp.minimo_cantidad <= cp.sugerida
+    where pp.presentacion_id = cp.pz_id and pp.proveedor_id = cp.pprov and p_fecha between pp.desde and pp.hasta and pp.minimo_cantidad <= cp.sugerida
     order by pp.costo_presentacion, pp.id limit 1
   ) pm on true
   order by (cp.pprov is null), pv.nombre, cp.pnombre, cp.pid
+$$;
+
+-- Unica regla de «este pedido requiere surtido»: pedido confirmado o esperando_cliente con una linea activa cuyo producto sale en la lista de
+-- surtido de SU fecha de entrega y su sucursal con algo que comprar para pedidos (piezas_a_comprar > 0). F6 (fn_requiere_surtido) delega aqui.
+create function app.fn_pedido_requiere_surtido(p_pedido_id bigint) returns boolean
+language sql stable as $$
+  select coalesce((
+    select exists (
+      select 1 from app.v_linea_comprometida v
+      join app.fn_lista_surtido(v.sucursal_id, v.fecha_entrega) s on s.producto_id = v.producto_id and s.piezas_a_comprar > 0
+      where v.pedido_id = p_pedido_id and v.estado_pedido in ('confirmado','esperando_cliente') and v.fecha_entrega is not null)
+  ), false)
 $$;
 
 -- Avisa a quien compra (`compras.registrar`) que la lista de p_fecha esta lista. Clave = fecha + resumen de la lista:
@@ -176,23 +245,29 @@ begin
     into v_n, v_hash
   from app.fn_lista_surtido(p_sucursal_id, p_fecha) l;
   if v_n = 0 then return 0; end if;
-  return app.fn_notificar('surtido_listo', 'surtido:' || p_fecha::text || ':' || v_hash,
+  return app.fn_notificar('surtido_listo', 'surtido:' || p_sucursal_id::text || ':' || p_fecha::text || ':' || v_hash,
                           jsonb_build_object('fecha', p_fecha, 'num_productos', v_n));
 end $$;
 
 -- Mensaje de WhatsApp al proveedor (plantilla wa_surtido_proveedor). Las lineas se arman aqui, sin precios ni costos:
--- «2 Caja de 24 Corona Extra 355 ml». Sin fila = proveedor inexistente.
+-- «2 Caja de 24 Corona Extra 355 ml». Un producto sin presentacion de compra va como nota («falta definir como se compra»).
+-- `telefono` ya viene normalizado para wa.me (null si falta); `telefono_invalido` = tiene uno pero no sirve. Sin fila = proveedor inexistente.
 create function app.fn_mensaje_surtido(p_sucursal_id bigint, p_fecha date, p_proveedor_id bigint)
-returns table(telefono text, texto text)
+returns table(telefono text, texto text, telefono_invalido boolean)
 language sql stable as $$
-  select pv.telefono,
+  select app.fn_normalizar_telefono(pv.telefono),
          (select r.texto from app.fn_render_plantilla('wa_surtido_proveedor', jsonb_build_object(
             'proveedor', pv.nombre,
             'fecha', to_char(p_fecha, 'DD/MM/YYYY'),
             'lineas', coalesce((
-              select string_agg(l.cantidad_sugerida || ' ' || l.presentacion || ' ' || l.producto, E'\n' order by l.producto, l.producto_id)
+              select string_agg(
+                       case when l.cantidad_sugerida is null
+                            then (l.piezas_a_comprar + l.reponer_minimo) || ' piezas ' || l.producto || ''
+                            else l.cantidad_sugerida || ' ' || l.presentacion || ' ' || l.producto end,
+                       E'\n' order by l.producto, l.producto_id)
               from app.fn_lista_surtido(p_sucursal_id, p_fecha) l
-              where l.proveedor_id = pv.id and l.cantidad_sugerida > 0), ''))) r)
+              where l.proveedor_id = pv.id and (l.cantidad_sugerida > 0 or (l.cantidad_sugerida is null and l.piezas_a_comprar + l.reponer_minimo > 0))), ''))) r),
+         (nullif(trim(coalesce(pv.telefono, '')), '') is not null and app.fn_normalizar_telefono(pv.telefono) is null)
   from app.proveedor pv where pv.id = p_proveedor_id
 $$;
 

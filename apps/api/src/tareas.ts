@@ -30,6 +30,7 @@ export const TAREAS_F3: ReadonlyArray<{ nombre: string; cadaMs: number; sql: str
   { nombre: "vencer-propuestos", cadaMs: 15 * MIN, sql: "select app.fn_vencer_propuestos()" },
   { nombre: "sugerir-pedidos", cadaMs: 15 * MIN, sql: "select app.fn_sugerir_pedidos()" },
   { nombre: "alertas-clientes", cadaMs: 60 * MIN, sql: "select app.fn_alertas_clientes()" },
+  { nombre: "sembrar-fechas-demanda", cadaMs: 60 * MIN, sql: "select app.fn_sembrar_fechas_siguiente()" }, // F5: en diciembre siembra el anio que viene
 ];
 
 export function registrarTareas(app: FastifyInstance): void {

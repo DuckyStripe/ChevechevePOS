@@ -12,6 +12,7 @@ let dueno: { token: string; id: string };
 let admin: string;
 let almacenista: string;
 let cajero: string;
+let soloVer: string;
 let repartidor: string;
 let e: EscenarioF5;
 
@@ -24,6 +25,7 @@ beforeAll(async () => {
   admin = await tokenF3(app, "Administrador");
   almacenista = await tokenF3(app, "Almacenista");
   cajero = await tokenF3(app, "Cajero");
+  soloVer = await tokenF3(app, { permisos: ["surtido.ver"] });
   repartidor = await tokenF3(app, "Repartidor");
   e = await escenarioF5(app, dueno, cajero);
 });
@@ -72,8 +74,13 @@ describe("GET /api/surtido", () => {
     if (sin >= 0) expect(sin).toBe(r.proveedores.length - 1);
   });
 
-  it("administrador y almacenista (sin costos.ver): ninguna llave de costo ni ahorro en todo el JSON; mismos numeros", async () => {
+  it("quien compra (compras.registrar) ve costos igual que el duenio; quien solo ve la lista: ninguna llave de costo ni ahorro; mismos numeros", async () => {
     for (const t of [admin, almacenista]) {
+      expect(llaves(await lista(t)).filter((k) => /costo|ahorro/.test(k))).toContain("costo_estimado");
+    }
+    // Otras suites pueden dejar productos sin compra previa: solo se exige que el dato exista.
+    expect((await lista(dueno.token)).totales).toHaveProperty("sin_costo_previo");
+    for (const t of [soloVer]) {
       const r = await lista(t);
       const malas = llaves(r).filter((k) => /costo|ahorro/.test(k));
       expect(malas).toEqual([]);
@@ -131,5 +138,24 @@ describe("POST /api/surtido/publicar", () => {
     expect(errorDe(await pedir("POST", "/api/surtido/publicar", repartidor, { fecha: e.manana }))).toMatchObject({ codigo: "SIN_PERMISO", detalles: { permiso: "surtido.ver" } });
     expect((await pedir("POST", "/api/surtido/publicar", dueno.token, {})).statusCode).toBe(400);
     expect((await pedir("POST", "/api/surtido/publicar", dueno.token, { fecha: "2026-13-40" })).statusCode).toBe(400);
+  });
+});
+
+describe("revision F5: producto con pedidos y telefono de proveedor", () => {
+  it("desactivar un producto con pedidos pendientes -> 409 PRODUCTO_CON_PEDIDOS", async () => {
+    const r = await pedir("PATCH", `/api/productos/${e.k.corona.id}`, dueno.token, { activo: false });
+    expect(r.statusCode).toBe(409);
+    expect(errorDe(r).codigo).toBe("PRODUCTO_CON_PEDIDOS");
+  });
+
+  it("proveedor: telefono que no sirve para WhatsApp -> 400; de 10 digitos o con lada -> se acepta", async () => {
+    expect((await pedir("POST", "/api/proveedores", dueno.token, { nombre: `TF3 Tel ${Date.now()}`, telefono: "12345" })).statusCode).toBe(400);
+    expect((await pedir("POST", "/api/proveedores", dueno.token, { nombre: `TF3 Tel ${Date.now()}b`, telefono: "55 1234 5678" })).statusCode).toBe(201);
+    expect((await pedir("PATCH", `/api/proveedores/${e.modelo.id}`, dueno.token, { telefono: "abc" })).statusCode).toBe(400);
+  });
+
+  it("mensaje: telefono normalizado listo para wa.me, sin marca de invalido", async () => {
+    const m = (await pedir("GET", `/api/surtido/mensaje?proveedor_id=${e.modelo.id}`, almacenista)).json();
+    expect(m).toMatchObject({ telefono: "5215500000000", telefono_invalido: false });
   });
 });

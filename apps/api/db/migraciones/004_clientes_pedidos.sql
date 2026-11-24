@@ -1686,6 +1686,11 @@ begin
   if v_p.estado = 'recibido' and (v_fecha is null or v_fecha < app.fn_fecha_local(now())) then
     perform app.fn_fallar('FECHA_NO_VALIDA', jsonb_build_object('fecha_entrega', v_fecha));
   end if;
+  -- Un pedido que ya esta en una ruta no cambia de dia ni de tipo de entrega por aqui (la ruta se armo para ese dia).
+  if v_p.ruta_id is not null and ((v_fecha is not null and v_fecha is distinct from v_p.fecha_entrega)
+       or (nullif(p_datos ->> 'entrega_tipo', '') is not null and p_datos ->> 'entrega_tipo' is distinct from v_p.entrega_tipo)) then
+    perform app.fn_fallar('PEDIDO_EN_RUTA', jsonb_build_object('pedido_id', p_pedido_id));
+  end if;
 
   perform 1 from app.pedido_linea pl where pl.pedido_id = p_pedido_id order by pl.id for update;
 

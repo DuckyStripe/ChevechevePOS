@@ -4,7 +4,7 @@ export const EVENTOS: Record<string, string> = {
   pedido_modificado: "Un cliente cambió su pedido",
   pedido_cancelado_cliente: "Un cliente canceló su pedido",
   faltante_respondido: "Un cliente contestó un faltante",
-  surtido_listo: "Ya llegó lo que se compró",
+  surtido_listo: "La lista de compra está lista",
   ruta_asignada: "Te asignaron una ruta",
   entrega_fallida: "No se pudo entregar un pedido",
   ubicacion_propuesta: "Un cliente mandó su ubicación",

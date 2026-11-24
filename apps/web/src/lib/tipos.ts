@@ -505,6 +505,7 @@ export type LineaSurtido = {
   factor: number | null;
   cantidad_sugerida: number | null;
   sugerido_demanda: number;
+  sin_presentacion_compra: boolean;
   promocion_id: number | string | null;
   ultimo_costo?: string | null;
   costo_estimado?: string | null;
@@ -517,9 +518,10 @@ export type GrupoSurtido = {
   telefono: string | null;
   lineas: LineaSurtido[];
   costo_estimado?: string | null;
+  sin_costo_previo?: number;
 };
-export type Surtido = { fecha: string; proveedores: GrupoSurtido[]; totales: { productos: number; costo_estimado?: string | null } };
-export type MensajeSurtido = { telefono: string | null; texto: string };
+export type Surtido = { fecha: string; proveedores: GrupoSurtido[]; totales: { productos: number; costo_estimado?: string | null; sin_costo_previo?: number } };
+export type MensajeSurtido = { telefono: string | null; texto: string; telefono_invalido: boolean };
 export type Promocion = {
   id: number | string;
   proveedor: Ref;

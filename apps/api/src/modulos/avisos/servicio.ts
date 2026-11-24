@@ -37,7 +37,7 @@ interface Fila {
  * Unico lugar (TS) donde se filtra que avisos ve alguien (`GET /avisos`, contadores de `GET /despacho`, marcar): la regla vive
  * en SQL (`fn_puede_ver_aviso`: `pedidos.ver` ve todos; el Repartidor, solo los de pedidos de sus rutas). `ph` = marcador del usuario.
  */
-export const condicionAvisosVisibles = (ph: string): string => `app.fn_puede_ver_aviso(${ph}::bigint, a.pedido_id)`;
+export const condicionAvisosVisibles = (ph: string): string => `app.fn_puede_ver_aviso(${ph}::bigint, a.pedido_id, a.plantilla)`;
 
 const COLUMNAS = `a.id, a.estado, a.plantilla, a.vars, a.creado_en, a.pedido_id,
   case when c.id is null then null else json_build_object('id', c.id::text, 'nombre', c.nombre) end as cliente,

@@ -55,13 +55,13 @@ describe("C21: busqueda en el codigo", () => {
     expect(hallazgos).toEqual([]);
   });
 
-  it("src/tareas.ts programa solo las 4 tareas de F3 y ninguna toca el acceso", () => {
-    expect(TAREAS_F3.map((t) => t.nombre).sort()).toEqual(["alertas-clientes", "sugerir-pedidos", "vencer-faltantes", "vencer-propuestos"]);
+  it("src/tareas.ts programa solo las tareas conocidas y ninguna toca el acceso", () => {
+    expect(TAREAS_F3.map((t) => t.nombre).sort()).toEqual(["alertas-clientes", "sembrar-fechas-demanda", "sugerir-pedidos", "vencer-faltantes", "vencer-propuestos"]);
     expect(TAREAS_F3.map((t) => t.sql).sort()).toEqual([
-      "select app.fn_alertas_clientes()", "select app.fn_sugerir_pedidos()", "select app.fn_vencer_faltantes()", "select app.fn_vencer_propuestos()",
+      "select app.fn_alertas_clientes()", "select app.fn_sembrar_fechas_siguiente()", "select app.fn_sugerir_pedidos()", "select app.fn_vencer_faltantes()", "select app.fn_vencer_propuestos()",
     ]);
     const intervalos = Object.fromEntries(TAREAS_F3.map((t) => [t.nombre, t.cadaMs]));
-    expect(intervalos).toEqual({ "vencer-faltantes": 60_000, "vencer-propuestos": 900_000, "sugerir-pedidos": 900_000, "alertas-clientes": 3_600_000 });
+    expect(intervalos).toEqual({ "vencer-faltantes": 60_000, "vencer-propuestos": 900_000, "sugerir-pedidos": 900_000, "alertas-clientes": 3_600_000, "sembrar-fechas-demanda": 3_600_000 });
     // Nadie mas programa tareas.
     const quienProgramaTareas = archivosTs(join(RAIZ, "src")).filter((f) => /\bprogramar\(/.test(readFileSync(f, "utf8")) && !f.endsWith("src/tareas.ts"));
     expect(quienProgramaTareas.map((f) => relative(RAIZ, f))).toEqual([]);

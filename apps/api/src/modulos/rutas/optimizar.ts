@@ -24,6 +24,7 @@ export interface ResultadoOrden {
 
 const RADIO_KM = 6371;
 const MAX_ITERACIONES = 2000;
+const MAX_PASADAS = 50; // con 200 paradas cada pasada es 40 mil distancias: tope para que nunca se cuelgue
 const rad = (g: number) => (g * Math.PI) / 180;
 
 export function haversine(a: Punto, b: Punto): number {
@@ -72,7 +73,8 @@ export function dosOpt(bodega: Punto, puntos: Punto[], orden: number[]): number[
   const en = (i: number): Punto => (i < 0 || i >= r.length ? bodega : puntos[r[i]!]!);
   let mejoras = 0;
   let mejoro = true;
-  while (mejoro && mejoras < MAX_ITERACIONES) {
+  let pasadas = 0;
+  while (mejoro && mejoras < MAX_ITERACIONES && pasadas++ < MAX_PASADAS) {
     mejoro = false;
     for (let i = 0; i < r.length - 1 && mejoras < MAX_ITERACIONES; i++) {
       for (let j = i + 1; j < r.length && mejoras < MAX_ITERACIONES; j++) {

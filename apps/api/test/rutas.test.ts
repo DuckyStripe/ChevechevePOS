@@ -114,7 +114,7 @@ describe("flujo completo de una ruta", () => {
     expect(cg.advertencias).toEqual([]);
     expect(cg.carga.paradas.map((p) => [p.carga_n, p.orden])).toEqual([[1, 6], [2, 5], [3, 4], [4, 3], [5, 2], [6, 1]]);
     expect(cg.carga.totales).toEqual([{ producto: e.k.corona.nombre, presentacion: expect.any(String), cantidad: 6, piezas: 36 }]);
-    expect(cg.carga.cajas_totales).toBe(2);
+    expect(cg.carga.cajas_totales).toBe(6); // aproximacion: una caja por linea (6 pz de 24)
     const carga = (await pedir("GET", `/api/rutas/${r0.id}/carga`, almacenista)).json<typeof cg.carga>();
     expect(carga.paradas[0]).toMatchObject({ carga_n: 1, orden: 6, lineas: [{ cantidad: 1, producto: e.k.corona.nombre }] });
     expect((await pedir("POST", `/api/rutas/${r0.id}/optimizar`, dueno.token)).statusCode).toBe(409); // RUTA_NO_EDITABLE (abajo se revisa el codigo)
@@ -130,20 +130,22 @@ describe("flujo completo de una ruta", () => {
     const nuevoAvisos = async () => (await pool.query("select count(*)::int as n from app.aviso_cliente where plantilla = 'wa_entrega_fallida' and pedido_id = $1", [paradas[0]!.pedido!.id])).rows[0].n;
     const f1 = await pedir("POST", `/api/rutas/paradas/${paradas[0]!.id}/no-entregado`, rep.token, { motivo: "cerrado" });
     expect(f1.statusCode).toBe(200);
-    expect(f1.json()).toMatchObject({ id: paradas[0]!.id, estado: "fallida", nota: "cerrado", pedido_id: paradas[0]!.pedido!.id });
+    expect(f1.json()).toMatchObject({ id: paradas[0]!.id, estado: "fallida", nota: "estaba cerrado el negocio", pedido_id: paradas[0]!.pedido!.id });
     const f2 = await pedir("POST", `/api/rutas/paradas/${paradas[0]!.id}/no-entregado`, rep.token, { motivo: "cerrado" });
     expect(f2.statusCode).toBe(200);
     expect(f2.json()).toEqual(f1.json());
     expect(await nuevoAvisos()).toBe(1);
     expect(errorDe(await pedir("POST", `/api/rutas/paradas/${paradas[1]!.id}/no-entregado`, rep.token, { motivo: "" })).codigo).toBe("VALIDACION");
-    expect((await pedir("POST", `/api/rutas/paradas/999999999/no-entregado`, rep.token, { motivo: "x" })).statusCode).toBe(404);
+    expect(errorDe(await pedir("POST", `/api/rutas/paradas/${paradas[1]!.id}/no-entregado`, rep.token, { motivo: "otro" })).codigo).toBe("VALIDACION"); // `otro` pide la nota
+    expect((await pedir("POST", `/api/rutas/paradas/${paradas[1]!.id}/no-entregado`, rep.token, { motivo: "porque si" })).statusCode).toBe(400);
+    expect((await pedir("POST", `/api/rutas/paradas/999999999/no-entregado`, rep.token, { motivo: "cerrado" })).statusCode).toBe(404);
 
     const fin = await pedir("POST", `/api/rutas/${r0.id}/terminar`, rep.token);
     expect(fin.statusCode).toBe(200);
     expect(fin.json<RutaApi>().estado).toBe("terminada");
     expect(fin.json<RutaApi>().paradas.map((p) => p.estado)).toEqual(["fallida", "omitida", "omitida", "omitida", "omitida", "omitida"]);
     expect(errorDe(await pedir("POST", `/api/rutas/${r0.id}/terminar`, rep.token)).codigo).toBe("ESTADO_NO_VALIDO");
-    expect((await pool.query("select estado, motivo from app.pedido where id = $1", [e.pedidos[1]])).rows[0]).toEqual({ estado: "no_entregado", motivo: "no visitada" });
+    expect((await pool.query("select estado, motivo from app.pedido where id = $1", [e.pedidos[1]])).rows[0]).toEqual({ estado: "no_entregado", motivo: "no alcanzamos a pasar" });
   });
 });
 
@@ -274,5 +276,78 @@ describe("permisos de rutas", () => {
     // Administrador planea y opera (tiene los 4 permisos).
     expect((await pedir("POST", `/api/rutas/${suya.id}/cancelar`, admin)).statusCode).toBe(200);
     expect((await pedir("POST", `/api/rutas/${ajena.id}/cancelar`, admin)).statusCode).toBe(200);
+  });
+});
+
+describe("concurrencia (dos conexiones a la vez)", () => {
+  const mismaHora = <A, B>(f: () => Promise<A>, g: () => Promise<B>): Promise<[A, B]> => Promise.all([f(), g()]);
+
+  it("dos rutas con el mismo producto cargadas a la vez: solo una cabe (48 + 48 > 60) y la otra recibe FALTA_SURTIR", async () => {
+    const r: RutaApi[] = [];
+    for (const i of [0, 1]) {
+      const cli = await clienteEn(app, dueno, 19, -98.4 + i * 0.01);
+      const ped = await pedidoConfirmado(app, dueno, e.k, cli.id, e.manana, [{ presentacion_id: e.k.corona.caja, cantidad: 2 }]);
+      r.push(await rutaConPedidos(app, dueno, e, rep.id, [ped]));
+    }
+    const res = await Promise.all(r.map((x) => pedir("POST", `/api/rutas/${x.id}/cargar`, dueno.token)));
+    expect(res.map((x) => x.statusCode).sort()).toEqual([200, 409]);
+    expect(errorDe(res.find((x) => x.statusCode === 409)!).codigo).toBe("FALTA_SURTIR");
+    const estados = (await pool.query("select estado from app.ruta where id = any($1) order by estado", [r.map((x) => x.id)])).rows.map((x) => x.estado);
+    expect(estados).toEqual(["cargada", "planeada"]);
+    for (const x of r) await pedir("POST", `/api/rutas/${x.id}/cancelar`, dueno.token);
+  });
+
+  it("cancelar un pedido y cargar la ruta a la vez: sin 500 ni bloqueo mutuo, y la ruta queda coherente", async () => {
+    const cs = [await clienteEn(app, dueno, 19, -98.3), await clienteEn(app, dueno, 19, -98.29)];
+    const ps = await Promise.all(cs.map((c) => pedidoConfirmado(app, dueno, e.k, c.id, e.manana)));
+    const r = await rutaConPedidos(app, dueno, e, rep.id, ps);
+    const [cancelar, cargar] = await mismaHora(
+      () => pedir("POST", `/api/pedidos/${ps[0]}/cancelar`, dueno.token, { motivo: "ya no lo quiere" }),
+      () => pedir("POST", `/api/rutas/${r.id}/cargar`, dueno.token),
+    );
+    expect([200, 409]).toContain(cancelar.statusCode);
+    expect(cargar.statusCode).toBe(200);
+    const d = (await pedir("GET", `/api/rutas/${r.id}`, dueno.token)).json<RutaApi>();
+    if (cancelar.statusCode === 200) {
+      expect(d.paradas.map((p) => p.pedido?.id)).toEqual([ps[1]]); // se canceló antes de cargar
+      expect((await pool.query("select estado, ruta_id from app.pedido where id = $1", [ps[0]])).rows[0]).toEqual({ estado: "cancelado", ruta_id: null });
+    } else {
+      expect(errorDe(cancelar).codigo).toBe("PEDIDO_EN_RUTA"); // cargó primero
+      expect(d.paradas).toHaveLength(2);
+    }
+    await pedir("POST", `/api/rutas/${r.id}/cancelar`, dueno.token);
+  });
+
+  it("cancelar un pedido y ordenar la ruta a la vez: o se ordena y luego se cancela, o el orden falla con PARADAS_NO_CUADRAN; nunca 500", async () => {
+    const cs = [await clienteEn(app, dueno, 19, -98.2), await clienteEn(app, dueno, 19, -98.19), await clienteEn(app, dueno, 19, -98.18)];
+    const ps = await Promise.all(cs.map((c) => pedidoConfirmado(app, dueno, e.k, c.id, e.manana)));
+    const r = await rutaConPedidos(app, dueno, e, rep.id, ps);
+    const orden = ids(r).reverse();
+    const [cancelar, ordenar] = await mismaHora(
+      () => pedir("POST", `/api/pedidos/${ps[0]}/cancelar`, dueno.token, { motivo: "ya no lo quiere" }),
+      () => pedir("PUT", `/api/rutas/${r.id}/orden`, dueno.token, { paradas: orden }),
+    );
+    expect(cancelar.statusCode).toBe(200);
+    expect([200, 409]).toContain(ordenar.statusCode);
+    if (ordenar.statusCode === 409) expect(errorDe(ordenar).codigo).toBe("PARADAS_NO_CUADRAN");
+    const d = (await pedir("GET", `/api/rutas/${r.id}`, dueno.token)).json<RutaApi>();
+    expect(d.paradas.map((p) => p.orden)).toEqual([1, 2]);
+    expect(d.paradas.map((p) => p.pedido?.id).sort()).toEqual([ps[1], ps[2]].sort());
+    await pedir("POST", `/api/rutas/${r.id}/cancelar`, dueno.token);
+  });
+
+  it("un pedido en ruta no cambia de dia ni de entrega al proponer un faltante (409 PEDIDO_EN_RUTA); sin cambiar el dia si se puede", async () => {
+    const cli = await clienteEn(app, dueno, 19, -98.1);
+    const ped = await pedidoConfirmado(app, dueno, e.k, cli.id, e.manana);
+    const r = await rutaConPedidos(app, dueno, e, rep.id, [ped]);
+    const det = (await pedir("GET", `/api/pedidos/${ped}`, dueno.token)).json<{ version: number; lineas: { id: string }[] }>();
+    const cuerpo = (extra: object) => ({ version: det.version, lineas: [{ pedido_linea_id: det.lineas[0]!.id, causa: "otro", opciones: [] }], ...extra });
+    for (const extra of [{ fecha_entrega: "2030-01-02" }, { entrega_tipo: "recoge" }]) {
+      const mal = await pedir("POST", `/api/pedidos/${ped}/faltantes`, dueno.token, cuerpo(extra));
+      expect(mal.statusCode).toBe(409);
+      expect(errorDe(mal).codigo).toBe("PEDIDO_EN_RUTA");
+    }
+    expect((await pedir("POST", `/api/pedidos/${ped}/faltantes`, dueno.token, cuerpo({ fecha_entrega: e.manana, entrega_tipo: "reparto" }))).statusCode).toBe(200);
+    await pedir("POST", `/api/rutas/${r.id}/cancelar`, dueno.token);
   });
 });

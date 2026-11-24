@@ -12,6 +12,7 @@ let dueno: { token: string; id: string };
 let admin: string;
 let almacenista: string;
 let cajero: string;
+let soloVer: string;
 let repartidor: string;
 let e: EscenarioF5;
 
@@ -24,6 +25,7 @@ beforeAll(async () => {
   admin = await tokenF3(app, "Administrador");
   almacenista = await tokenF3(app, "Almacenista");
   cajero = await tokenF3(app, "Cajero");
+  soloVer = await tokenF3(app, { permisos: ["surtido.ver"] });
   repartidor = await tokenF3(app, "Repartidor");
   e = await escenarioF5(app, dueno, cajero);
 });
@@ -56,7 +58,12 @@ describe("/api/promociones", () => {
     }
     expect(errorDe(await pedir("POST", "/api/promociones", cajero, cuerpo()))).toMatchObject({ codigo: "SIN_PERMISO", detalles: { permiso: "compras.registrar" } });
     // Administrador tambien puede ver, sin costos.ver: la promocion es lo que cuesta, igual que una compra
-    expect((await pedir("GET", "/api/promociones", admin)).statusCode).toBe(200);
+    const conCosto = (await pedir("GET", "/api/promociones", admin)).json<{ items: Record<string, unknown>[] }>();
+    expect(conCosto.items[0]).toHaveProperty("costo_presentacion", "280.00");
+    // Solo surtido.ver: ve la promocion pero no lo que cuesta (misma regla que /surtido)
+    const sinCosto = (await pedir("GET", "/api/promociones", soloVer)).json<{ items: Record<string, unknown>[] }>();
+    expect(sinCosto.items).toHaveLength(1);
+    expect(sinCosto.items[0]).not.toHaveProperty("costo_presentacion");
   });
 
   it("validacion: hasta < desde, costo mal escrito y minimo 0 -> 400; proveedor inexistente 404; presentacion inexistente 409", async () => {
@@ -78,9 +85,9 @@ describe("/api/promociones", () => {
     expect(vigentes.items.map((x) => x.id)).not.toContain(vieja.id);
     expect(vigentes.total).toBe(1);
 
-    // Duenio ve el ahorro (300.00 - 280.00) * 2 cajas; Administrador, sin costos.ver, no ve ninguna llave de costo
+    // Duenio ve el ahorro (300.00 - 280.00) * 2 cajas; quien solo ve la lista no ve ninguna llave de costo
     expect(await corona(dueno.token)).toMatchObject({ costo_promocion: "280.00", ahorro: "40.00" });
-    expect(llaves(await corona(admin)).filter((k) => /costo|ahorro/.test(k))).toEqual([]);
+    expect(llaves(await corona(soloVer)).filter((k) => /costo|ahorro/.test(k))).toEqual([]);
 
     const id = vigentes.items[0]!.id;
     const ed = await pedir("PATCH", `/api/promociones/${id}`, almacenista, { costo_presentacion: "270.00", minimo_cantidad: 5, notas: "Solo esta semana" });

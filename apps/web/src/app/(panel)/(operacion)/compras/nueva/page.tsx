@@ -9,7 +9,7 @@ import type { Lista, Proveedor, Surtido } from "@/lib/tipos";
 
 export const metadata = { title: "Registrar compra · ChevechevePOS" };
 
-type SP = Promise<{ surtido?: string; proveedor_id?: string }>;
+type SP = Promise<{ surtido?: string; proveedor_id?: string; ruta_id?: string }>;
 
 export default async function PaginaNuevaCompra({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
@@ -23,12 +23,13 @@ export default async function PaginaNuevaCompra({ searchParams }: { searchParams
   // F5: desde la lista de surtido llegan la fecha y el proveedor; las lineas son la cantidad sugerida (calculada en la API). El usuario las corrige.
   let precarga: PrecargaSurtido | undefined;
   if (sp.surtido && sp.proveedor_id && /^\d+$/.test(sp.proveedor_id) && tiene(yo.datos, "surtido.ver")) {
-    const s = await apiServidor<Surtido>("/surtido", { fecha: sp.surtido });
+    const s = await apiServidor<Surtido>("/surtido", { fecha: sp.surtido, ruta_id: sp.ruta_id && /^\d+$/.test(sp.ruta_id) ? sp.ruta_id : undefined });
     const grupo = s.ok ? s.datos.proveedores.find((g) => String(g.proveedor_id) === sp.proveedor_id) : undefined;
     if (s.ok && grupo) {
       precarga = {
         fecha_surtido: s.datos.fecha,
         proveedor_id: sp.proveedor_id,
+        ruta_id: sp.ruta_id && /^\d+$/.test(sp.ruta_id) ? sp.ruta_id : undefined,
         lineas: grupo.lineas
           .filter((l) => l.presentacion_id != null && (l.cantidad_sugerida ?? 0) > 0)
           .map((l) => ({
@@ -46,7 +47,7 @@ export default async function PaginaNuevaCompra({ searchParams }: { searchParams
   return (
     <main>
       <Titulo titulo="Registrar compra" ayuda="Anota lo que te surtió el proveedor. Al guardar verás cuánto ganas con cada producto.">
-        <BotonEnlace variante="secundario" href={sp.surtido ? `/surtido?fecha=${sp.surtido}` : "/compras"}>
+        <BotonEnlace variante="secundario" href={sp.surtido ? `/surtido?fecha=${sp.surtido}${sp.ruta_id ? `&ruta_id=${sp.ruta_id}` : ""}` : "/compras"}>
           {sp.surtido ? "Volver a la lista de surtido" : "Volver a compras"}
         </BotonEnlace>
       </Titulo>
@@ -56,7 +57,7 @@ export default async function PaginaNuevaCompra({ searchParams }: { searchParams
         </Vacio>
       ) : (
         // key: un solo borrador por usuario; si cambia la sesion se reinicia el editor
-        <NuevaCompra key={`${yo.datos.id}-${sp.surtido ?? ""}-${sp.proveedor_id ?? ""}`} usuarioId={String(yo.datos.id)} proveedores={proveedores} precarga={precarga} />
+        <NuevaCompra key={`${yo.datos.id}-${sp.surtido ?? ""}-${sp.proveedor_id ?? ""}-${sp.ruta_id ?? ""}`} usuarioId={String(yo.datos.id)} proveedores={proveedores} precarga={precarga} />
       )}
     </main>
   );

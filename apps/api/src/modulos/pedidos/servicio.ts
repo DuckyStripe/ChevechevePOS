@@ -47,12 +47,16 @@ export async function listarPedidos(sucursal: string, f: FiltrosPedidos) {
   // Con un estado filtrado: lo mas viejo primero (el que lleva mas esperando); sin estado: lo mas nuevo primero.
   const orden = f.estado ? "p.fecha_entrega asc nulls first, p.creado_en asc, p.id asc" : "p.creado_en desc, p.id desc";
   // `total` del pedido choca con el `total` del conteo: el conteo se llama `total_filas`.
-  const r = await consulta<{ total_filas: string }>(
-    `select ${FILA}, count(*) over() as total_filas ${DESDE} where ${donde.join(" and ")} order by ${orden} limit ${limite} offset ${desplazo}`,
+  // requiere_surtido de la pagina entera en una sola consulta (la lista de surtido se calcula una vez por fecha, no por fila).
+  const r = await consulta<{ id: string; total_filas: string; requiere_surtido: boolean }>(
+    `select ${FILA.replace("app.fn_requiere_surtido(p.id)", "false")}, count(*) over() as total_filas ${DESDE} where ${donde.join(" and ")} order by ${orden} limit ${limite} offset ${desplazo}`,
     p,
   );
+  const surtir = r.rows.length
+    ? new Set((await consulta<{ id: string }>("select x::text as id from app.fn_pedidos_requieren_surtido($1::bigint[]) x", [r.rows.map((x) => x.id)])).rows.map((x) => x.id))
+    : new Set<string>();
   const items = r.rows.map((fila) => {
-    const copia: Partial<typeof fila> = { ...fila };
+    const copia: Partial<typeof fila> = { ...fila, requiere_surtido: surtir.has(String(fila.id)) };
     delete copia.total_filas;
     return copia;
   });

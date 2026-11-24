@@ -95,6 +95,9 @@ describe("GET /api/pedidos: requiere_surtido y ruta", () => {
     // el cliente de un pedido confirmado que requiere surtido ve «Preparando tu pedido»
     const cred = await activarCliente(app, libre);
     expect((await publico("GET", `/api/publico/pedidos/${grande}`, cred)).json()).toMatchObject({ etapa: "surtiendo", etiqueta: "Preparando tu pedido" });
+    // la lista del cliente usa la misma etapa (una sola funcion en SQL)
+    const lista2 = (await publico("GET", "/api/publico/pedidos", cred)).json<{ items: { id: string; etapa: string; etiqueta: string }[] }>().items;
+    expect(lista2.find((x) => x.id === grande)).toMatchObject({ etapa: "surtiendo", etiqueta: "Preparando tu pedido" });
     // cancelar un pedido de una ruta planeada lo saca de la ruta
     expect((await pedir("POST", `/api/pedidos/${chico}/cancelar`, dueno.token, { motivo: "ya no lo quiere" })).statusCode).toBe(200);
     expect((await pedir("GET", `/api/rutas/${r.id}`, dueno.token)).json<RutaApi>().paradas).toEqual([]);

@@ -69,7 +69,7 @@ contra la base de pruebas). **Nada de builds** (`next build`, `docker build`, AP
 | Archivo | Qué agrega cada fase |
 |---|---|
 | `apps/api/src/modulos/index.ts` | `app.register(rutas<Modulo>)` |
-| `apps/api/src/tareas.ts` | `programar('<nombre>', ms, fn)` (F3: `vencer-faltantes` 60 s, `vencer-propuestos` 15 min, `alertas-clientes` diaria, `sugerir-pedidos` diaria a `sugerencia_hora`; F4: `envio-push` 15 s) |
+| `apps/api/src/tareas.ts` | `programar('<nombre>', ms, fn)` (F3: `vencer-faltantes` 60 s, `vencer-propuestos` 15 min, `alertas-clientes` diaria, `sugerir-pedidos` diaria a `sugerencia_hora`; F4: `envio-push` 15 s, con la purga diaria dentro; F5: `sembrar-fechas-demanda` cada hora; F7: ninguna) |
 | `apps/web/src/lib/navegacion.ts` | entradas de menú `{ruta, titulo, permiso, grupo}` |
 
 El resto de `apps/api/src/comun/*`, `apps/web/src/lib/*`, `apps/web/src/componentes/ui/*`, layouts y
@@ -114,42 +114,42 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
-| `/surtido` | Qué comprar para una fecha | `GET /surtido`, `GET /surtido/mensaje`, `POST /surtido/publicar` (incluye compra inteligente: sugerido por demanda y promociones, F5) | `/compras/nueva?surtido=`, `/surtido/promociones`, Siguiente: `/rutas` |
-| `/compras/nueva` | Registrar lo que se compró | `POST /compras` | Volver: `/surtido`; al guardar: `/compras/[id]` (margen) |
+| `/surtido` | Qué comprar para una fecha (def. mañana; ruta opcional) | `GET /surtido`, `GET /surtido/mensaje` (con `telefono_invalido`: avisa y no abre `wa.me`), `POST /surtido/publicar` (incluye compra inteligente: sugerido por demanda y promociones, F5); costos solo con `costos.ver` o `compras.registrar` | `/compras/nueva?surtido=<fecha>&proveedor_id=[&ruta_id=]`, `/surtido/promociones`, `/rutas?fecha=` (si falta comprar para una ruta), Siguiente: `/rutas` |
+| `/compras/nueva` | Registrar lo que se compró; con `?surtido=<fecha>&proveedor_id=[&ruta_id=]` precarga la lista (borrador propio con llave `chv:compra-borrador:<usuario>:surtido:<fecha>:<proveedor>[:ruta:<id>]`: precargar nunca pisa el borrador normal ni otro) | `POST /compras` | Volver: `/surtido`; al guardar: `/compras/[id]` (margen) |
 | `/compras` · `/compras/[id]` | Historial (`?proveedor_id=&estado=&desde=&hasta=`) y cancelar compra | `GET /compras`, `GET /compras/:id`, `POST /compras/:id/cancelar`, `GET /compras/:id/margenes` (tabla de margen tras registrar) | `/proveedores`, `/precios?producto_ids=&volver=/compras/<id>` (corregir precios); con `COMPRA_CON_SALIDAS`: `/inventario/ajustes?modo=costo&producto_id=&volver=/compras/<id>` |
-| `/surtido/promociones` | Promociones del distribuidor (F5) | `GET/POST /promociones`, `PATCH/DELETE /promociones/:id` | Volver: `/surtido` |
+| `/surtido/promociones` | Promociones del distribuidor (F5; solo cuentan las del proveedor habitual del producto) | `GET/POST /promociones`, `PATCH/DELETE /promociones/:id` | Volver: `/surtido` |
 
 **3. Cargar y rutas**
 
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
-| `/rutas` | Rutas de una fecha; crear ruta | `GET /rutas`, `POST /rutas`, `GET /rutas/repartidores` (selector) | `/rutas/[id]` |
-| `/rutas/[id]` | Armar una ruta | `GET /rutas/:id`, `GET /rutas/:id/candidatos`, `POST /rutas/:id/{pedidos,optimizar,cargar,cancelar}`, `DELETE /rutas/paradas/:id`, `PUT /rutas/:id/orden`; F7: `POST /rutas/:id/cobros` y `GET /rutas/:id/sugerencias-cobro` | `/pedidos/[id]`, `/surtido` (si `FALTA_SURTIR`), Siguiente: `/rutas/[id]/carga` |
-| `/rutas/[id]/carga` | Hoja de carga LIFO imprimible | `GET /rutas/:id/carga` | Siguiente: `/rutas` |
+| `/rutas` | Rutas de una fecha (`?fecha=`, def. hoy); crear ruta aquí mismo | `GET /rutas`, `POST /rutas`, `GET /rutas/repartidores` (selector) | `/rutas/[id]`; F7: «Liquidar» en rutas `terminada` → `/cierre/ruta/[id]` |
+| `/rutas/[id]` | Armar una ruta: candidatos por zona, paradas con ↑/↓, Optimizar (km antes → después), avisos de sin ubicación y capacidad (`cajas_totales` aproximadas), Cargar | `GET /rutas/:id`, `GET /rutas/:id/candidatos`, `POST /rutas/:id/{pedidos,optimizar,cargar,cancelar}`, `DELETE /rutas/paradas/:id`, `PUT /rutas/:id/orden`; F7: `POST /rutas/:id/cobros` y `GET /rutas/:id/sugerencias-cobro` («Pasar a cobrar»: clientes con saldo vencido de esas zonas) | `/pedidos/[id]`, `/surtido?fecha=` (si `FALTA_SURTIR`), Siguiente: `/rutas/[id]/carga` |
+| `/rutas/[id]/carga` | Hoja de carga LIFO imprimible (80 mm y carta; «Sube primero» = `carga_n 1`; totales por producto y cajas) | `GET /rutas/:id/carga` | Siguiente: `/rutas` |
 
 **4. Entregar y cobrar**
 
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
-| `/reparto` (repartidor) | Su ruta de hoy: iniciar, recorrer, terminar (lee `GET /rutas?fecha=hoy` propio y `GET /rutas/:id`) | `POST /rutas/:id/iniciar`, `POST /rutas/paradas/:id/no-entregado`, `POST /rutas/:id/terminar` | Google Maps/Waze, bandeja de avisos (los de sus pedidos, F6); desde F7: `/cobrar?pedido=` (entregar), `/cobrar?cliente=&parada=` (abono), `/caja?volver=/reparto` (gasto) |
-| `/cobrar` | **Único lugar donde entra dinero de un cliente**: `?pedido=` entrega y cobra un pedido (reparto o recoge; paso 1 cantidades, paso 2 pago); `?cliente=` registra un abono. Captura el comprobante de transferencia. Prueba de entrega opcional (recibió + foto). Muestra el semáforo junto a «Fiado» (lectura) | `POST /pedidos/:id/entregar`, `POST /abonos`, `POST /comprobantes` | Volver: `/reparto`, `/pedidos` o `/cobranza`; aviso de nota de entrega en la bandeja; «Mandar datos de transferencia» abre la bandeja con `?nuevo=wa_datos_transferencia` |
-| `/cobranza` | Quién debe y cuánto | `GET /cuentas-por-cobrar`, `GET /abonos`, `POST /abonos/:id/cancelar` | `/cobrar?cliente=`, `/clientes/[id]` |
+| `/reparto` (repartidor) | Su ruta de hoy: iniciar (F7: con fondo opcional), una parada por pantalla, No entregado con motivos de un toque (`motivos_no_entregado` de plantillas + «Otro» con nota), terminar con la lista de pendientes; pantalla encendida en el cascarón (lee `GET /rutas?fecha=hoy` propio y `GET /rutas/:id`) | `POST /rutas/:id/iniciar`, `POST /rutas/paradas/:id/no-entregado`, `POST /rutas/:id/terminar` | Google Maps/Waze, `tel:`, bandeja de avisos (solo los de reparto de sus rutas abiertas, F6); desde F7: `/cobrar?pedido=&volver=/reparto` (entregar), `/cobrar?cliente=&parada=&volver=/reparto` (abono o parada de cobro), `/caja?volver=/reparto` (gasto); al terminar, Siguiente: `/cierre/ruta/[id]` si tiene `rutas.liquidar` |
+| `/cobrar` | **Único lugar donde entra dinero de un cliente**: `?pedido=` entrega y cobra un pedido (reparto o recoge; paso 1 cantidades, paso 2 pago: efectivo con cambio, transferencia con referencia y foto, fiado con disponible y semáforo, mixto); `?cliente=[&parada=]` registra un abono (FIFO o a cuentas elegidas). Captura el comprobante de transferencia y la prueba de entrega opcional (recibió + foto). Lee `GET /pedidos/:id`, `GET /clientes/:id` (saldo, semáforo), `GET /turnos/actual` | `POST /pedidos/:id/entregar`, `POST /abonos`, `POST /comprobantes` | Volver: `?volver=` (`/reparto`, `/pedidos`, `/cobranza`, `/clientes/[id]`); tras entregar, «Mandar nota» (aviso `wa_nota_entrega` ya creado, un toque) y, si debe, «Cobrar saldo anterior» → `/cobrar?cliente=`; «Mandar datos de transferencia» abre la bandeja con `?nuevo=wa_datos_transferencia&cliente=` (solo con `pedidos.ver`); sin turno → `/caja` |
+| `/cobranza` | Quién debe y cuánto (filtros zona, vencidas; semáforo por fila); abonos recientes y cancelar abono (solo `cobranza.cancelar_abono`) | `GET /cuentas-por-cobrar`, `GET /abonos`, `POST /abonos/:id/cancelar` | `/cobrar?cliente=&volver=/cobranza`, `/clientes/[id]`, bandeja con `?nuevo=wa_recordatorio_saldo&cliente=` |
 
 **5. Cierre del día**
 
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
-| `/cierre` | Lista de lo que falta cerrar (rutas terminadas, turnos de mostrador abiertos, transferencias, avisos) | (lee `GET /despacho`), `GET /cierre/resumen` (resumen del día; «Mandar al dueño» abre la bandeja) | las tres de abajo |
-| `/cierre/ruta/[id]` | Liquidar al repartidor | `GET /rutas/:id/liquidacion`, `POST /rutas/:id/liquidar`, `GET /comprobantes/:archivo` | `/cierre/transferencias` |
+| `/cierre` | Lista de lo que falta cerrar (rutas terminadas por liquidar, turnos de mostrador abiertos, transferencias por verificar, avisos) y resumen del día | (lee `GET /despacho`), `GET /cierre/resumen` (resumen del día; «Mandar al dueño» abre la bandeja con `?nuevo=wa_resumen_dia`) | `/cierre/ruta/[id]`, `/cierre/transferencias`, `/caja` (cerrar mostrador), `/ventas` |
+| `/cierre/ruta/[id]` | Liquidar al repartidor: esperado (fórmula de §2.8) vs contado, ventas por método, abonos, gastos, transferencias con foto, producto que regresa (cargado − entregado) | `GET /rutas/:id/liquidacion`, `POST /rutas/:id/liquidar`, `GET /comprobantes/:archivo` | `/cierre/transferencias`, Siguiente: `/cierre` |
 | `/cierre/transferencias` | Verificar transferencias en el banco | `GET /transferencias`, `POST /transferencias/verificar` | — |
-| `/ventas` · `/ventas/[id]` | Revisar ventas; cancelar o devolver; reimprimir ticket | `GET /ventas`, `GET /ventas/:id`, `GET /ventas/:id/ticket`, `POST /ventas/:id/{cancelar,devoluciones}` | `/pedidos/[id]` |
+| `/ventas` · `/ventas/[id]` | Revisar ventas; cancelar (solo `ventas.cancelar`, el dueño [P21]) o devolver (F7); reimprimir ticket 80 mm (F8) | `GET /ventas`, `GET /ventas/:id`, `GET /ventas/:id/ticket`, `POST /ventas/:id/{cancelar,devoluciones}` | `/pedidos/[id]`, `/clientes/[id]` |
 
 **Mostrador** (grupo aparte)
 
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
-| `/pos` | Vender en mostrador; varias ventas en espera (en el navegador) | `POST /ventas` | `/caja` si no hay turno |
-| `/caja` | Mi turno (mostrador o ruta): abrir mostrador, **movimientos y gastos** (único dueño), resumen, cerrar mostrador | `GET /cajas`, `GET/POST /turnos`, `GET /turnos/actual`, `POST /turnos/:id/movimientos`, `GET /turnos/:id/resumen`, `POST /turnos/:id/cerrar` | `/pos` |
+| `/pos` | Vender en mostrador (F8): escáner y buscador tolerante, mosaicos por categoría, cliente con su lista (mayoreo) y crédito, pagos mixtos, cambio, ticket 80 mm; varias ventas en espera (en el navegador, por caja y usuario) | `POST /ventas` (lee `GET /catalogo-venta`, `GET /presentaciones/codigo/:codigo`, `GET /clientes?buscar`, `GET /turnos/actual`) | `/caja` si no hay turno, `/ventas/[id]` (última venta) |
+| `/caja` | Mi turno (mostrador o ruta): abrir mostrador, **movimientos y gastos** (único dueño), resumen, cerrar mostrador con corte esperado vs contado (F7); turnos ajenos y corte supervisado `?turno=` con `caja.supervisar`, hoja de corte 80 mm (F8) | `GET /cajas`, `GET/POST /turnos`, `GET /turnos/actual`, `POST /turnos/:id/movimientos`, `GET /turnos/:id/resumen`, `POST /turnos/:id/cerrar` | `/pos`, Volver: `?volver=` (`/reparto`) |
 
 **Ajustes** (secundario)
 
@@ -167,7 +167,7 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 | `/configuracion/plantillas` | Textos de WhatsApp, push y pantallas: lista por canal, editar con vista previa (solo `{{variables}}` de su lista) | `GET /plantillas`, `PATCH /plantillas/:clave`, `POST /plantillas/:clave/vista-previa` | Volver: `/configuracion` |
 | `/usuarios` · `/roles` | Personal y permisos | `GET/POST /usuarios`, `PATCH /usuarios/:id`, `POST /usuarios/:id/{contrasena,cerrar-sesiones}`, `GET /roles`, `GET /permisos`, `POST /roles`, `PATCH/DELETE /roles/:id` | — |
 | `/auditoria` | Bitácora: filtros tabla, usuario, registro y fechas; cada fila con quién (`usuario_nombre`) y antes/después | `GET /auditoria` | — |
-| `/reportes` · `/reportes/*` | KPIs de dinero e inventario (portada, F9) y cada reporte (incl. ganancia por cliente y por ruta, F9) | `GET /tablero`, `GET /reportes/*` | — |
+| `/reportes` · `/reportes/*` | KPIs de dinero e inventario (portada, F9) y cada reporte (ventas, compras, utilidad, entregas, faltantes, inventario valorizado, bajo mínimo, cuentas por cobrar, cortes, ganancia por cliente/zona/ruta); CSV en el navegador; cada uno con su permiso | `GET /tablero`, `GET /reportes/*` | `/inventario` (por caducar), `/precios` (bajo costo), `/cobranza` |
 | `/login` | Entrar (fuera del panel; errores llanos, «Espera N minutos» si está bloqueado) | `POST /auth/login` (BFF) | `/` |
 | `/cambiar-contrasena` | Cambiar la propia contraseña; única pantalla abierta con `debe_cambiar_contrasena` (fuera de `(operacion)`) | `POST /auth/contrasena` (400 `CONTRASENA_INCORRECTA` si la actual está mal) | `/` |
 
@@ -399,7 +399,7 @@ Hoy usan Eleventa (versión vieja) [R11, P46–P48]. No es pantalla: script
 
 ## F4 — Cascarón Android + push del personal
 
-Brief ejecutable por paquetes: `docs/fases/F4.md`. Empieza cuando F3 está en `main`.
+Brief ejecutable por paquetes: `docs/fases/F4.md`. **Estado: escrita en `main` (`ebb0d0a`) con la revisión aplicada**; sin builds: llaves, primera APK y la «Salida» en teléfono real quedan para la validación final. Lo que fijó la implementación: `docs/fases/F4.md` «Hechos».
 
 - Migración `005_push.sql`. API: módulo `movil` (registrar/quitar dispositivo, versión),
   `notificaciones/envio.ts` (FCM HTTP v1 con `jose`) y tarea `envio-push`.
@@ -434,7 +434,7 @@ Brief ejecutable por paquetes: `docs/fases/F4.md`. Empieza cuando F3 está en `m
 
 ## F5 — Lista de surtido (paralela a F6)
 
-Brief ejecutable por paquetes: `docs/fases/F5.md` (migración 006, en paralelo con F6).
+Brief ejecutable por paquetes: `docs/fases/F5.md` (migración 006, en paralelo con F6). **Estado: escrita en `main` (`ebb0d0a`); correcciones de la revisión aplicándose** (decisiones ya en CONTRATOS §2.6 y en F5.md «Hechos»).
 
 - Migración `006_surtido.sql`. API: módulo `surtido`.
 - Pantallas: `/surtido` (fecha y ruta opcional; agrupado por proveedor con piezas y cajas sugeridas;
@@ -451,7 +451,7 @@ Brief ejecutable por paquetes: `docs/fases/F5.md` (migración 006, en paralelo c
 
 ## F6 — Rutas, orden de carga, vista del repartidor (paralela a F5)
 
-Brief ejecutable por paquetes: `docs/fases/F6.md` (migración 007, en paralelo con F5). Paradas de cobro
+Brief ejecutable por paquetes: `docs/fases/F6.md` (migración 007, en paralelo con F5). **Estado: escrita en `main` (`ebb0d0a`, suite F1–F6 574 pruebas); correcciones de la revisión aplicándose** (decisiones ya en CONTRATOS §2.7 y en F6.md «Hechos»). Paradas de cobro
 (`fn_agregar_cobro`, `POST /rutas/:id/cobros`) pasan a F7: «con saldo» no existe sin 008.
 
 - Migración `007_rutas.sql`. API: módulos `vehiculos`, `rutas` (incl. `optimizar.ts` puro con pruebas
@@ -469,6 +469,9 @@ Brief ejecutable por paquetes: `docs/fases/F6.md` (migración 007, en paralelo c
   repartidor; el seguimiento del cliente muestra «parada N de M». **UX**: P4 y P5 en teléfono real.
 
 ## F7 — Entrega, cobro, crédito, liquidación
+
+Brief ejecutable por paquetes: `docs/fases/F7.md` (migración 008; requiere F5 y F6 cerradas con su revisión). Incluye la parte
+`saldos` del importador de Eleventa y las paradas de solo cobro movidas desde F6.
 
 - Migración `008_ventas_cobro.sql`. API: módulos `cajas`, `turnos`, `ventas` (cancelar, devolver,
   ticket), `entregas` (`/pedidos/:id/entregar`, liquidación; `fn_iniciar_ruta` se reemplaza con la misma firma para abrir el turno de ruta), `cobranza` (CxC,
@@ -496,6 +499,8 @@ Brief ejecutable por paquetes: `docs/fases/F6.md` (migración 007, en paralelo c
 
 ## F8 — POS de mostrador (requisito del cambio desde Eleventa: no se pospone)
 
+Brief ejecutable: `docs/fases/F8.md` (sin migración; requiere F7 cerrada). Contiene la lista de paridad con Eleventa.
+
 - Sin migración (tablas de 008). Pantallas: `/pos` (buscador tolerante y escáner, mosaicos por categoría,
   elegir presentación, carrito, cliente con su lista y crédito, pagos mixtos, cambio, ticket 80 mm sin
   desglose, clave por carrito), `/caja` (abrir turno, movimientos, corte propio o supervisado); pedidos
@@ -509,7 +514,9 @@ Brief ejecutable por paquetes: `docs/fases/F6.md` (migración 007, en paralelo c
 
 ## F9 — Reportes
 
-- Migración `009_reportes.sql`. API: módulo `reportes`; crea el módulo `tablero` (`GET /api/tablero`, dueño F9).
+Brief ejecutable: `docs/fases/F9.md` (migración 009; requiere F8 cerrada).
+
+- Migración `009_reportes.sql` (F8 no tiene migración: F9 toma 009, CONTRATOS §2). API: módulo `reportes`; crea el módulo `tablero` (`GET /api/tablero`, dueño F9).
 - Pantallas: `/reportes/ventas` (por día, cliente, zona, ruta, origen…), `/reportes/compras`,
   `/reportes/utilidad` (mermas por causa), `/reportes/entregas`, `/reportes/faltantes` (demanda perdida),
   `/reportes/inventario`, `/reportes/bajo-minimo`, `/reportes/cuentas-por-cobrar`, `/reportes/cortes`

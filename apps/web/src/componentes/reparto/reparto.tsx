@@ -18,7 +18,8 @@ import type { ParadaRuta, RutaDetalle } from "@/lib/tipos";
 
 // P4 y P5: una mano, una parada por pantalla, acciones abajo (≥ 56 px), y siempre claro si se guardó o no.
 const GRANDE = "!min-h-14 !text-lg";
-const MOTIVOS = ["Estaba cerrado", "No estaba", "No quiso el pedido"] as const;
+// La clave viaja a la API; su texto para el cliente sale de la plantilla `motivo_<clave>`.
+const MOTIVOS = [{ clave: "cerrado", texto: "Estaba cerrado" }, { clave: "no_estaba", texto: "No estaba" }, { clave: "no_quiso", texto: "No quiso el pedido" }] as const;
 
 const siguientePendiente = (paradas: ParadaRuta[], desde: number): number => {
   const i = paradas.findIndex((p, k) => k > desde && p.estado === "pendiente");
@@ -64,9 +65,9 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
     return true;
   }
 
-  async function marcarNoEntregado(motivo: string) {
+  async function marcarNoEntregado(motivo: string, nota?: string) {
     if (!p) return;
-    if (await correr("no", llamar("POST", `/rutas/paradas/${p.id}/no-entregado`, { motivo }), "Guardado: no se entregó.")) {
+    if (await correr("no", llamar("POST", `/rutas/paradas/${p.id}/no-entregado`, { motivo, ...(nota ? { nota } : {}) }), "Guardado: no se entregó.")) {
       setNoEntregando(false);
       setOtro(false);
       setNota("");
@@ -221,8 +222,8 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
       <Dialogo abierto={noEntregando} titulo={`¿Por qué no se entregó a ${p.cliente.nombre}?`} alCerrar={() => { setNoEntregando(false); setOtro(false); }}>
         <div className="flex flex-col gap-3">
           {MOTIVOS.map((m) => (
-            <Boton key={m} variante="secundario" className={GRANDE} cargando={ocupado === "no"} onClick={() => void marcarNoEntregado(m)}>
-              {m}
+            <Boton key={m.clave} variante="secundario" className={GRANDE} cargando={ocupado === "no"} onClick={() => void marcarNoEntregado(m.clave)}>
+              {m.texto}
             </Boton>
           ))}
           {!otro ? (
@@ -232,7 +233,7 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
           ) : (
             <>
               <AreaTexto etiqueta="¿Qué pasó?" maxLength={180} value={nota} onChange={(e) => setNota(e.target.value)} />
-              <Boton variante="peligro" className={GRANDE} cargando={ocupado === "no"} disabled={!nota.trim()} onClick={() => void marcarNoEntregado(nota.trim())}>
+              <Boton variante="peligro" className={GRANDE} cargando={ocupado === "no"} disabled={!nota.trim()} onClick={() => void marcarNoEntregado("otro", nota.trim())}>
                 Guardar: no se entregó
               </Boton>
             </>

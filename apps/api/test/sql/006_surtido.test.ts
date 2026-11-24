@@ -180,7 +180,7 @@ describe("fn_publicar_surtido", () => {
       const n1 = await fila<{ n: number }>(c, "select app.fn_publicar_surtido($1, 1, $2::date) as n", [j.k.usuario, j.manana]);
       expect(n1.n).toBeGreaterThanOrEqual(2); // Duenio y Almacenista (otros usuarios de la base tambien)
       const clave = (await fila<{ clave: string }>(c, "select clave from app.notificacion where evento = 'surtido_listo' and usuario_id = $1", [alma])).clave;
-      expect(clave).toMatch(/^surtido:\d{4}-\d{2}-\d{2}:[0-9a-f]{32}$/);
+      expect(clave).toMatch(/^surtido:1:\d{4}-\d{2}-\d{2}:[0-9a-f]{32}$/);
       const u = (await fila<{ datos: { ruta: string }; cuerpo: string }>(c, "select datos, cuerpo from app.notificacion where usuario_id = $1 and evento = 'surtido_listo'", [alma]));
       expect(u.datos.ruta).toBe(`/surtido?fecha=${j.manana}`);
       expect(u.cuerpo).toMatch(/tiene \d+ productos/);
@@ -201,7 +201,7 @@ describe("fn_publicar_surtido", () => {
   it("lista vacia: no avisa", async () => {
     await enTransaccion(async (c) => {
       const u = await usuarioF3(c);
-      await c.query("update app.producto set activo = false"); // otras suites dejan productos con minimo
+      await c.query("update app.producto set existencia_minima = 0"); // otras suites dejan productos con minimo
       expect((await fila<{ n: number }>(c, "select app.fn_publicar_surtido($1, 1, $2::date) as n", [u, await dia(c, 1)])).n).toBe(0);
     });
   });
@@ -212,7 +212,7 @@ describe("fn_mensaje_surtido y fechas de demanda", () => {
     await enTransaccion(async (c) => {
       const j = await juego(c);
       const m = await fila<{ telefono: string; texto: string }>(c, "select * from app.fn_mensaje_surtido(1, $1::date, $2)", [j.manana, j.modelo.id]);
-      expect(m.telefono).toBe("5215500000000");
+      expect(m).toMatchObject({ telefono: "5215500000000", telefono_invalido: false });
       expect(m.texto).toContain(j.modelo.nombre);
       expect(m.texto).toMatch(/\n2 Caja de 24 Corona Extra 355 ml lata/);
       expect(m.texto).toMatch(/\n1 Caja de 24 Victoria 355 ml lata/);
@@ -235,6 +235,95 @@ describe("fn_mensaje_surtido y fechas de demanda", () => {
       expect((await c.query("select fecha::text from app.fecha_demanda where extract(year from fecha) in (2098, 2099) order by fecha")).rows.map((x) => x.fecha)).toEqual(["2098-05-05", "2099-02-02"]);
       expect((await errorConDetalle(c, () => c.query("select app.fn_reemplazar_fechas_demanda($1, 2099, $2::jsonb)", [u, JSON.stringify([{ fecha: "2100-01-01", nombre: "x", factor: 1 }])]))).message).toBe("FECHA_NO_VALIDA");
       expect((await error(c, () => c.query("select app.fn_reemplazar_fechas_demanda($1, 2099, '[]'::jsonb)", [alma]))).message).toBe("SIN_PERMISO");
+    });
+  });
+});
+
+describe("reglas unicas de F5 (revision)", () => {
+  it("v_comprometido sale de v_linea_comprometida; fn_pedido_requiere_surtido: A y C si, D (hoy, alcanza) y el recibido no", async () => {
+    await enTransaccion(async (c) => {
+      const j = await juego(c);
+      // Corona: A 48 + B 24 + D 6 = 78 confirmadas; Victoria: C 24 (la Caja de B esta en faltante)
+      expect(await fila(c, "select confirmadas, cargadas from app.v_comprometido where producto_id = $1", [j.k.corona.id])).toEqual({ confirmadas: 78, cargadas: 0 });
+      expect(await fila(c, "select confirmadas from app.v_comprometido where producto_id = $1", [j.k.victoria.id])).toEqual({ confirmadas: 24 });
+      expect(await fila(c, "select disponible from app.v_disponible where producto_id = $1", [j.k.corona.id])).toEqual({ disponible: -18 });
+      const req = async (p: string) => (await fila<{ r: boolean }>(c, "select app.fn_pedido_requiere_surtido($1) as r", [p])).r;
+      expect(await req(j.A)).toBe(true);
+      expect(await req(j.B)).toBe(true); // su linea de Corona activa cae en una lista con faltante
+      expect(await req(j.C)).toBe(true);
+      expect(await req(j.D)).toBe(false);
+      expect(await req(j.recibido)).toBe(false);
+    });
+  });
+
+  it("promocion de otro proveedor no aplica; solo la del proveedor habitual del producto", async () => {
+    await enTransaccion(async (c) => {
+      const j = await juego(c);
+      await c.query(`insert into app.promocion_proveedor (proveedor_id, presentacion_id, costo_presentacion, desde, hasta, creado_por)
+        values ($1, $2, '250.00', $3, $3, $4)`, [j.abarrotera.id, j.k.caja, j.manana, j.k.usuario]);
+      expect((await lista(c, j.manana, [j.k.corona.id]))[j.k.corona.id]).toMatchObject({ promocion_id: null, costo_promocion: null, ahorro: null });
+    });
+  });
+
+  it("ultimo_costo ignora compras canceladas: compra a 350.00 y se cancela -> vuelve 300.00", async () => {
+    await enTransaccion(async (c) => {
+      const j = await juego(c);
+      const id = await compra(c, j.k.caja, 1, "350.00", j.modelo.id);
+      expect((await lista(c, j.manana, [j.k.corona.id]))[j.k.corona.id]).toMatchObject({ ultimo_costo: "350.00" });
+      await c.query("select app.fn_cancelar_compra($1, $2, 'prueba')", [j.k.usuario, id]);
+      expect((await lista(c, j.manana, [j.k.corona.id]))[j.k.corona.id]).toMatchObject({ ultimo_costo: "300.00", costo_estimado: "600.00" });
+    });
+  });
+
+  it("producto sin presentacion de compra: fila marcada, sin cantidad sugerida y como nota en el mensaje", async () => {
+    await enTransaccion(async (c) => {
+      const j = await juego(c);
+      const p = await producto(c, { modo: "contra_pedido", proveedor: j.abarrotera.id, nombre: "Rarito", usuario: j.k.usuario });
+      await pedidoConfirmado(c, j.k.usuario, j.cli, [lin(p.pf(24), 1)], j.manana);
+      await c.query("update app.presentacion set se_compra = false where producto_id = $1", [p.id]);
+      expect((await lista(c, j.manana, [p.id]))[p.id]).toMatchObject({
+        sin_presentacion_compra: true, presentacion_id: null, cantidad_sugerida: null, piezas_a_comprar: 24, costo_estimado: null,
+      });
+      expect((await lista(c, j.manana, [j.k.corona.id]))[j.k.corona.id]).toMatchObject({ sin_presentacion_compra: false });
+      const m = await fila<{ texto: string }>(c, "select * from app.fn_mensaje_surtido(1, $1::date, $2)", [j.manana, j.abarrotera.id]);
+      expect(m.texto).toMatch(/\n24 piezas Rarito/);
+    });
+  });
+
+  it("no se desactiva un producto con pedidos pendientes (PRODUCTO_CON_PEDIDOS); uno sin pedidos si", async () => {
+    await enTransaccion(async (c) => {
+      const j = await juego(c);
+      const e = await errorConDetalle(c, () => c.query("update app.producto set activo = false where id = $1", [j.k.corona.id]));
+      expect(e).toMatchObject({ message: "PRODUCTO_CON_PEDIDOS", detalle: { producto_id: Number(j.k.corona.id) } });
+      await c.query("update app.producto set activo = false where id = $1", [j.tecate.id]);
+      // al cancelar sus pedidos ya se puede
+      await c.query("update app.pedido set estado = 'cancelado', cancelado_en = now(), respuesta_limite_en = null where id = any($1)", [[j.A, j.B, j.D]]);
+      await c.query("update app.producto set activo = false where id = $1", [j.k.corona.id]);
+    });
+  });
+
+  it("telefono del proveedor: normaliza para wa.me; uno que no sirve se marca invalido", async () => {
+    await enTransaccion(async (c) => {
+      const j = await juego(c);
+      const tel = async (t: string) => fila(c, "select telefono, telefono_invalido from app.fn_mensaje_surtido(1, $1::date, $2)",
+        [j.manana, (await c.query("update app.proveedor set telefono = $2 where id = $1 returning id", [j.modelo.id, t])).rows[0].id]);
+      expect(await tel("55 1234-5678")).toEqual({ telefono: "525512345678", telefono_invalido: false });
+      expect(await tel("+52 1 55 1234 5678")).toEqual({ telefono: "5215512345678", telefono_invalido: false });
+      expect(await tel("12345")).toEqual({ telefono: null, telefono_invalido: true });
+      expect(await tel("")).toEqual({ telefono: null, telefono_invalido: false });
+    });
+  });
+
+  it("calendario del anio que viene: la siembra es idempotente y respeta lo que ya hay; en diciembre sola", async () => {
+    await enTransaccion(async (c) => {
+      const n = (await fila<{ n: number }>(c, "select app.fn_sembrar_fechas_demanda(2101) as n")).n;
+      expect(n).toBeGreaterThan(60);
+      await c.query("update app.fecha_demanda set factor = 2 where fecha = '2101-01-15'");
+      expect((await fila<{ n: number }>(c, "select app.fn_sembrar_fechas_demanda(2101) as n")).n).toBe(n);
+      expect(await fila(c, "select factor::text from app.fecha_demanda where fecha = '2101-01-15'")).toEqual({ factor: "2.00" });
+      expect((await fila<{ n: number }>(c, "select count(*)::int as n from app.fecha_demanda where extract(year from fecha) = 2101 and nombre = 'Semana Santa'")).n).toBe(2);
+      const mes = (await fila<{ m: number }>(c, "select extract(month from app.fn_fecha_local(now()))::int as m")).m;
+      if (mes !== 12) expect((await fila<{ n: number }>(c, "select app.fn_sembrar_fechas_siguiente() as n")).n).toBe(0);
     });
   });
 });

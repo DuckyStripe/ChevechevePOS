@@ -45,8 +45,8 @@ const ordenar = (c: pg.PoolClient, u: string, ruta: string, ids: string[], km: n
   c.query("select app.fn_ordenar_ruta($1, $2, $3::bigint[], $4::numeric[], $5)", [u, ruta, ids, km, opt]);
 const cargar = (c: pg.PoolClient, u: string, ruta: string) => c.query("select app.fn_cargar_ruta($1, $2) as r", [u, ruta]);
 const iniciar = (c: pg.PoolClient, u: string, ruta: string) => c.query("select app.fn_iniciar_ruta($1, $2) as r", [u, ruta]);
-const noEntregado = (c: pg.PoolClient, u: string, parada: string, motivo = "cerrado") =>
-  c.query("select app.fn_marcar_no_entregado($1, $2, $3)", [u, parada, motivo]);
+const noEntregado = (c: pg.PoolClient, u: string, parada: string, motivo = "cerrado", nota: string | null = null) =>
+  c.query("select app.fn_marcar_no_entregado($1, $2, $3, $4)", [u, parada, motivo, nota]);
 
 describe("migracion y permisos", () => {
   it("007 aplicada; re-correr el migrador no aplica nada; 4 permisos nuevos con sus roles", async () => {
@@ -341,7 +341,7 @@ describe("cargar y orden de carga", () => {
         { producto: "Corona Extra 355 ml lata", presentacion: "Caja de 24", cantidad: 2, piezas: 48 },
         { producto: "Corona Extra 355 ml lata", presentacion: "Six", cantidad: 3, piezas: 18 },
       ]);
-      expect(carga.cajas_totales).toBe(3); // 66 piezas / 24 -> 3
+      expect(carga.cajas_totales).toBe(4); // aproximacion: por linea ceil(piezas / 24), 1 + 1 + 1 + 1
     });
   });
 });
@@ -451,23 +451,24 @@ describe("no entregado, terminar y cancelar", () => {
 
       const ped = r.pedidos[0]!;
       const duenos = (await c.query("select u.id from app.usuario u where app.fn_tiene_permiso(u.id, 'pedidos.gestionar')")).rows.map((x) => x.id as string);
-      const antesNotif = await notificaciones(c, "entrega_fallida", `fallida:${ped}`, duenos);
+      const clave = `fallida:${ped}:r${r.id}`;
+      const antesNotif = await notificaciones(c, "entrega_fallida", clave, duenos);
       await noEntregado(c, r.repartidor, ps[0]!.id as string, "cerrado");
-      expect(await fila(c, "select estado, motivo from app.pedido where id = $1", [ped])).toEqual({ estado: "no_entregado", motivo: "cerrado" });
-      expect(await fila(c, "select estado, nota from app.ruta_parada where id = $1", [ps[0]!.id])).toEqual({ estado: "fallida", nota: "cerrado" });
+      expect(await fila(c, "select estado, motivo from app.pedido where id = $1", [ped])).toEqual({ estado: "no_entregado", motivo: "estaba cerrado el negocio" });
+      expect(await fila(c, "select estado, nota from app.ruta_parada where id = $1", [ps[0]!.id])).toEqual({ estado: "fallida", nota: "estaba cerrado el negocio" });
       expect(await eventos(c, ped)).toContain("no_entregado");
-      const despuesNotif = await notificaciones(c, "entrega_fallida", `fallida:${ped}`, duenos);
+      const despuesNotif = await notificaciones(c, "entrega_fallida", clave, duenos);
       expect(despuesNotif).toBeGreaterThan(antesNotif);
       const avisos = async () => (await fila<{ n: number }>(c, "select count(*)::int as n from app.aviso_cliente where pedido_id = $1 and plantilla = 'wa_entrega_fallida'", [ped])).n;
       expect(await avisos()).toBe(1);
 
       // segunda llamada: sin error y sin filas nuevas (tambien con otro motivo)
       const eventosAntes = (await eventos(c, ped)).length;
-      await noEntregado(c, r.repartidor, ps[0]!.id as string, "otro motivo");
+      await noEntregado(c, r.repartidor, ps[0]!.id as string, "no_estaba");
       expect(await avisos()).toBe(1);
-      expect(await notificaciones(c, "entrega_fallida", `fallida:${ped}`, duenos)).toBe(despuesNotif);
+      expect(await notificaciones(c, "entrega_fallida", clave, duenos)).toBe(despuesNotif);
       expect((await eventos(c, ped)).length).toBe(eventosAntes);
-      expect(await fila(c, "select motivo from app.pedido where id = $1", [ped])).toEqual({ motivo: "cerrado" });
+      expect(await fila(c, "select motivo from app.pedido where id = $1", [ped])).toEqual({ motivo: "estaba cerrado el negocio" });
     });
   });
 
@@ -485,9 +486,9 @@ describe("no entregado, terminar y cancelar", () => {
       expect((await rutaFila(c, r.id)).estado).toBe("terminada");
       expect((await paradas(c, r.id)).map((p) => p.estado)).toEqual(["fallida", "omitida", "omitida"]);
       for (const ped of r.pedidos.slice(1)) {
-        expect(await fila(c, "select estado, motivo from app.pedido where id = $1", [ped])).toEqual({ estado: "no_entregado", motivo: "no visitada" });
+        expect(await fila(c, "select estado, motivo from app.pedido where id = $1", [ped])).toEqual({ estado: "no_entregado", motivo: "no alcanzamos a pasar" });
         const duenos = (await c.query("select u.id from app.usuario u where app.fn_tiene_permiso(u.id, 'pedidos.gestionar')")).rows.map((x) => x.id as string);
-        expect(await notificaciones(c, "entrega_fallida", `fallida:${ped}`, duenos)).toBeGreaterThan(0);
+        expect(await notificaciones(c, "entrega_fallida", `fallida:${ped}:r${r.id}`, duenos)).toBeGreaterThan(0);
       }
       // no se puede cerrar dos veces ni iniciar
       expect((await error(c, () => c.query("select app.fn_terminar_ruta($1, $2)", [r.repartidor, r.id]))).message).toBe("ESTADO_NO_VALIDO");
@@ -566,5 +567,137 @@ describe("avisos del repartidor", () => {
       expect((await errorConDetalle(c, () => marcar(almacenista, suyo))).detalle).toEqual({ permiso: "avisos.enviar" });
     });
     void ROL;
+  });
+});
+
+describe("revision F6", () => {
+  it("fecha pasada -> FECHA_NO_VALIDA; ruta de otra sucursal -> NO_ENCONTRADO; RUTA_LLENA al pasar de 200 paradas; indice de pedido por ruta", async () => {
+    await enTransaccion(async (c) => {
+      const k = await catalogoBase(c);
+      const u = await usuarioF3(c);
+      const veh = await vehiculo(c);
+      const rep = await repartidor(c);
+      const crear = (fecha: string) => c.query("select app.fn_crear_ruta($1, 1, $2::jsonb)", [u, JSON.stringify({ fecha, vehiculo_id: veh, repartidor_id: rep })]);
+      const ayer = await dia(c, -1);
+      expect((await error(c, () => crear(ayer))).message).toBe("FECHA_NO_VALIDA");
+      await crear(await dia(c, 0));
+
+      const manana = await dia(c, 1);
+      const cli = await clienteEn(c, "19.000000", "-98.990000");
+      const ped = await pedidoConfirmado(c, cli, [lin(k.six, 1)], manana, k.usuario);
+      const r = await rutaCon(c, [], { fecha: manana, usuario: u });
+      const otraSuc = (await c.query("insert into app.sucursal (nombre) values ('Otra') returning id")).rows[0].id;
+      const forastero = (await c.query(
+        `insert into app.usuario (usuario, nombre, contrasena_hash, rol_id, sucursal_id) values ('tf3_sql_otra' || $2::text, 'Otra', 'x', ${ROL.dueno}, $1) returning id`, [otraSuc, process.pid])).rows[0].id;
+      expect((await error(c, () => c.query("select app.fn_asignar_pedidos($1, $2, $3::bigint[])", [forastero, r.id, [ped]]))).message).toBe("NO_ENCONTRADO");
+      expect((await error(c, () => cargar(c, forastero, r.id))).message).toBe("NO_ENCONTRADO");
+
+      await c.query(
+        "insert into app.ruta_parada (ruta_id, orden, tipo, cliente_id) select $1, g, 'cobro', $2 from generate_series(1, 200) g", [r.id, cli]);
+      const e = await errorConDetalle(c, () => c.query("select app.fn_asignar_pedidos($1, $2, $3::bigint[])", [u, r.id, [ped]]));
+      expect(e.message).toBe("RUTA_LLENA");
+      expect(e.detalle).toEqual({ ruta_id: Number(r.id), maximo: 200 });
+      expect((await c.query("select 1 from pg_indexes where indexname = 'idx_pedido_ruta'")).rowCount).toBe(1);
+    });
+  });
+
+  it("cargar revalida lo asignado: un pedido cuya fecha cambio -> PEDIDO_NO_ASIGNABLE y nada se carga", async () => {
+    await enTransaccion(async (c) => {
+      const r = await rutaJuego(c, { n: 2 });
+      await c.query("update app.pedido set fecha_entrega = $2 where id = $1", [r.pedidos[0], await dia(c, 5)]);
+      const e = await errorConDetalle(c, () => cargar(c, r.usuario, r.id));
+      expect(e.message).toBe("PEDIDO_NO_ASIGNABLE");
+      expect(e.detalle).toEqual({ pedido_ids: [Number(r.pedidos[0])] });
+      expect((await rutaFila(c, r.id)).estado).toBe("planeada");
+    });
+  });
+
+  it("iniciar con otra ruta en curso del mismo repartidor -> ESTADO_NO_VALIDO; cancelar una ruta cargada avisa al repartidor", async () => {
+    await enTransaccion(async (c) => {
+      const a = await rutaJuego(c, { n: 1 });
+      const j = await juego(c, 1);
+      const b = await rutaCon(c, j.pedidos, { fecha: j.manana, repartidor: a.repartidor, usuario: a.usuario });
+      await cargar(c, a.usuario, a.id);
+      await iniciar(c, a.repartidor, a.id);
+      await cargar(c, b.usuario, b.id);
+      const e = await errorConDetalle(c, () => iniciar(c, a.repartidor, b.id));
+      expect(e.message).toBe("ESTADO_NO_VALIDO");
+      expect(e.detalle).toMatchObject({ motivo: "otra_ruta_en_curso" });
+      await c.query("select app.fn_cancelar_ruta($1, $2)", [b.usuario, b.id]);
+      const n = await c.query("select titulo, datos from app.notificacion where evento = 'ruta_cancelada' and clave = $1 and usuario_id = $2", [`ruta:${b.id}:cancelada`, a.repartidor]);
+      expect(n.rows).toEqual([{ titulo: "Ruta cancelada", datos: { ruta: "/reparto" } }]);
+      // una ruta planeada que se cancela no avisa a nadie
+      const c2 = await rutaCon(c, [], { fecha: j.manana, usuario: a.usuario });
+      await c.query("select app.fn_cancelar_ruta($1, $2)", [a.usuario, c2.id]);
+      expect((await c.query("select 1 from app.notificacion where clave = $1", [`ruta:${c2.id}:cancelada`])).rowCount).toBe(0);
+    });
+  });
+
+  it("segunda falla del mismo pedido en otra ruta notifica de nuevo (clave por ruta); motivo `otro` pide nota; clave desconocida -> VALIDACION", async () => {
+    await enTransaccion(async (c) => {
+      const r = await rutaJuego(c, { n: 1 });
+      await cargar(c, r.usuario, r.id);
+      await iniciar(c, r.repartidor, r.id);
+      const p1 = (await paradas(c, r.id))[0]!;
+      expect((await errorConDetalle(c, () => noEntregado(c, r.repartidor, p1.id as string, "otro"))).detalle).toEqual({ campo: "nota" });
+      expect((await errorConDetalle(c, () => noEntregado(c, r.repartidor, p1.id as string, "me dio flojera"))).detalle).toEqual({ campo: "motivo" });
+      await noEntregado(c, r.repartidor, p1.id as string, "otro", "  se cayo la caja  ");
+      expect(await fila(c, "select motivo from app.pedido where id = $1", [r.pedidos[0]])).toEqual({ motivo: "se cayo la caja" });
+      await c.query("select app.fn_terminar_ruta($1, $2)", [r.repartidor, r.id]);
+      await c.query("select app.fn_reprogramar_pedido($1, $2, $3)", [r.usuario, r.pedidos[0], r.manana]);
+      const s = await rutaCon(c, [r.pedidos[0]!], { fecha: r.manana, usuario: r.usuario, repartidor: r.repartidor });
+      await cargar(c, s.usuario, s.id);
+      await iniciar(c, r.repartidor, s.id);
+      const p2 = (await paradas(c, s.id))[0]!;
+      await noEntregado(c, r.repartidor, p2.id as string, "cerrado");
+      const duenos = (await c.query("select u.id from app.usuario u where app.fn_tiene_permiso(u.id, 'pedidos.gestionar')")).rows.map((x) => x.id as string);
+      expect(await notificaciones(c, "entrega_fallida", `fallida:${r.pedidos[0]}:r${r.id}`, duenos)).toBeGreaterThan(0);
+      expect(await notificaciones(c, "entrega_fallida", `fallida:${r.pedidos[0]}:r${s.id}`, duenos)).toBeGreaterThan(0);
+    });
+  });
+
+  it("cancelar un pedido en ruta anula los km (la distancia mostrada es null) sin tocar la fila de la ruta", async () => {
+    await enTransaccion(async (c) => {
+      const r = await rutaJuego(c, { n: 3 });
+      const ps = await paradas(c, r.id);
+      await ordenar(c, r.usuario, r.id, ps.map((p) => p.id as string), [1, 1, 1, 1], true);
+      expect((await fila<{ d: string }>(c, "select app.fn_ruta_distancia($1)::text as d", [r.id])).d).toBe("4.00");
+      await c.query("select app.fn_cancelar_pedido($1, $2, 'ya no')", [r.usuario, r.pedidos[1]]);
+      expect((await fila<{ d: string | null }>(c, "select app.fn_ruta_distancia($1)::text as d", [r.id])).d).toBeNull();
+      expect((await rutaFila(c, r.id)).distancia_km).toBe("4.00"); // la ruta no se toco: solo se anularon las paradas
+    });
+  });
+
+  it("fn_puede_ver_aviso del Repartidor: solo rutas sin terminar y solo plantillas de reparto", async () => {
+    await enTransaccion(async (c) => {
+      const r = await rutaJuego(c, { n: 1 });
+      await cargar(c, r.usuario, r.id);
+      await iniciar(c, r.repartidor, r.id);
+      const ve = async (pl: string | null) => (await c.query("select app.fn_puede_ver_aviso($1, $2, $3) as v", [r.repartidor, r.pedidos[0], pl])).rows[0].v;
+      expect(await ve("wa_pedido_en_ruta")).toBe(true);
+      expect(await ve("wa_entrega_fallida")).toBe(true);
+      expect(await ve("wa_nota_entrega")).toBe(true);
+      expect(await ve("wa_pedido_confirmado")).toBe(false);
+      expect(await ve("wa_datos_transferencia")).toBe(false);
+      await c.query("select app.fn_terminar_ruta($1, $2)", [r.repartidor, r.id]);
+      expect(await ve("wa_pedido_en_ruta")).toBe(false);
+    });
+  });
+
+  it("fn_etapa_pedido y fn_pedidos_requieren_surtido coinciden con la regla de 006 (fn_pedido_requiere_surtido)", async () => {
+    await enTransaccion(async (c) => {
+      const k = await catalogoBase(c);
+      const manana = await dia(c, 1);
+      const cli = await clienteEn(c, "19.000000", "-98.990000");
+      const a = await pedidoConfirmado(c, cli, [lin(k.caja, 2)], manana, k.usuario);
+      const b = await pedidoConfirmado(c, cli, [lin(k.caja, 1)], await dia(c, 2), k.usuario);
+      const solo = await Promise.all([a, b].map(async (p) => (await c.query("select app.fn_pedido_requiere_surtido($1) as v", [p])).rows[0].v as boolean));
+      const lote = (await c.query("select x::text as id from app.fn_pedidos_requieren_surtido($1::bigint[]) x", [[a, b]])).rows.map((x) => x.id as string);
+      expect([a, b].filter((_, i) => solo[i])).toEqual([a, b].filter((p) => lote.includes(p)));
+      expect((await c.query("select app.fn_requiere_surtido($1) as v", [a])).rows[0].v).toBe(solo[0]);
+      const etapa = (await c.query("select app.fn_etapa_pedido($1) as e", [a])).rows[0].e;
+      expect(etapa).toBe(solo[0] ? "surtiendo" : "confirmado");
+      expect((await c.query("select x from app.fn_pedidos_requieren_surtido('{}'::bigint[]) x")).rowCount).toBe(0);
+    });
   });
 });

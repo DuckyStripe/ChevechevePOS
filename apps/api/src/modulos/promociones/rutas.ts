@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { paramId } from "../../comun/ids.js";
+import { verCostos } from "../surtido/rutas.js";
 import { esquemaCrearPromocion, esquemaEditarPromocion, esquemaListaPromociones } from "./esquemas.js";
 import { borrarPromocion, crearPromocion, editarPromocion, listarPromociones } from "./servicio.js";
 
@@ -7,7 +8,7 @@ const ver = { permiso: "surtido.ver" };
 const escribir = { permiso: "compras.registrar" };
 
 export async function rutasPromociones(app: FastifyInstance): Promise<void> {
-  app.get("/", { config: ver }, async (req) => listarPromociones(esquemaListaPromociones.parse(req.query)));
+  app.get("/", { config: ver }, async (req) => listarPromociones(esquemaListaPromociones.parse(req.query), verCostos(req.usuario!.permisos)));
 
   app.post("/", { config: escribir }, async (req, reply) => {
     const p = await crearPromocion(req.usuario!.id, esquemaCrearPromocion.parse(req.body));

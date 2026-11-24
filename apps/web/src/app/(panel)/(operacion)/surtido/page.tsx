@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Tag } from "lucide-react";
 import { ImprimirLista, MandarWhatsApp, PublicarLista } from "@/componentes/surtido/acciones-surtido";
 import { fecha as fechaLarga, itemsDe } from "@/componentes/productos/formato";
@@ -22,7 +23,15 @@ function Linea({ l }: { l: LineaSurtido }) {
   return (
     <li className="flex flex-col gap-1 border-t border-borde py-3 first:border-t-0">
       <p className="text-base font-semibold [overflow-wrap:anywhere]">{l.producto}</p>
-      {comprar > 0 && l.presentacion ? (
+      {l.sin_presentacion_compra ? (
+        <p className="text-base font-bold text-peligro">
+          Sin presentación de compra:{" "}
+          <Link href={`/productos/${l.producto_id}`} className="underline">
+            configúrala en el producto
+          </Link>
+          .
+        </p>
+      ) : comprar > 0 && l.presentacion ? (
         <p className="text-2xl font-bold text-marca-fuerte">
           Comprar {comprar} <span className="text-lg">{l.presentacion}</span>
         </p>
@@ -36,11 +45,13 @@ function Linea({ l }: { l: LineaSurtido }) {
       </p>
       {l.reponer_minimo > 0 && <p className="text-base text-suave">Para no quedarte debajo de tu mínimo, {piezas(l.reponer_minimo)} más.</p>}
       {l.sugerido_demanda > 0 && <p className="text-base text-suave">Por lo que vendes, conviene pedir {piezas(l.sugerido_demanda)} extra (tú decides).</p>}
-      {l.costo_promocion != null && l.ahorro != null && (
+      {l.costo_promocion != null && l.ahorro != null && (l.ahorro.startsWith("-") ? (
+        <p className="text-base text-suave">La promoción sale más cara que tu última compra.</p>
+      ) : (
         <p className="flex items-start gap-1 text-base font-medium text-exito">
           <Tag aria-hidden className="mt-1 size-4 shrink-0" /> Hay promoción: a {dinero(l.costo_promocion)} cada {l.presentacion ?? "una"}. Ahorras {dinero(l.ahorro)}.
         </p>
-      )}
+      ))}
       {(l.ultimo_costo != null || l.costo_estimado != null) && (
         <p className="text-base text-suave">
           {l.ultimo_costo != null && <>Te costó {dinero(l.ultimo_costo)} la última vez</>}
@@ -114,20 +125,26 @@ export default async function PaginaSurtido({ searchParams }: { searchParams: SP
           <p className="text-base text-suave">
             {totales.productos} {totales.productos === 1 ? "producto" : "productos"} por comprar
             {totales.costo_estimado != null && <> · Calculado: <strong className="text-texto">{dinero(totales.costo_estimado)}</strong></>}
+            {(totales.sin_costo_previo ?? 0) > 0 && <> (sin costo previo en {totales.sin_costo_previo} {totales.sin_costo_previo === 1 ? "producto" : "productos"})</>}
           </p>
           {proveedores.map((g) => (
             <Tarjeta key={g.proveedor_id ?? "sin"} className="flex flex-col gap-2 break-inside-avoid">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-xl font-bold [overflow-wrap:anywhere]">{g.proveedor ?? "Sin proveedor fijo"}</h2>
-                  {g.costo_estimado != null && <p className="text-base text-suave">Calculado: {dinero(g.costo_estimado)}</p>}
+                  {g.costo_estimado != null && (
+                    <p className="text-base text-suave">
+                      Calculado: {dinero(g.costo_estimado)}
+                      {(g.sin_costo_previo ?? 0) > 0 && ` (sin costo previo en ${g.sin_costo_previo} ${g.sin_costo_previo === 1 ? "producto" : "productos"})`}
+                    </p>
+                  )}
                   {g.proveedor_id == null && <p className="text-base text-suave">Asígnale proveedor a estos productos para poder mandarles el pedido.</p>}
                 </div>
                 {g.proveedor_id != null && (
                   <div className="flex flex-wrap gap-2 print:hidden">
                     <MandarWhatsApp fecha={fecha} proveedorId={String(g.proveedor_id)} proveedor={g.proveedor ?? "el proveedor"} />
                     {puedeComprar && (
-                      <BotonEnlace href={`/compras/nueva?surtido=${fecha}&proveedor_id=${g.proveedor_id}`}>Registrar compra</BotonEnlace>
+                      <BotonEnlace href={`/compras/nueva?surtido=${fecha}&proveedor_id=${g.proveedor_id}${sp.ruta_id ? `&ruta_id=${sp.ruta_id}` : ""}`}>Registrar compra</BotonEnlace>
                     )}
                   </div>
                 )}

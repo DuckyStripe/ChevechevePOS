@@ -95,13 +95,14 @@ describe("avisos del Repartidor (solo los de pedidos de sus rutas)", () => {
 
   it("una ruta cancelada deja de ser suya: sus avisos desaparecen del Repartidor", async () => {
     const extra = await escenarioF6(app, dueno, { n: 1 });
-    const r = await pedir("POST", "/api/rutas", dueno.token, { fecha: extra.manana, vehiculo_id: extra.vehiculo, repartidor_id: rep.id });
+    const nuevo = await repartidorF6(app); // `rep` ya tiene una ruta en curso: no puede iniciar otra
+    const r = await pedir("POST", "/api/rutas", dueno.token, { fecha: extra.manana, vehiculo_id: extra.vehiculo, repartidor_id: nuevo.id });
     const id = r.json<RutaApi>().id;
     await pedir("POST", `/api/rutas/${id}/pedidos`, dueno.token, { pedido_ids: extra.pedidos });
     await pedir("POST", `/api/rutas/${id}/cargar`, dueno.token);
-    await pedir("POST", `/api/rutas/${id}/iniciar`, rep.token, {});
+    await pedir("POST", `/api/rutas/${id}/iniciar`, nuevo.token, {});
     const folio = await folioDe(extra.pedidos[0]!);
-    const ver = async () => (await pedir("GET", "/api/avisos?por_pagina=200", rep.token)).json<{ items: Aviso[] }>().items.map((a) => a.pedido_folio);
+    const ver = async () => (await pedir("GET", "/api/avisos?por_pagina=200", nuevo.token)).json<{ items: Aviso[] }>().items.map((a) => a.pedido_folio);
     expect(await ver()).toContain(folio);
     await pool.query("update app.ruta set estado = 'cancelada' where id = $1", [id]);
     expect(await ver()).not.toContain(folio);

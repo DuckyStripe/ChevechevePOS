@@ -20,16 +20,18 @@ type Linea = { presentacion_id: string; producto: string; presentacion: string; 
 type Borrador = { clave: string; proveedor_id: string; folio_proveedor: string; fecha: string; condicion_pago: "contado" | "credito"; lineas: Linea[]; fecha_surtido?: string };
 
 /** F5: lo que trae `/compras/nueva?surtido=<fecha>&proveedor_id=` desde la lista de surtido (la cantidad sugerida y el costo, ya calculados en la API). */
-export type PrecargaSurtido = { fecha_surtido: string; proveedor_id: string; lineas: Omit<Linea, "caduca_el">[] };
+export type PrecargaSurtido = { fecha_surtido: string; proveedor_id: string; ruta_id?: string; lineas: Omit<Linea, "caduca_el">[] };
 
 const llave = (usuario: string) => `chv:compra-borrador:${usuario}`;
+/** La compra que sale de la lista de surtido tiene su propio borrador: nunca pisa el borrador normal del usuario. */
+const llaveSurtido = (usuario: string, p: PrecargaSurtido) => `${llave(usuario)}:surtido:${p.fecha_surtido}:${p.proveedor_id}${p.ruta_id ? `:ruta:${p.ruta_id}` : ""}`;
 
 /** La clave de idempotencia nace al abrir la pantalla: reintentar con la misma clave no duplica la compra (C8/P5). */
 const vacio = (): Borrador => ({ clave: uuid(), proveedor_id: "", folio_proveedor: "", fecha: hoyMX(), condicion_pago: "contado", lineas: [] });
 
-function leerBorrador(usuario: string): Borrador {
+function leerBorrador(clave: string): Borrador {
   try {
-    const raw = localStorage.getItem(llave(usuario));
+    const raw = localStorage.getItem(clave);
     if (raw) {
       const b = JSON.parse(raw) as Partial<Borrador>;
       if (typeof b.clave === "string" && Array.isArray(b.lineas)) return { ...vacio(), ...b, lineas: b.lineas } as Borrador;
@@ -59,13 +61,31 @@ function totalEstimado(lineas: Linea[]): string | null {
   return alguna ? deCentavos(t) : null;
 }
 
+const desdePrecarga = (p: PrecargaSurtido): Borrador => ({
+  ...vacio(), proveedor_id: p.proveedor_id, fecha_surtido: p.fecha_surtido, lineas: p.lineas.map((l) => ({ ...l, caduca_el: "" })),
+});
+
+/** Con precarga: su borrador propio si ya existe (sobrevive recargar, con su clave); si no, el borrador normal si tiene lineas (se muestra intacto y se ofrece la lista); si no, la lista. */
+function inicio(usuario: string, precarga?: PrecargaSurtido): { b: Borrador; clave: string; ofrecer: boolean } {
+  if (!precarga) return { b: leerBorrador(llave(usuario)), clave: llave(usuario), ofrecer: false };
+  const propia = llaveSurtido(usuario, precarga);
+  try {
+    if (localStorage.getItem(propia)) return { b: leerBorrador(propia), clave: propia, ofrecer: false };
+  } catch {
+    /* sin almacenamiento */
+  }
+  const normal = leerBorrador(llave(usuario));
+  if (normal.lineas.length > 0) return { b: normal, clave: llave(usuario), ofrecer: true };
+  return { b: desdePrecarga(precarga), clave: propia, ofrecer: false };
+}
+
 function Editor({ usuarioId, proveedores, precarga }: { usuarioId: string; proveedores: Proveedor[]; precarga?: PrecargaSurtido }) {
   const router = useRouter();
-  const [b, setB] = useState<Borrador>(() =>
-    precarga
-      ? { ...vacio(), proveedor_id: precarga.proveedor_id, fecha_surtido: precarga.fecha_surtido, lineas: precarga.lineas.map((l) => ({ ...l, caduca_el: "" })) }
-      : leerBorrador(usuarioId),
-  );
+  const [ini] = useState(() => inicio(usuarioId, precarga));
+  const [b, setB] = useState<Borrador>(ini.b);
+  const [clave, setClave] = useState(ini.clave);
+  const [ofrecer, setOfrecer] = useState(ini.ofrecer);
+  const [confirmarReemplazo, setConfirmarReemplazo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aProveedores, setAProveedores] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -77,11 +97,11 @@ function Editor({ usuarioId, proveedores, precarga }: { usuarioId: string; prove
   useEffect(() => {
     if (guardada) return;
     try {
-      localStorage.setItem(llave(usuarioId), JSON.stringify(b));
+      localStorage.setItem(clave, JSON.stringify(b));
     } catch {
       /* cuota o modo privado: no se guarda el borrador, la pantalla sigue funcionando */
     }
-  }, [b, guardada, usuarioId]);
+  }, [b, guardada, clave]);
 
   const cambiarLinea = (id: string, parcial: Partial<Linea>) => setB((x) => ({ ...x, lineas: x.lineas.map((l) => (l.presentacion_id === id ? { ...l, ...parcial } : l)) }));
 
@@ -135,11 +155,21 @@ function Editor({ usuarioId, proveedores, precarga }: { usuarioId: string; prove
     }
     setGuardada(true);
     try {
-      localStorage.removeItem(llave(usuarioId));
+      localStorage.removeItem(clave);
     } catch {
       /* nada que limpiar */
     }
     router.push(`/compras/${r.datos.id}?registrada=1`);
+  }
+
+  /** Solo con la confirmacion explicita: la lista de surtido pasa a su propio borrador; el borrador normal queda guardado como estaba. */
+  function reemplazarConSurtido() {
+    if (!precarga) return;
+    setB(desdePrecarga(precarga));
+    setClave(llaveSurtido(usuarioId, precarga));
+    setOfrecer(false);
+    setConfirmarReemplazo(false);
+    setError(null);
   }
 
   function empezarDeNuevo() {
@@ -152,6 +182,14 @@ function Editor({ usuarioId, proveedores, precarga }: { usuarioId: string; prove
 
   return (
     <div className="flex flex-col gap-5 pb-24">
+      {ofrecer && (
+        <Tarjeta className="flex flex-col gap-3 border-marca">
+          <p className="text-base">Tienes una compra a medias. Aquí está intacta. También hay una lista de surtido lista para comprar.</p>
+          <Boton variante="secundario" className="self-start" onClick={() => setConfirmarReemplazo(true)}>
+            Reemplazar con la lista de surtido
+          </Boton>
+        </Tarjeta>
+      )}
       <Tarjeta className="flex flex-col gap-4">
         <h2 className="text-lg font-bold">1. ¿A quién le compraste?</h2>
         <Selector etiqueta="Proveedor" value={b.proveedor_id} onChange={(e) => setB({ ...b, proveedor_id: e.target.value })}>
@@ -277,6 +315,7 @@ function Editor({ usuarioId, proveedores, precarga }: { usuarioId: string; prove
         </div>
       </div>
 
+      <DialogoConfirmar abierto={confirmarReemplazo} titulo="¿Reemplazar con la lista de surtido?" texto="Dejas de ver lo que llevas capturado y empiezas con lo que sugiere la lista. Lo anterior se guarda: lo ves al entrar a Registrar compra sin la lista." confirmar="Sí, usar la lista" alConfirmar={reemplazarConSurtido} alCerrar={() => setConfirmarReemplazo(false)} />
       <DialogoConfirmar abierto={reiniciar} titulo="¿Empezar de nuevo?" texto="Se borra lo que llevas capturado en esta compra." confirmar="Sí, borrarlo" peligro alConfirmar={empezarDeNuevo} alCerrar={() => setReiniciar(false)} />
     </div>
   );

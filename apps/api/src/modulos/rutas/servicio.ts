@@ -18,7 +18,7 @@ const FILA_LISTA = `r.id::text as id, r.folio, r.fecha::text as fecha, r.nombre,
   r.estado,
   (select count(*)::int from app.ruta_parada pa where pa.ruta_id = r.id) as paradas,
   (select count(*)::int from app.ruta_parada pa where pa.ruta_id = r.id and pa.estado = 'visitada') as entregadas,
-  r.distancia_km`;
+  app.fn_ruta_distancia(r.id) as distancia_km`;
 const DESDE_LISTA = `from app.ruta r join app.vehiculo v on v.id = r.vehiculo_id join app.usuario u on u.id = r.repartidor_id`;
 
 export async function listarRutas(u: UsuarioSesion, f: Pagina & { fecha?: string; estado?: string; repartidor_id?: string }) {
@@ -49,8 +49,8 @@ interface ParadaFila {
   pedido: { id: string; folio: string; total: string; estado: string; lineas: { cantidad: number; presentacion: string; producto: string }[] } | null;
 }
 
-/** Ruta con sus paradas y enlaces de navegacion. Con `u` y sin `rutas.ver`, una ruta ajena es 404. */
-export async function detalleRuta(q: Q, id: string, u?: UsuarioSesion) {
+/** Ruta con sus paradas y enlaces de navegacion. Otra sucursal o, sin `rutas.ver`, una ruta ajena: 404. */
+export async function detalleRuta(q: Q, id: string, u: UsuarioSesion) {
   const r = await q.query(
     `select ${FILA_LISTA}, r.sucursal_id::text as sucursal_id, r.repartidor_id::text as repartidor_id, v.capacidad_cajas,
             r.optimizada_en, r.cargada_en, r.iniciada_en, r.terminada_en, r.creado_en,
@@ -59,7 +59,8 @@ export async function detalleRuta(q: Q, id: string, u?: UsuarioSesion) {
     [id],
   );
   const ruta = r.rows[0];
-  if (!ruta || (u && soloPropias(u) && ruta.repartidor_id !== u.id)) throw new AppError("NO_ENCONTRADO");
+  // Unico filtro de sucursal y de «solo las propias» de la lectura de rutas.
+  if (!ruta || ruta.sucursal_id !== u.sucursal_id || (soloPropias(u) && ruta.repartidor_id !== u.id)) throw new AppError("NO_ENCONTRADO");
   const ps = await q.query<ParadaFila>(
     `select pa.id::text as id, pa.orden, pa.tipo, pa.estado, pa.km_desde_anterior, pa.nota,
             json_build_object('id', c.id::text, 'nombre', c.nombre, 'direccion', c.direccion, 'referencias', c.referencias,
@@ -126,14 +127,14 @@ export async function candidatos(u: UsuarioSesion, id: string) {
 export async function crearRuta(u: UsuarioSesion, d: { fecha: string; nombre?: string; vehiculo_id: string; repartidor_id: string }) {
   return conUsuario(u.id, async (c) => {
     const r = await c.query<{ id: string }>("select app.fn_crear_ruta($1::bigint, $2::bigint, $3::jsonb) as id", [u.id, u.sucursal_id, JSON.stringify(d)]);
-    return detalleRuta(c, r.rows[0]!.id);
+    return detalleRuta(c, r.rows[0]!.id, u);
   });
 }
 
 export async function asignarPedidos(u: UsuarioSesion, id: string, pedidoIds: string[]) {
   return conUsuario(u.id, async (c) => {
     await c.query("select app.fn_asignar_pedidos($1::bigint, $2::bigint, $3::bigint[])", [u.id, id, pedidoIds]);
-    return detalleRuta(c, id);
+    return detalleRuta(c, id, u);
   });
 }
 
@@ -142,14 +143,14 @@ export async function quitarParada(u: UsuarioSesion, paradaId: string) {
     const r = await c.query<{ ruta_id: string }>("select ruta_id::text as ruta_id from app.ruta_parada where id = $1", [paradaId]);
     if (!r.rows[0]) throw new AppError("NO_ENCONTRADO");
     await c.query("select app.fn_quitar_parada($1::bigint, $2::bigint)", [u.id, paradaId]);
-    return detalleRuta(c, r.rows[0].ruta_id);
+    return detalleRuta(c, r.rows[0].ruta_id, u);
   });
 }
 
 export async function ordenarManual(u: UsuarioSesion, id: string, paradas: string[]) {
   return conUsuario(u.id, async (c) => {
     await c.query("select app.fn_ordenar_ruta($1::bigint, $2::bigint, $3::bigint[])", [u.id, id, paradas]);
-    return detalleRuta(c, id);
+    return detalleRuta(c, id, u);
   });
 }
 
@@ -157,7 +158,7 @@ export async function ordenarManual(u: UsuarioSesion, id: string, paradas: strin
 export async function optimizar(u: UsuarioSesion, id: string) {
   return conUsuario(u.id, async (c) => {
     const r = await c.query<{ estado: string; distancia_km: string | null; lat: string | null; lng: string | null }>(
-      "select r.estado, r.distancia_km::text as distancia_km, s.lat::text as lat, s.lng::text as lng from app.ruta r join app.sucursal s on s.id = r.sucursal_id where r.id = $1 and r.sucursal_id = $2",
+      "select r.estado, app.fn_ruta_distancia(r.id)::text as distancia_km, s.lat::text as lat, s.lng::text as lng from app.ruta r join app.sucursal s on s.id = r.sucursal_id where r.id = $1 and r.sucursal_id = $2",
       [id, u.sucursal_id],
     );
     const ruta = r.rows[0];
@@ -175,10 +176,10 @@ export async function optimizar(u: UsuarioSesion, id: string) {
       ps.rows.map((p) => ({ id: p.id, cliente_id: p.cliente_id, lat: num(p.lat), lng: num(p.lng) })),
     );
     await c.query("select app.fn_ordenar_ruta($1::bigint, $2::bigint, $3::bigint[], $4::numeric[], true)", [u.id, id, res.orden, res.km]);
-    const nueva = await c.query<{ distancia_km: string | null }>("select distancia_km::text as distancia_km from app.ruta where id = $1", [id]);
+    const nueva = await c.query<{ distancia_km: string | null }>("select app.fn_ruta_distancia(id)::text as distancia_km from app.ruta where id = $1", [id]);
     const nombres = new Map(ps.rows.map((p) => [p.id, p.nombre]));
     return {
-      ruta: await detalleRuta(c, id),
+      ruta: await detalleRuta(c, id, u),
       distancia_km: nueva.rows[0]!.distancia_km,
       distancia_anterior_km: ruta.distancia_km,
       sin_ubicacion: res.sin_ubicacion,
@@ -191,7 +192,7 @@ export async function cargarRuta(u: UsuarioSesion, id: string) {
   return conUsuario(u.id, async (c) => {
     const r = await c.query<{ r: { advertencias: unknown[] } & Record<string, unknown> }>("select app.fn_cargar_ruta($1::bigint, $2::bigint) as r", [u.id, id]);
     const { advertencias, ...carga } = r.rows[0]!.r;
-    return { ruta: await detalleRuta(c, id), carga, advertencias };
+    return { ruta: await detalleRuta(c, id, u), carga, advertencias };
   });
 }
 
@@ -208,7 +209,7 @@ async function detalleRutaVisible(u: UsuarioSesion, id: string): Promise<void> {
 export async function cancelarRuta(u: UsuarioSesion, id: string) {
   return conUsuario(u.id, async (c) => {
     await c.query("select app.fn_cancelar_ruta($1::bigint, $2::bigint)", [u.id, id]);
-    return detalleRuta(c, id);
+    return detalleRuta(c, id, u);
   });
 }
 
@@ -216,21 +217,21 @@ export async function cancelarRuta(u: UsuarioSesion, id: string) {
 export async function iniciarRuta(u: UsuarioSesion, id: string) {
   return conUsuario(u.id, async (c) => {
     await c.query("select app.fn_iniciar_ruta($1::bigint, $2::bigint)", [u.id, id]);
-    return { ruta: await detalleRuta(c, id), turno: null };
+    return { ruta: await detalleRuta(c, id, u), turno: null };
   });
 }
 
 export async function terminarRuta(u: UsuarioSesion, id: string) {
   return conUsuario(u.id, async (c) => {
     await c.query("select app.fn_terminar_ruta($1::bigint, $2::bigint)", [u.id, id]);
-    return detalleRuta(c, id);
+    return detalleRuta(c, id, u);
   });
 }
 
 /** Idempotente por estado: una parada ya fallida responde la misma parada. */
-export async function noEntregado(u: UsuarioSesion, paradaId: string, motivo: string) {
+export async function noEntregado(u: UsuarioSesion, paradaId: string, motivo: string, nota?: string) {
   return conUsuario(u.id, async (c) => {
-    await c.query("select app.fn_marcar_no_entregado($1::bigint, $2::bigint, $3::text)", [u.id, paradaId, motivo]);
+    await c.query("select app.fn_marcar_no_entregado($1::bigint, $2::bigint, $3::text, $4::text)", [u.id, paradaId, motivo, nota ?? null]);
     const r = await c.query(
       "select id::text as id, ruta_id::text as ruta_id, orden, tipo, estado, pedido_id::text as pedido_id, cliente_id::text as cliente_id, nota, visitada_en from app.ruta_parada where id = $1",
       [paradaId],

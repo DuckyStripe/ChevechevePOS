@@ -33,11 +33,19 @@ async function leer(c: pg.PoolClient, id: string) {
   return r.rows[0];
 }
 
+/** Telefono con formato que sirva para WhatsApp (10 digitos, o 12-13 con lada de pais); la regla vive en SQL. */
+async function validarTelefono(c: pg.PoolClient, tel: string | null | undefined) {
+  if (!tel) return;
+  const r = await c.query<{ n: string | null }>("select app.fn_normalizar_telefono($1) as n", [tel]);
+  if (!r.rows[0]!.n) throw new AppError("VALIDACION", [{ path: ["telefono"], message: "El teléfono no es válido. Escríbelo con 10 dígitos, por ejemplo 5512345678." }]);
+}
+
 export async function crearProveedor(
   actor: string,
   d: { nombre: string; telefono?: string | null; contacto?: string | null; notas?: string | null; activo?: boolean },
 ) {
   return conUsuario(actor, async (c) => {
+    await validarTelefono(c, d.telefono);
     const r = await c.query<{ id: string }>(
       `insert into app.proveedor (nombre, telefono, contacto, notas, activo)
        values ($1, $2, $3, $4, coalesce($5::boolean, true)) returning id`,
@@ -50,6 +58,7 @@ export async function crearProveedor(
 export async function editarProveedor(actor: string, id: string, d: Record<string, unknown>) {
   return conUsuario(actor, async (c) => {
     await leer(c, id);
+    await validarTelefono(c, d.telefono as string | null | undefined);
     const sets: string[] = [];
     const p: unknown[] = [id];
     for (const [col, v] of Object.entries(d)) {

@@ -14,7 +14,7 @@ const SELECT = `select pp.id, json_build_object('id', pv.id::text, 'nombre', pv.
   join app.presentacion pz on pz.id = pp.presentacion_id
   join app.producto pr on pr.id = pz.producto_id`;
 
-export async function listarPromociones(f: Pagina & { vigentes?: boolean; proveedor_id?: string }) {
+export async function listarPromociones(f: Pagina & { vigentes?: boolean; proveedor_id?: string }, veCostos: boolean) {
   const p: unknown[] = [];
   const donde: string[] = [];
   if (f.vigentes) donde.push("app.fn_fecha_local(now()) between pp.desde and pp.hasta");
@@ -29,7 +29,10 @@ export async function listarPromociones(f: Pagina & { vigentes?: boolean; provee
       order by pp.hasta desc, pp.id desc limit $${p.length - 1} offset $${p.length}`,
     p,
   );
-  return listadoDeFilas(r.rows, f);
+  const lista = listadoDeFilas(r.rows, f);
+  // Sin costos.ver ni compras.registrar el costo de la promocion se borra (misma regla que /surtido).
+  if (!veCostos) for (const x of lista.items) delete (x as { costo_presentacion?: string }).costo_presentacion;
+  return lista;
 }
 
 async function leer(c: pg.PoolClient, id: string) {

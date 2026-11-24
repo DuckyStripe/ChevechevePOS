@@ -60,8 +60,8 @@ describe("migracion 001", () => {
     const v = await pool.query("select valor from app.configuracion where clave in ('respaldo_ultima_prueba','hora_corte') order by clave");
     expect(v.rows.map((x) => x.valor)).toEqual(["18:00", null]);
 
-    const pl = await pool.query("select clave, canal, titulo from app.plantilla");
-    expect(pl.rows).toHaveLength(46);
+    // Solo las plantillas de 001–004; migraciones posteriores agregan las suyas.
+    const pl = await pool.query("select clave, canal, titulo from app.plantilla where clave = any($1)", [[...PUSH, ...WA, ...PANTALLA, ...ESTADO]]);
     expect(pl.rows.map((x) => x.clave).sort()).toEqual([...PUSH, ...WA, ...PANTALLA, ...ESTADO].sort());
     for (const x of pl.rows) {
       const canal = x.clave.startsWith("wa_") ? "whatsapp" : x.clave.startsWith("push_") ? "push" : "pantalla";
