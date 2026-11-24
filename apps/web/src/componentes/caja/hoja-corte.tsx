@@ -16,7 +16,7 @@ export function HojaCorte({ r, usuario, abierto, titulo = "Corte de caja" }: { r
           {abierto && <p>Abierto: {fechaHora(abierto)}</p>}
           <p>Impreso: {fechaHora(new Date().toISOString())}</p>
         </header>
-        <ResumenCaja r={r} />
+        <ResumenCaja r={r} plano />
         <p className="pt-6">Firma: ______________________</p>
       </article>
     </div>

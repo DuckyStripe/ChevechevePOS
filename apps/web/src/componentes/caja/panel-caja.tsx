@@ -81,7 +81,7 @@ export function PanelCaja({ turno, resumen, cajas, volver, puedeAbrir, puedeVend
   if (cierre) {
     return (
       <Tarjeta className="flex flex-col gap-3">
-        <p role="status" className="text-2xl font-extrabold">Turno cerrado</p>
+        <p role="status" className="text-2xl font-extrabold text-exito">Turno cerrado</p>
         <ResumenCaja r={cierre} />
         <BotonImprimirTicket texto="Imprimir corte" variante="secundario" />
         <BotonEnlace href="/caja">Listo</BotonEnlace>
@@ -115,53 +115,61 @@ export function PanelCaja({ turno, resumen, cajas, volver, puedeAbrir, puedeVend
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Tarjeta className="flex flex-col gap-1">
-        <p className="text-lg font-bold">{esRuta ? "Turno de tu ruta" : "Turno de mostrador"}</p>
-        <p className="text-base text-suave">Abierto desde {fechaHora(turno.abierto_en)} · empezó con {dinero(turno.fondo_inicial)}</p>
-        {volver && <BotonEnlace className="!min-h-14 mt-2" href={volver}>Volver a la ruta</BotonEnlace>}
-        {!esRuta && puedeVender && <BotonEnlace className="!min-h-14 mt-2" href="/pos">Vender</BotonEnlace>}
-      </Tarjeta>
-
-      <Tarjeta aria-labelledby="mov" className="flex flex-col gap-3">
-        <h2 id="mov" className="text-xl font-bold">{esRuta ? "Anotar un gasto" : "Anotar un movimiento"}</h2>
-        {tipos.length > 1 && (
-          <div className="grid grid-cols-3 gap-2">
-            {tipos.map((t) => <Boton key={t.v} variante={tipo === t.v ? "primario" : "secundario"} aria-pressed={tipo === t.v} className="!px-2" onClick={() => setTipo(t.v)}>{t.texto}</Boton>)}
+    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-6">
+      <div className="contents lg:flex lg:flex-col lg:gap-4">
+        <Tarjeta className="order-1 flex flex-col gap-3 lg:order-none">
+          <div className="min-w-0">
+            <p className="text-xl font-bold">{esRuta ? "Turno de tu ruta" : "Turno de mostrador"}</p>
+            <p className="text-base text-suave">Abierto desde {fechaHora(turno.abierto_en)} · empezó con <span className="cifra">{dinero(turno.fondo_inicial)}</span></p>
           </div>
+          {(volver || (!esRuta && puedeVender)) && (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {volver && <BotonEnlace tam="grande" className="sm:flex-1" href={volver}>Volver a la ruta</BotonEnlace>}
+              {!esRuta && puedeVender && <BotonEnlace tam="grande" className="sm:flex-1" href="/pos">Vender</BotonEnlace>}
+            </div>
+          )}
+        </Tarjeta>
+
+        <Tarjeta aria-labelledby="mov" className="order-2 flex flex-col gap-3 lg:order-none">
+          <h2 id="mov" className="text-xl font-bold">{esRuta ? "Anotar un gasto" : "Anotar un movimiento"}</h2>
+          {tipos.length > 1 && (
+            <div className="grid grid-cols-3 gap-2">
+              {tipos.map((t) => <Boton key={t.v} variante={tipo === t.v ? "primario" : "secundario"} aria-pressed={tipo === t.v} className="!px-2" onClick={() => setTipo(t.v)}>{t.texto}</Boton>)}
+            </div>
+          )}
+          <p className="text-base text-suave">{tipos.find((t) => t.v === tipo)?.ayuda}</p>
+          <Teclado etiqueta="Monto" valor={monto} alCambiar={setMonto} />
+          <Campo etiqueta="Motivo (por ejemplo: gasolina)" value={motivo} maxLength={120} onChange={(e) => setMotivo(e.target.value)} />
+          {error && <Aviso texto={error} />}
+          <Boton className="!min-h-14 !text-lg [overflow-wrap:anywhere]" cargando={ocupado === "mov"} disabled={!montoValido(monto) || !motivo.trim()} onClick={() => void anotar()}>
+            {montoValido(monto) ? `Guardar ${dinero(monto)}` : "Escribe el monto"}
+          </Boton>
+        </Tarjeta>
+
+        {esRuta ? (
+          <p className="order-4 text-base text-suave lg:order-none">Al terminar tu ruta, quien liquida cuenta el efectivo contigo.</p>
+        ) : (
+          <details className="order-4 rounded-tarjeta border border-borde bg-superficie px-4 py-2 lg:order-none">
+            <summary className="flex min-h-14 cursor-pointer items-center text-base font-semibold">Cerrar mi turno</summary>
+            <div className="flex flex-col gap-3 pb-2">
+              {resumen && <p className="text-base">Debe haber <strong className="cifra">{dinero(resumen.efectivo_esperado)}</strong> en efectivo.</p>}
+              <Campo etiqueta="Efectivo que contaste" inputMode="decimal" value={contado} onChange={(e) => setContado(e.target.value.replace(",", "."))} />
+              <Campo etiqueta="Notas (opcional)" value={notas} maxLength={200} onChange={(e) => setNotas(e.target.value)} />
+              <Boton variante="peligro" className="!min-h-14" cargando={ocupado === "cerrar"} disabled={!/^\d{1,10}(\.\d{1,2})?$/.test(contado)} onClick={() => void cerrar()}>
+                Cerrar turno
+              </Boton>
+            </div>
+          </details>
         )}
-        <p className="text-base text-suave">{tipos.find((t) => t.v === tipo)?.ayuda}</p>
-        <Teclado etiqueta="Monto" valor={monto} alCambiar={setMonto} />
-        <Campo etiqueta="Motivo (por ejemplo: gasolina)" value={motivo} maxLength={120} onChange={(e) => setMotivo(e.target.value)} />
-        {error && <Aviso texto={error} />}
-        <Boton className="!min-h-14 !text-lg" cargando={ocupado === "mov"} disabled={!montoValido(monto) || !motivo.trim()} onClick={() => void anotar()}>
-          {montoValido(monto) ? `Guardar ${dinero(monto)}` : "Escribe el monto"}
-        </Boton>
-      </Tarjeta>
+      </div>
 
       {resumen && (
-        <Tarjeta aria-labelledby="res">
-          <h2 id="res" className="mb-1 text-xl font-bold">Cómo va tu turno</h2>
+        <Tarjeta aria-labelledby="res" className="order-3 lg:sticky lg:top-20 lg:order-none">
+          <h2 id="res" className="mb-3 text-xl font-bold">Cómo va tu turno</h2>
           <ResumenCaja r={resumen} />
-          {!esRuta && <div className="mt-3"><BotonImprimirTicket texto="Imprimir corte" variante="secundario" /></div>}
+          {!esRuta && <div className="mt-4"><BotonImprimirTicket texto="Imprimir corte" variante="secundario" /></div>}
           {!esRuta && <HojaCorte r={resumen} usuario={turno.usuario} abierto={turno.abierto_en} titulo="Corte parcial" />}
         </Tarjeta>
-      )}
-
-      {esRuta ? (
-        <p className="text-base text-suave">Al terminar tu ruta, quien liquida cuenta el efectivo contigo.</p>
-      ) : (
-        <details className="rounded-tarjeta border border-borde bg-superficie px-4 py-2">
-          <summary className="flex min-h-14 cursor-pointer items-center text-base font-semibold">Cerrar mi turno</summary>
-          <div className="flex flex-col gap-3 pb-2">
-            {resumen && <p className="text-base">Debe haber {dinero(resumen.efectivo_esperado)} en efectivo.</p>}
-            <Campo etiqueta="Efectivo que contaste" inputMode="decimal" value={contado} onChange={(e) => setContado(e.target.value.replace(",", "."))} />
-            <Campo etiqueta="Notas (opcional)" value={notas} maxLength={200} onChange={(e) => setNotas(e.target.value)} />
-            <Boton variante="peligro" className="!min-h-14" cargando={ocupado === "cerrar"} disabled={!/^\d{1,10}(\.\d{1,2})?$/.test(contado)} onClick={() => void cerrar()}>
-              Cerrar turno
-            </Boton>
-          </div>
-        </details>
       )}
     </div>
   );
