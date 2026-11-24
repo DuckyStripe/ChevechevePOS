@@ -81,6 +81,21 @@ export default async function HojaCarga({ params }: { params: Promise<{ id: stri
         </ol>
       )}
 
+      {c.regalos && c.regalos.length > 0 && (
+        <Tarjeta aria-labelledby="regalos" className="flex flex-col gap-1 break-inside-avoid print:border-2 print:border-black print:p-2">
+          <h2 id="regalos" className="text-xl font-bold">
+            Regalos de lealtad
+          </h2>
+          <ul className="flex flex-col">
+            {c.regalos.map((g, i) => (
+              <li key={i} className="border-t border-borde py-1 text-xl font-bold [overflow-wrap:anywhere] print:border-black">
+                Sube con la parada {g.carga_n}: {g.cantidad} {g.presentacion} {g.producto} para {g.cliente}
+              </li>
+            ))}
+          </ul>
+        </Tarjeta>
+      )}
+
       <Tarjeta aria-labelledby="totales" className="flex flex-col gap-1 break-inside-avoid print:border-2 print:border-black print:p-2">
         <h2 id="totales" className="text-xl font-bold">
           En total

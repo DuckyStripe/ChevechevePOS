@@ -93,6 +93,7 @@ export function Catalogo({ cliente }: { cliente: ClientePublico }) {
   const porId = new Map(datos.articulos.map((a) => [String(a.presentacion_id), a]));
   const ofertas = datos.articulos.filter((a) => a.oferta);
   const frecuentes = datos.frecuentes.map((f) => porId.get(String(f.presentacion_id))).filter((a): a is ArticuloPublico => !!a).slice(0, 8);
+  const zona = (datos.sugerencias_zona ?? []).map((z) => porId.get(String(z.presentacion_id))).filter((a): a is ArticuloPublico => !!a).slice(0, 3);
   const vista = datos.ultimo_pedido?.vista;
     const esFavorito = (a: ArticuloPublico) => favoritos[String(a.presentacion_id)] ?? a.favorito;
 
@@ -213,6 +214,15 @@ export function Catalogo({ cliente }: { cliente: ClientePublico }) {
             {T.frecuentes}
           </h2>
           <ul className="flex flex-col gap-3">{frecuentes.map(tarjeta)}</ul>
+        </section>
+      )}
+
+      {!filtrando && zona.length > 0 && (
+        <section aria-labelledby="zona" className="mb-6">
+          <h2 id="zona" className="mb-2 text-xl font-bold">
+            {T.enTuZona}
+          </h2>
+          <ul className="flex flex-col gap-3">{zona.map(tarjeta)}</ul>
         </section>
       )}
 

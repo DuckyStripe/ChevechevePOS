@@ -170,7 +170,7 @@ function FormPresentacion({ productoId, presentacion, alTerminar }: { productoId
 }
 
 /** Presentaciones; los precios solo se ven (N1: se cambian en `/precios`). */
-function Presentaciones({ producto, listas, puedeEditar }: { producto: Producto; listas: ListaPrecio[]; puedeEditar: boolean }) {
+function Presentaciones({ producto, listas, puedeEditar, lealtadActiva }: { producto: Producto; listas: ListaPrecio[]; puedeEditar: boolean; lealtadActiva: boolean }) {
   const router = useRouter();
   const [editando, setEditando] = useState<Presentacion | "nueva" | null>(null);
   const [ocupada, setOcupada] = useState<string | null>(null);
@@ -179,6 +179,15 @@ function Presentaciones({ producto, listas, puedeEditar }: { producto: Producto;
   async function alternar(p: Presentacion) {
     setOcupada(String(p.id));
     const r = await llamar("PATCH", `/presentaciones/${p.id}`, { activa: !p.activa });
+    setOcupada(null);
+    if (!r.ok) return void toast.error(mensajeError(r.error));
+    router.refresh();
+  }
+
+  /** F11: marca de lealtad (dueña: esta ficha, N1). Solo con el programa prendido y precios.editar. */
+  async function marcarLealtad(p: Presentacion, valor: boolean) {
+    setOcupada(String(p.id));
+    const r = await llamar("PATCH", `/presentaciones/${p.id}`, { cuenta_lealtad: valor });
     setOcupada(null);
     if (!r.ok) return void toast.error(mensajeError(r.error));
     router.refresh();
@@ -213,6 +222,9 @@ function Presentaciones({ producto, listas, puedeEditar }: { producto: Producto;
                 {p.precios.map((x) => `${nombreLista(x.lista_precio_id)} ${dinero(x.precio)}`).join(" · ")}
               </p>
             )}
+            {lealtadActiva && (
+              <Casilla etiqueta="Cuenta para lealtad" checked={p.cuenta_lealtad === true} disabled={ocupada === String(p.id)} onChange={(e) => void marcarLealtad(p, e.target.checked)} />
+            )}
             {puedeEditar && (
               <div className="mt-2 flex flex-wrap gap-2">
                 <Boton variante="secundario" onClick={() => setEditando(p)}>
@@ -235,7 +247,7 @@ function Presentaciones({ producto, listas, puedeEditar }: { producto: Producto;
   );
 }
 
-export function FichaProducto({ producto, catalogos, listas, puedeEditar, veCostos, puedeVerInventario, puedeVerPrecios }: {
+export function FichaProducto({ producto, catalogos, listas, puedeEditar, veCostos, puedeVerInventario, puedeVerPrecios, lealtadActiva }: {
   producto: Producto;
   catalogos: Catalogos;
   listas: ListaPrecio[];
@@ -243,6 +255,7 @@ export function FichaProducto({ producto, catalogos, listas, puedeEditar, veCost
   veCostos: boolean;
   puedeVerInventario: boolean;
   puedeVerPrecios: boolean;
+  lealtadActiva: boolean;
 }) {
   const id = String(producto.id);
   return (
@@ -273,7 +286,7 @@ export function FichaProducto({ producto, catalogos, listas, puedeEditar, veCost
         </div>
       </Tarjeta>
 
-      <Presentaciones producto={producto} listas={listas} puedeEditar={puedeEditar} />
+      <Presentaciones producto={producto} listas={listas} puedeEditar={puedeEditar} lealtadActiva={lealtadActiva} />
       <Alias producto={producto} puedeEditar={puedeEditar} />
       <Equivalentes productoId={id} puedeEditar={puedeEditar} />
       <Datos producto={producto} catalogos={catalogos} puedeEditar={puedeEditar} />

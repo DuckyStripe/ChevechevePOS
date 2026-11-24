@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Zonas } from "@/componentes/clientes/zonas";
 import { SeccionCalendario } from "@/componentes/surtido/seccion-calendario";
+import { SeccionLealtad } from "@/componentes/configuracion/seccion-lealtad";
 import { SeccionVehiculos } from "@/componentes/vehiculos/seccion-vehiculos";
 import { itemsDe } from "@/componentes/productos/formato";
 import { FormConfiguracion, type Config } from "@/componentes/configuracion/form-configuracion";
@@ -33,6 +34,7 @@ export default async function Configuracion() {
       {zonas?.ok && <Zonas zonas={itemsDe(zonas.datos)} puedeEditar={tiene(yo.datos, "clientes.editar")} />}
       <SeccionVehiculos />
       <SeccionCalendario />
+      {tiene(yo.datos, "precios.editar") && <SeccionLealtad config={cfg.datos} />}
       <FormConfiguracion config={cfg.datos} />
     </main>
   );

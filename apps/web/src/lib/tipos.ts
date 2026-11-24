@@ -77,6 +77,8 @@ export type Presentacion = {
   se_compra: boolean;
   activa: boolean;
   precios: PrecioPresentacion[];
+  /** F11: la presentación suma al programa de lealtad. */
+  cuenta_lealtad?: boolean;
 };
 /** `categoria`, `marca` y `proveedor` se asumen `{id, nombre}`; `formato.ts` tolera también un string. */
 export type Producto = {
@@ -396,6 +398,8 @@ export type ClientePublico = {
   pedido_propuesto?: { id: number | string } | null;
   faltante_accion_predeterminada?: "quitar" | "reducir";
   faltante_minutos_respuesta?: number;
+  /** F11 (C19): `texto` ya viene armado por la API; `null` con la lealtad apagada. */
+  lealtad?: { llevas: number; meta: number; premio: boolean; texto: string } | null;
 };
 
 export type LineaVista = {
@@ -431,6 +435,8 @@ export type CatalogoPublico = {
   articulos: ArticuloPublico[];
   frecuentes: { presentacion_id: number | string; ultima_cantidad: number }[];
   ultimo_pedido: { folio: string; fecha: string; vista: VistaBorrador } | null;
+  /** F11 (C18): máximo 3; solo el id de un artículo del mismo catálogo. */
+  sugerencias_zona?: { presentacion_id: number | string }[];
   version: string;
 };
 
@@ -597,6 +603,8 @@ export type OrdenCarga = {
   paradas: { carga_n: number; orden: number; cliente: string; zona: string | null; pedido_folio: string | null; lineas: LineaRuta[] }[];
   totales: { producto: string; presentacion: string; cantidad: number; piezas: number }[];
   cajas_totales: number;
+  /** F11: regalos de lealtad que deben subir con su parada; `[]` con la lealtad apagada. */
+  regalos?: { carga_n: number; cliente: string; producto: string; presentacion: string; cantidad: number }[];
 };
 export type Repartidor = { id: string; nombre: string };
 
@@ -646,6 +654,8 @@ export type ResultadoEntrega = {
   pedido?: unknown;
   saldo_cliente: string | { saldo: string; vencido?: string; disponible?: string } | null;
   aviso: Aviso | null;
+  /** F11: regalo de lealtad que se entrega además del pedido; `null` si no hay. */
+  regalo?: RegaloEntrega;
 };
 export type ResultadoAbono = { id: string; folio: string; aplicaciones?: unknown; saldo_cliente: string | { saldo: string; vencido?: string; disponible?: string } | null };
 
@@ -713,7 +723,7 @@ export type Ticket = {
   negocio: { nombre: string | null; direccion: string | null; telefono: string | null; pie: string | null };
   usuario: Ref;
   cliente: Ref | null;
-  lineas: { cantidad: number; presentacion: string; producto: string; precio_unitario: string; importe: string }[];
+  lineas: { cantidad: number; presentacion: string; producto: string; precio_unitario: string; importe: string; regalo?: boolean }[];
   total: string;
   pagos: { metodo: string; monto: string; referencia: string | null }[];
   efectivo_recibido: string | null;
@@ -768,3 +778,38 @@ export type ContextoAbono = {
   turno: TurnoCobro;
   metodos: string[];
 };
+
+// F9 ------------------------------------------------------------------
+// Reportes y tablero (CONTRATOS §4.4 «Reportes (F9)»). Todo el dinero llega como string.
+
+/** `GET /api/tablero`: cada llave solo existe si el usuario tiene el permiso de su reporte. */
+export type Tablero = {
+  ventas_hoy?: string;
+  utilidad_mes?: string;
+  cxc_total?: string;
+  cxc_vencido?: string;
+  bajo_minimo?: number | string;
+  por_caducar?: number | string;
+  precios_bajo_costo?: number | string;
+};
+
+/** Fila de un reporte: las columnas dependen del reporte (ver `componentes/reportes/definiciones.ts`). */
+export type FilaReporte = Record<string, unknown>;
+
+/** Respuesta común de `GET /api/reportes/*`; `totales`, `ajustes`, `utilidad_neta` y `valor_total` solo en algunos. */
+export type RespuestaReporte = {
+  filas?: FilaReporte[];
+  totales?: FilaReporte;
+  ajustes?: { mermas_por_causa?: Record<string, string>; ajustes_netos?: string };
+  utilidad_neta?: string;
+  valor_total?: string;
+};
+
+// F11 -----------------------------------------------------------------
+// Lealtad y sugerencias (CONTRATOS §2.12 B14/B15, §4.4 «Cambios F11»). Las adiciones a tipos existentes están marcadas `F11`.
+
+/** `POST /api/pedidos/:id/entregar`: regalo de lealtad que se entrega además del pedido, o `null`. */
+export type RegaloEntrega = { producto: string; presentacion: string; cantidad: number } | null;
+
+/** Llaves de lealtad en `GET /api/configuracion`. */
+export type ConfigLealtad = { lealtad_activa?: boolean; lealtad_cada?: number | string; lealtad_presentacion_regalo_id?: string | number | null };

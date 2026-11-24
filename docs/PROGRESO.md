@@ -15,6 +15,7 @@ Reglas del dueño: sin builds hasta terminar todo el plan (solo lint, typecheck 
 | F4 | Brief listo (`docs/fases/F4.md`) | — |
 | F5 ∥ F6 | Briefs listos (`docs/fases/F5.md`, `F6.md`; 006 y 007 en paralelo) | — |
 | F7, F8, F9 | Briefs listos (`docs/fases/F7.md`, `F8.md`, `F9.md`; 008 F7, F8 sin migración, 009 F9) | — |
+| F11 | Brief listo (`docs/fases/F11.md`; 011 sin 010, lealtad y sugerencias por zona) | — |
 
 ## Pendientes conocidos
 - `apps/web` no tiene pruebas automáticas del BFF (Origin, cookies, 204, `..`): cubrir antes de la validación final.
@@ -101,3 +102,5 @@ Reglas del dueño: sin builds hasta terminar todo el plan (solo lint, typecheck 
 - F7 API terminada (674 pruebas, dos corridas en verde). En curso: revisor F7/F8, /pos a /cobrar/vista, sync de docs F7/F8.
 - Revisión F7: CRÍTICO 006 editada tras commit (mover plantilla surtido_linea_piezas y fn_mensaje_surtido a 008); ALTO devolución por repartidor ajeno, idempotencia de abono sin renovar; MEDIO entrega recoge ignora cargadas, abono sin fn_puede_ver_cuenta; BAJO regla de transferencia por verificar triplicada, resumen del día congelado, por_cobrar sin sucursal, 401→404 en comprobantes. En corrección.
 - F7 cerrada con revisión aplicada y F8 web; Paquete E (saldos Eleventa) hecho. Suite: 59 archivos, 682 pruebas en verde. Pendiente F8-C (pruebas de paridad del mostrador) antes de F9.
+- Cuestionario: P30 (1 camioneta, 2+ vueltas) y P34 (por zona) contestadas; coinciden con los supuestos, sin cambios de código.
+- F8-C y F9 (009, reportes, tablero, web) cerradas con revisión aplicada. Suite 65 archivos / 752 pruebas en verde (sin contar F11 en curso). F11: brief escrito, web D+P escrita, base 011 en curso.

@@ -5,7 +5,7 @@ import { T } from "@/lib/textos-publico";
 import type { ClientePublico } from "@/lib/tipos";
 
 /** Marco comun de las pantallas del cliente: nombre del negocio y dos enlaces grandes. Sin JS. */
-export function Encabezado({ negocio, saludo, credito }: { negocio: string; saludo?: string; credito?: ClientePublico["credito"] }) {
+export function Encabezado({ negocio, saludo, credito, lealtad }: { negocio: string; saludo?: string; credito?: ClientePublico["credito"]; lealtad?: ClientePublico["lealtad"] }) {
   // C15: su saldo en una línea (sin sumar: la API manda saldo y disponible). Sin crédito ni saldo no se muestra.
   const debe = credito != null && Number(credito.saldo) > 0;
   const tieneLimite = credito != null && Number(credito.limite) > 0;
@@ -19,6 +19,8 @@ export function Encabezado({ negocio, saludo, credito }: { negocio: string; salu
           {linea}
         </Link>
       )}
+      {/* C19: la frase sale armada de la plantilla en la API; aquí solo se muestra. */}
+      {lealtad && <p className="mt-1 text-base font-semibold [overflow-wrap:anywhere]">{lealtad.texto}</p>}
       <nav aria-label="Secciones" className="mt-3 flex gap-2">
         <Link href="/pedido" className="flex min-h-tocable flex-1 items-center justify-center gap-2 rounded-xl border border-borde bg-superficie text-base font-semibold">
           <ShoppingBasket aria-hidden className="size-5" /> {T.volverAlCatalogo}

@@ -126,6 +126,11 @@ export function Entrega({ datos, volver, hayTurno, puedeFiado, puedeAvisar }: { 
           )}
           {debe && <p className="text-base">Ahora debe {dinero(saldo)}.</p>}
         </Tarjeta>
+        {listo.regalo && (
+          <p className="rounded-xl bg-marca-suave p-4 text-center text-2xl font-extrabold text-marca-fuerte [overflow-wrap:anywhere]">
+            Entrega también de regalo: {listo.regalo.cantidad} {listo.regalo.presentacion} {listo.regalo.producto}
+          </p>
+        )}
         {listo.aviso?.url && (
           <>
             <a href={listo.aviso.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-14 items-center justify-center rounded-xl bg-marca px-5 text-lg font-semibold text-white">

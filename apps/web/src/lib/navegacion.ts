@@ -27,6 +27,7 @@ export const ENTRADAS: EntradaMenu[] = [
   { ruta: "/ventas", titulo: "Ventas", permiso: "ventas.ver", grupo: "paso5" }, // F7
   { ruta: "/pos", titulo: "Vender", permiso: "ventas.crear", grupo: "mostrador" }, // F8
   { ruta: "/caja", titulo: "Caja", permiso: "caja.operar", grupo: "mostrador" }, // F7
+  { ruta: "/reportes", titulo: "Reportes", permiso: "reportes.ver", grupo: "ajustes" }, // F9
   { ruta: "/clientes", titulo: "Clientes", permiso: "clientes.ver", grupo: "ajustes" },
   { ruta: "/productos", titulo: "Productos", permiso: "catalogo.ver", grupo: "ajustes" },
   { ruta: "/precios", titulo: "Precios", permiso: "precios.editar", grupo: "ajustes" },

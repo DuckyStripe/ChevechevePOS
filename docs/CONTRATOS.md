@@ -122,7 +122,7 @@ Plan de migraciones (`apps/api/db/migraciones/`). Número fijo por fase: fases e
 | `008_ventas_cobro.sql` | 7 | caja, turno_caja, movimiento_caja, venta, venta_linea, venta_pago, cuenta_por_cobrar, devolucion, devolucion_linea, abono, abono_aplicacion; `pedido.recibio`/`foto_entrega` (B11); `v_saldo_cliente`, `v_semaforo_cliente` (B10); funciones de turno, venta, entrega de pedido, inicio y liquidación de ruta, `fn_agregar_cobro` (parada de cobro, movida de 007), cancelación, devolución, abono, saldo inicial, `fn_estado_cuenta` (A3), `fn_resumen_dia` (B12, usa `fn_lista_surtido` de 006); ayudas de cobro (`fn_calcular_pagos`, `fn_credito_cliente`, `fn_importe_linea`, `fn_entrega_lineas`, `fn_vista_cobro`, `fn_vista_venta`, `fn_vista_pagos`, `fn_pedido_cobrable`, `fn_puede_ver_cuenta`), `fn_aviso_resumen_dia`; rehace `fn_iniciar_ruta`, `fn_terminar_ruta`, `fn_seguimiento_pedido` y `fn_truncate_bloqueado` con la misma firma (`fn_puede_ver_aviso` ya incluye `wa_nota_entrega` desde 007: 008 no la toca). Brief: `docs/fases/F7.md` |
 | `009_reportes.sql` | 9 | vistas `v_*` y `fn_cxc_antiguedad` de §2.9; `v_ganancia_ruta` (B13). Brief: `docs/fases/F9.md` |
 | `010_envases.sql` | 10 | diferida (§2.10) |
-| `011_crecimiento.sql` | 11 | lealtad y sugerencias por zona (§2.12, F11) |
+| `011_crecimiento.sql` | 11 | `presentacion.cuenta_lealtad`, `lealtad_movimiento`, `v_lealtad_saldo`, `fn_lealtad_cliente`, `fn_lealtad_configurar`, `fn_regalo_venta`, `fn_sugerencias_zona`, disparadores de reverso; rehace con la misma firma `fn_registrar_venta` (008 + regalo y movimientos), `fn_orden_carga` (007 + `regalos`) y `fn_truncate_bloqueado`; semilla de config y plantillas `pantalla_lealtad_*` (§2.12 B14/B15). Se aplica sin 010 (el migrador ordena nombres y no exige números seguidos); 010 y 011 deben ser independientes. Brief: `docs/fases/F11.md` |
 
 F8 (POS de mostrador) no tiene migración: sus tablas y funciones llegan en 008 (brief `docs/fases/F8.md`). 008 depende de 006
 (`fn_resumen_dia`): F7 requiere F5 cerrada.
@@ -321,6 +321,8 @@ seguimiento y responde faltantes). La API lo agrega al renderizar; nunca se guar
 | `push_faltante_respondido` | push | `cliente, folio, respuesta` |
 | `pantalla_pedido_enviado`, `pantalla_enlace_invalido` («Este link ya no está activo. Escríbenos para pedir uno nuevo», con botón wa.me a la bodega; misma página para enlace dado de baja o desconocido), `pantalla_aviso_ubicacion`, `pantalla_bienvenida`, `pantalla_faltante` | pantalla | `cliente, folio?, negocio, limite?` |
 | `estado_propuesto` (004), `estado_recibido`, `estado_esperando_cliente`, `estado_confirmado`, `estado_surtiendo`, `estado_cargado`, `estado_en_ruta`, `estado_entregado`, `estado_no_entregado`, `estado_cancelado` | pantalla | — (etiquetas del seguimiento en el enlace) |
+| `pantalla_lealtad_avance` (011) | pantalla | `llevas, meta, regalo` («Llevas {{llevas}} de {{meta}} cajas para una {{regalo}} gratis»; C19) |
+| `pantalla_lealtad_premio` (011) | pantalla | `regalo` («¡Ya ganaste! Tu siguiente pedido lleva {{regalo}} gratis»; C19) |
 
 ### 2.2 Migración 002 — proveedores, catálogo, precios, inventario
 
@@ -989,7 +991,7 @@ sucursal del usuario (ruta de otra sucursal = `404`; candidatos y asignables sol
 | `fn_quitar_parada(p_usuario_id, p_parada_id) returns void` | Ruta `planeada`. Libera el pedido (`ruta_id = null`, evento `quitado_ruta`) y recorre los `orden`. |
 | `fn_ordenar_ruta(p_usuario_id, p_ruta_id, p_paradas bigint[], p_km numeric[] default null, p_optimizada boolean default false) returns void` | Ruta `planeada`. `p_paradas` debe ser exactamente el conjunto de paradas de la ruta (`PARADAS_NO_CUADRAN`). Asigna `orden` 1..n; `km_desde_anterior` y `distancia_km` (Σ + regreso, en `p_km[n+1]`) si vienen; `optimizada_en = now()` si `p_optimizada`. Lo usan «Optimizar» (§2.7.1) y el reordenamiento manual (sin km: se borran). |
 | `fn_cargar_ruta(p_usuario_id, p_ruta_id) returns jsonb` | `planeada` → `cargada`, ≥ 1 parada `entrega` (`RUTA_VACIA`). Bloquea los pedidos de la ruta y luego **las existencias de sus productos con `fn_bloquear_existencias`** (mismo candado común que la venta de mostrador, F7/F8: dos cargas o una carga y una venta de lo mismo se serializan). **Control de existencia**: por producto, Σ piezas de los pedidos de la ruta ≤ `existencia − cargadas` de `v_comprometido` (otras rutas ya cargadas); si no → `FALTA_SURTIR` (detalle `[{producto_id, producto, faltan}]`): se compra o se ajusta antes de cargar. Pedido `esperando_cliente` → `PEDIDO_ESPERANDO_CLIENTE`. Pedidos → `cargado`; evento; `fn_notificar('ruta_asignada', 'ruta:<id>:cargada', …, repartidor_id)`. Devuelve `fn_orden_carga` + `advertencias:[{codigo:'capacidad', cajas, capacidad}]` (Σ cajas > `capacidad_cajas`: avisa, no bloquea). |
-| `fn_orden_carga(p_ruta_id) returns jsonb` (stable) | `{paradas:[{carga_n = n − orden + 1, orden, cliente, zona, pedido_folio, lineas:[{cantidad, presentacion, producto}]}] ordenado por carga_n, totales:[{producto, presentacion, cantidad, piezas}], cajas_totales}`. `cajas_totales` = Σ por producto de `ceil(piezas / factor de su presentación activa de mayor factor)` (**aproximación** decidida en la revisión de F6: no es la caja física de cada línea; sirve para el aviso de capacidad). **LIFO**: `carga_n = 1` es la última parada (va al fondo); la primera parada se sube al final y queda en la puerta. |
+| `fn_orden_carga(p_ruta_id) returns jsonb` (stable) | `{paradas:[{carga_n = n − orden + 1, orden, cliente, zona, pedido_folio, lineas:[{cantidad, presentacion, producto}]}] ordenado por carga_n, totales:[{producto, presentacion, cantidad, piezas}], cajas_totales, regalos:[{carga_n, cliente, producto, presentacion, cantidad}] (F11: 011 la rehace con la misma firma; `[]` con la lealtad apagada; no cuenta en `cajas_totales` ni en `FALTA_SURTIR`)}`. `cajas_totales` = Σ por producto de `ceil(piezas / factor de su presentación activa de mayor factor)` (**aproximación** decidida en la revisión de F6: no es la caja física de cada línea; sirve para el aviso de capacidad). **LIFO**: `carga_n = 1` es la última parada (va al fondo); la primera parada se sube al final y queda en la puerta. |
 | `fn_marcar_no_entregado(p_usuario_id, p_parada_id, p_motivo text, p_nota text default null) returns void` | Ruta `en_curso`, ruta propia (`RUTA_AJENA`) o `rutas.planear`. Parada `fallida`; pedido `no_entregado` con motivo (`p_motivo` = clave `cerrado`/`no_estaba`/`no_quiso`, cuyo texto sale de la plantilla `motivo_<clave>`; `otro` usa `p_nota`, ≤ 200); `fn_notificar('entrega_fallida', 'fallida:<pedido>:r<ruta>', …)`; aviso `wa_entrega_fallida` con clave `…:p<pedido>:v<version>:r<ruta>` (con `:r<ruta>`: el mismo pedido reprogramado y fallido en otra ruta vuelve a avisar). El producto vuelve en la camioneta: nunca salió del kárdex. **Idempotente**: parada ya `fallida` → no hace nada y devuelve sin error (notificación y aviso ya deduplicados por clave). |
 | `fn_terminar_ruta(p_usuario_id, p_ruta_id) returns void` | `en_curso` → `terminada`. Paradas `pendiente` → `omitida`; sus pedidos → `no_entregado` (motivo «no visitada») con notificación. |
 | `fn_cancelar_ruta(p_usuario_id, p_ruta_id) returns void` | Solo `planeada` o `cargada`: pedidos vuelven a `confirmado` sin ruta. |
@@ -1313,15 +1315,17 @@ Permisos 008: `ventas.crear, ventas.ver, ventas.ver_todas, ventas.cambiar_precio
 
 | Vista / función | Definición |
 |---|---|
-| `v_ventas_lineas` | `UNION ALL` de líneas de ventas `completada` (signo +, `fecha = fn_fecha_local(v.creado_en)`) y `devolucion_linea` (signo −, fecha de la devolución). Columnas: `fecha, sucursal_id, venta_id, folio, origen, ruta_id (del pedido), usuario_id, cliente_id, zona_id, producto_id, categoria_id, marca_id, piezas, importe, costo_total, utilidad = importe − costo_total`. Ventas canceladas no aparecen. |
-| `v_ventas_pagos` | Pagos de ventas `completada` con `fecha, origen, metodo, monto, usuario_id, cliente_id`. |
-| `v_compras_lineas` | Líneas de compras `registrada`: `fecha, proveedor_id, producto_id, categoria_id, piezas, importe`. |
-| `v_ajustes_valor` | Movimientos `merma, ajuste_salida, ajuste_entrada`: `fecha, producto_id, tipo, causa_merma, piezas, valor = cantidad · costo_unitario`. |
-| `v_inventario_valorizado` | `existencia ⋈ producto`: `producto, categoria, modo_surtido, cantidad, costo_promedio, valor, cajas = cantidad / factor_mayor, sueltas = cantidad % factor_mayor`. |
-| `v_bajo_minimo` | Productos activos `modo_surtido = 'inventario'` con `cantidad ≤ existencia_minima` y `existencia_minima > 0`; `agotado = cantidad = 0`. |
-| `v_entregas` | Por pedido con ruta o entregado: `fecha_entrega, ruta_id, repartidor_id, zona_id, cliente_id, estado, piezas_pedidas = Σ cantidad_pedida·factor, piezas_confirmadas = Σ piezas, piezas_entregadas = Σ cantidad_entregada·factor, importe_pedido, importe_entregado`. Faltantes = pedidas − confirmadas (demanda perdida por no tener producto). |
-| `fn_cxc_antiguedad(p_al date) returns table(cliente_id, nombre, zona, corriente, d1_30, d31_60, d61_90, d90_mas, total)` | Saldo pendiente por cliente en cubetas según `p_al − vence_el` (≤ 0 → corriente). |
-| `v_ganancia_ruta` | B13: por ruta, `utilidad = Σ utilidad` de `v_ventas_lineas` con ese `ruta_id` (devoluciones restan), `gastos = Σ movimiento_caja.monto` tipo `salida` de su turno de ruta, `ganancia = utilidad − gastos`; `fecha` = `ruta.fecha`. |
+| `v_ventas_lineas` | `UNION ALL` de líneas de ventas `completada` (signo +, `fecha = fn_fecha_local(v.creado_en)`) y `devolucion_linea` (signo −, fecha de la devolución). Columnas: `fecha, sucursal_id, venta_id, folio, origen, ruta_id (del pedido), usuario_id, cliente_id, zona_id, producto_id, categoria_id, marca_id, signo (+1 venta, −1 devolución), piezas, importe, costo_total, utilidad = importe − costo_total` (piezas, importe, costo y utilidad van en negativo en las devoluciones; la devolución hereda origen, ruta, cliente, zona y vendedor de su venta, `venta_id` es el de la venta y `folio` el de la devolución). Ventas canceladas no aparecen. |
+| `v_ventas_pagos` | Pagos de ventas `completada` (bruto: las devoluciones no se reparten por método): `fecha, sucursal_id, venta_id, origen, metodo, monto, usuario_id, cliente_id`. |
+| `v_compras_lineas` | Líneas de compras `registrada`: `fecha, sucursal_id, compra_id, proveedor_id, producto_id, categoria_id, piezas, importe`. |
+| `v_ajustes_valor` | Movimientos `merma, ajuste_salida, ajuste_entrada`: `fecha, sucursal_id, producto_id, tipo, causa_merma, piezas, valor = round(cantidad · costo_unitario, 2)` (con signo: las salidas restan). |
+| `v_inventario_valorizado` | `existencia ⋈ producto`: `sucursal_id, producto_id, producto, categoria_id, categoria, modo_surtido, cantidad, costo_promedio, valor = round(cantidad · costo_promedio, 2), cajas = cantidad / factor_mayor, sueltas = cantidad % factor_mayor` (factor mayor = el de la presentación activa más grande; sin presentaciones, 1). Lee `existencia`, nunca recalcula con el kárdex. |
+| `v_bajo_minimo` | Productos activos `modo_surtido = 'inventario'` con `cantidad ≤ existencia_minima` y `existencia_minima > 0` (sin fila de existencia cuenta como 0): `sucursal_id, producto_id, producto, categoria_id, categoria, proveedor_id, cantidad, existencia_minima, faltante = existencia_minima − cantidad, agotado = cantidad = 0`. |
+| `v_entregas` | **Una fila por intento de entrega**, no por estado actual del pedido: cada `ruta_parada` de entrega de una ruta no cancelada (resultado de esa parada: `visitada` = `entregado`; `fallida` u `omitida` = `no_entregado`; `pendiente` = el estado actual del pedido) más los entregados sin ruta (recoge). Así un pedido que falló en R1 y se reprogramó a R2 cuenta como fallido en R1 y con su propio resultado en R2, y uno cancelado después sigue en los `fallidos` de su ruta. Columnas: `pedido_id, sucursal_id, fecha_entrega` (= `ruta.fecha` del intento), `ruta_id, repartidor_id, zona_id, cliente_id, estado, piezas_pedidas = Σ cantidad_pedida·factor, piezas_confirmadas = Σ piezas, piezas_entregadas` (solo en el intento entregado), `importe_pedido, importe_entregado` (total de la venta completada del pedido, solo en el intento entregado), `parcial` (entregado con menos piezas de las confirmadas), `ultima` (último intento del pedido). Faltantes = pedidas − confirmadas (demanda perdida por no tener producto) **solo con `ultima`**: es del pedido, no del intento. |
+| `v_faltantes_lineas` | Lo mismo por línea y producto (`v_entregas` no dice de qué producto), una sola vez por pedido (su último intento, `fecha_entrega` y `ruta_id` de ese intento): `pedido_id, sucursal_id, fecha_entrega, ruta_id, cliente_id, producto_id, proveedor_id, piezas_pedidas, piezas_confirmadas, piezas_faltantes`; solo líneas con faltante. |
+| `fn_cxc_antiguedad(p_al date, p_sucursal_id bigint default null) returns table(cliente_id, nombre, zona, corriente, d1_30, d31_60, d61_90, d90_mas, total)` | Saldo pendiente por cliente en cubetas según `p_al − vence_el` (≤ 0 → corriente). **«Vencimiento al `p_al`»**: el saldo es el de hoy (no reconstruye lo abonado después de `p_al`) de las cuentas que ya existían ese día (`fn_fecha_local(creado_en) ≤ p_al`). Sucursal de la cuenta por `v_cxc_sucursal` (la misma regla de `/cobranza`); `null` = todas. |
+| `fn_resumen_dia(p_sucursal_id, p_fecha)` (rehecha, misma firma que 008) | Cuerpo de 008 con un cambio: `vendido` y `ganancia` salen de `v_ventas_lineas` (ventas completadas menos devoluciones, por fecha local), la misma regla de los reportes y del tablero: `/cierre/resumen` y `tablero.ventas_hoy` dan la misma cifra. |
+| `v_ganancia_ruta` | B13: por ruta, `utilidad = Σ utilidad` de `v_ventas_lineas` con ese `ruta_id` (devoluciones restan), `gastos = Σ movimiento_caja.monto` tipo `salida` de su turno de ruta, `ganancia = utilidad − gastos`; `fecha` = `ruta.fecha`. Columnas: `ruta_id, sucursal_id, folio, fecha, repartidor_id, importe, costo_total, utilidad, gastos, ganancia`; solo rutas con turno. |
 
 Reglas comunes de 009 (fijadas en el brief de F9): `margen = round(utilidad / importe, 4)` y `null` si `importe ≤ 0`; el
 grupo «sin cliente» (público en general) y «sin ruta» (mostrador) salen como una fila con `clave null`; todo agrupado en
@@ -1518,17 +1522,44 @@ por_comprar:{productos, costo_estimado (la API lo quita sin costos.ver ni compra
 **B13 · Ganancia por cliente y por ruta (009, F9).** `v_ganancia_ruta`: por ruta, `Σ utilidad` de sus
 ventas − `Σ salidas` (gastos) de su turno de ruta. Ganancia por cliente = `v_ventas_lineas` agrupado.
 
-**B14 · Lealtad simple (011, F11).** Config `lealtad_activa` (false), `lealtad_cada` (10),
-`lealtad_presentacion_regalo_id`; `presentacion.cuenta_lealtad boolean default false` (qué cuenta como
-«caja»). `lealtad_movimiento(id, cliente_id, venta_id, cantidad integer con signo, tipo in
-('acumula','canje'), creado_en)`; `fn_registrar_venta` acumula las presentaciones marcadas; al llegar a
-`lealtad_cada` la siguiente entrega/venta agrega sola una línea de la presentación regalo a **precio 0
-y costo normal** (la utilidad negativa es el costo del programa) y un `canje`. Avance en `GET
-/api/publico/cliente` (`lealtad:{llevas, meta}`).
+**B14 · Lealtad simple (011, F11).** Config `lealtad_activa` (false), `lealtad_cada` (10, entero 1–1000),
+`lealtad_presentacion_regalo_id` (null); `presentacion.cuenta_lealtad boolean not null default false` (qué cuenta como
+«caja»). `lealtad_movimiento(id, cliente_id, venta_id not null, venta_linea_id, cantidad integer, tipo in
+('acumula','canje','reverso'), creado_en)`: `acumula > 0` y `canje < 0` con `venta_linea_id`; `reverso <> 0`; un `canje`
+por venta (único parcial); escrita solo por funciones (`fn_dinero_guardado`) e inmutable (`fn_dinero_inmutable`, `TRUNCATE`
+bloqueado). `v_lealtad_saldo(cliente_id, saldo = Σ cantidad)` es la **regla única de «cuánto lleva»**.
+`fn_lealtad_cliente(p_cliente_id) returns jsonb` = `null` con la lealtad apagada; si no `{llevas = greatest(0, saldo), meta,
+premio = saldo ≥ meta, regalo:{presentacion_id, producto, presentacion}|null, texto}` (`texto` = plantilla
+`pantalla_lealtad_premio` o `pantalla_lealtad_avance` renderizada en SQL).
+**Venta** (`fn_registrar_venta` rehecha, misma firma, cuerpo de 008 + tres puntos): con cliente y lealtad prendida, si el
+saldo **antes** de la venta llega a la meta, agrega una línea de la presentación regalo (cantidad 1, `precio_unitario 0`,
+`importe 0`, `precio_lista` = su precio de lista o 0, **costo promedio normal**: la utilidad negativa es el costo del
+programa, `v_ventas_lineas` la refleja sin cambios) y un `canje` de −meta; **solo si cabe** (`piezas ≤ existencia −
+cargadas − piezas de esta venta del mismo producto en mostrador/recoge`) y el regalo está `activa`, `se_vende` y su producto
+activo; si no, la venta pasa sin regalo y el premio sigue pendiente (nunca falla por el regalo). Cada línea de presentación
+marcada (salvo el regalo) escribe un `acumula` con su `cantidad`. Un premio por venta. Sin cliente (público) nada. El
+producto del regalo entra en el mismo `fn_bloquear_existencias`: **ningún candado nuevo**; el saldo se lee después del
+`cliente FOR UPDATE` (dos ventas del mismo cliente se serializan: un solo canje). Vistas previas sin cambios (el total no
+cambia).
+**Reversos** (disparadores): cancelar la venta → `reverso` = −Σ de sus movimientos; devolver piezas de una línea con
+`acumula` → `reverso` de `floor(devueltas/factor)` nuevo − anterior. Devolver el regalo no repone el premio. El saldo puede
+quedar negativo.
+**Reparto**: `fn_orden_carga` agrega `regalos` (paradas cuyo cliente tiene `premio`); es aviso para cargar, no reserva.
+`fn_regalo_venta(p_venta_id) returns jsonb` = `{venta_linea_id, producto, presentacion, cantidad}|null` (respuesta de
+entregar y `Ticket.lineas[].regalo`).
+**Configurar**: `fn_lealtad_configurar(p_usuario_id, p_datos jsonb)` exige `precios.editar` (regalar es fijar precio; solo
+Dueño); prender sin regalo válido → `VALIDACION {campo:'lealtad_presentacion_regalo_id'}`. Marcar `cuenta_lealtad` también
+exige `precios.editar`. **Apagada = nada cambia**: ninguna fila, ninguna línea, `lealtad null`, `regalos []`.
+Avance en `GET /api/publico/cliente` (`lealtad:{llevas, meta, premio, texto}|null`).
 
-**B15 · Sugerencias en el enlace (011, F11).** `fn_sugerencias_zona(p_cliente_id) returns table(presentacion_id,
-clientes)`: presentaciones que compraron ≥ 3 clientes distintos de su zona en 60 días y él no en 60 días;
-máximo 3, por número de clientes. Van en `GET /api/publico/catalogo` (`sugerencias_zona`).
+**B15 · Sugerencias en el enlace (011, F11).** `fn_sugerencias_zona(p_cliente_id) returns table(presentacion_id bigint,
+clientes integer)` (stable): presentaciones que compraron (ventas `completada`, sin contar líneas regalo) **≥ 3 clientes
+distintos** de su zona actual (sin contarlo a él) desde `fn_inicio_dia(hoy local − 60)`, excluyendo **todo producto** que él
+compró en esa ventana (incluido un regalo recibido); solo `activa`, `se_vende`, producto y categoría activos y con
+`fn_precio(presentación, su lista)`; una por producto (la de más clientes; empate: mayor factor, menor id); orden `clientes
+desc, producto, presentacion_id`; **máximo 3**. Sin zona → vacío. Van en `GET /api/publico/catalogo` como
+`sugerencias_zona:[{presentacion_id}]` (sin conteos ni datos de otros clientes; el precio es el del artículo del mismo
+catálogo).
 
 ## 3. Autenticación
 
@@ -1717,7 +1748,7 @@ usuario del token.
 | POST `/api/roles`, PATCH `/api/roles/:id` | usuarios.gestionar | `{nombre, descripcion?, permisos:[codigo]}` (PATCH: parcial; `permisos` reemplaza) | rol | 409 `DUPLICADO`, `ROL_SISTEMA` |
 | DELETE `/api/roles/:id` | usuarios.gestionar | — | 204 | 409 `ROL_SISTEMA`, `ROL_EN_USO` (tiene usuarios) |
 | GET `/api/configuracion` | sesion | — | objeto plano `{<clave>: valor, …, sucursal:{lat, lng}}` (todas las claves de §2.1 con su valor jsonb tal cual; `lat`/`lng` string o `null`) | — |
-| PATCH `/api/configuracion` | configuracion.editar | subconjunto (incl. ubicación de la bodega) | igual | 400 |
+| PATCH `/api/configuracion` | configuracion.editar (llaves `lealtad_*`: además precios.editar, F11) | subconjunto (incl. ubicación de la bodega; `lealtad_*` van juntas a `fn_lealtad_configurar`) | igual | 400, 403 |
 | GET `/api/plantillas` | configuracion.editar | `?canal` | `[{clave, canal, titulo, texto, variables}]` | — |
 | PATCH `/api/plantillas/:clave` | configuracion.editar | `{titulo?, texto}` | plantilla (no se crean ni borran claves desde la API) | 400, 404 |
 | POST `/api/plantillas/:clave/vista-previa` | configuracion.editar | `{vars}` | `{titulo, texto}` | 404 |
@@ -1725,7 +1756,7 @@ usuario del token.
 | GET `/api/notificaciones` | sesion (propias) | `?no_leidas&pagina` | lista `{id, evento, titulo, cuerpo, datos, creado_en, leida_en}` | — |
 | POST `/api/notificaciones/leer` | sesion | `{ids?:[…]}` (sin ids = todas) | `{sin_leer}` | — |
 | GET/PUT `/api/notificaciones/preferencias` | sesion | `{preferencias:[{evento, push}]}` | igual; `GET` trae **todos** los eventos del `CHECK` (sin fila guardada = `push: true`) | — |
-| GET `/api/tablero` (F9) | sesion (pantalla `/reportes`) | — | KPIs de dinero e inventario, sin contadores operativos (esos son de `/despacho`): `{ventas_hoy?, utilidad_mes?, cxc_total?, cxc_vencido?, bajo_minimo?, por_caducar?, precios_bajo_costo?}`, cada campo solo con el permiso de su reporte | — |
+| GET `/api/tablero` (F9) | sesion (pantalla `/reportes`) | — | KPIs de dinero e inventario, sin contadores operativos (esos son de `/despacho`): `{ventas_hoy?, utilidad_mes?, cxc_total?, cxc_vencido?, bajo_minimo?, por_caducar?, precios_bajo_costo?}`. **Cada llave solo existe si el usuario tiene el permiso de su reporte (sin permiso no hay llave: ni `null` ni 0; sin ningún permiso, `{}`)**: `ventas_hoy` (reportes.ver; importe neto de hoy, = `totales.importe` de `/reportes/ventas` de hoy), `utilidad_mes` (reportes.ver + costos.ver; utilidad bruta del mes local en curso), `cxc_total` y `cxc_vencido` (cobranza.ver; de `fn_cxc_antiguedad(hoy, sucursal)`, la regla del reporte: vencido = total − corriente), `bajo_minimo` (inventario.ver; filas de `v_bajo_minimo`), `por_caducar` (inventario.ver; productos distintos con algún lote de `v_por_caducar` dentro de `dias_aviso_caducidad`), `precios_bajo_costo` (costos.ver; filas de `v_precio_bajo_costo`). Dinero string, conteos número | — |
 
 El panel consulta `GET /api/auth/yo` cada 30 s para el contador de la campana (`shortcut`: sondeo, sin
 WebSocket; subir a SSE si se vuelve lento).
@@ -1743,7 +1774,7 @@ WebSocket; subir a SSE si se vuelve lento).
 | PUT `/api/productos/:id/imagen` | catalogo.editar | multipart `imagen` (≤ 800 px) y `miniatura` (240 px, ≤ 30 KB) (§4.5; jpg/png/webp por firma de bytes, ≤ 1 MB; el navegador reduce antes de subir) | `{imagen}` | 400 `IMAGEN_NO_VALIDA`, 413 |
 | GET `/api/imagenes/:archivo` | publica | — (nombre validado con la regex de `producto.imagen`, o su `-240`) | imagen (`Cache-Control: public, max-age=31536000, immutable`) | 404 |
 | DELETE `/api/productos/:id/imagen` | catalogo.editar | — | 204 | — |
-| POST `/api/productos/:id/presentaciones`, PATCH `/api/presentaciones/:id` | catalogo.editar | `{nombre, factor, codigo_barras?, se_vende?, se_compra?}`; PATCH sin `factor`, con `activa?` | presentación | 409 `DUPLICADO`, `FACTOR_INMUTABLE` |
+| POST `/api/productos/:id/presentaciones`, PATCH `/api/presentaciones/:id` | catalogo.editar (`cuenta_lealtad` exige además precios.editar, F11) | `{nombre, factor, codigo_barras?, se_vende?, se_compra?}`; PATCH sin `factor`, con `activa?` y `cuenta_lealtad?` (F11) | presentación | 409 `DUPLICADO`, `FACTOR_INMUTABLE` |
 | GET `/api/presentaciones/codigo/:codigo` | ventas.crear, compras.registrar o pedidos.capturar | `?lista_precio_id` | `ArticuloPos` + `se_vende`, `se_compra` (compras acepta lo que `se_compra`; venta/pedido lo que `se_vende`) | 404 |
 | GET/POST `/api/listas-precio`, PATCH `/api/listas-precio/:id` | ver: sesion; escribir: precios.editar | POST `{nombre}`; PATCH `{nombre?, es_predeterminada?, activa?}` | lista `{id, nombre, es_predeterminada, activa}` (GET paginado) | 409 |
 | PUT `/api/precios` | precios.editar | `{precios:[{presentacion_id, lista_precio_id, precio}]}` (≤ 500) | `{actualizados, advertencias?:[{presentacion_id, lista_precio_id, precio, costo_presentacion}]}` (advertencias solo con costos.ver) | 400 |
@@ -1809,8 +1840,8 @@ temporal (≤ 15 min, §0). `401 ENLACE_INVALIDO` y `401 PIN_REQUERIDO` traen en
 | GET `/api/publico/negocio` (**publica**, sin token; no cuenta como visita ni como fallo) | — | `{negocio:{nombre, whatsapp}, textos:{pedir_pin, elegir_pin, enlace_invalido}}` (nada del cliente). La usan `/pedido/pin` y `/pedido/invalido` vía `lib/api-publico.ts` | — |
 | POST `/api/publico/pin/elegir` (solo vía BFF) | `{pin}` (4 dígitos) | `{dispositivo_token}` al BFF → cookie | 409 `PIN_YA_DEFINIDO`, 400 |
 | POST `/api/publico/pin/entrar` (solo vía BFF) | `{pin}` | `{dispositivo_token}` al BFF → cookie | 401 `PIN_INCORRECTO`, 429 `PIN_EN_ESPERA` |
-| GET `/api/publico/cliente` | — | `{id, nombre, negocio:{nombre, whatsapp}, pedido_minimo, hora_corte, dias_visita, proxima_visita, tiene_ubicacion, credito:{limite, saldo, disponible}|null (de `v_saldo_cliente`; `null` si `limite_credito = 0` y `saldo = 0`), faltante_accion_predeterminada, faltante_minutos_respuesta, textos:{bienvenida, aviso_ubicacion}, pedido_propuesto:{id}|null}`; registra `apertura` una vez cada 30 min por dispositivo | 401 `ENLACE_INVALIDO`, `PIN_REQUERIDO` |
-| GET `/api/publico/catalogo` | — | `{categorias:[{id, nombre}], articulos:[{presentacion_id, producto, presentacion, factor, categoria_id, marca, contenido_ml, tipo_envase, miniatura, imagen, precio, favorito, buscar}], frecuentes:[{presentacion_id, ultima_cantidad}], ultimo_pedido:{folio, fecha, vista: fn_vista_borrador(sus líneas)}|null, version}` (sin existencias ni costos). `buscar` = nombre + marca + alias normalizados para filtrar en el teléfono sin ir al servidor. `ETag` = `version` = hash del cuerpo de la respuesta (cambia con cualquier cosa que el cliente vea: precios, ofertas, catálogo, favoritos, frecuentes); `If-None-Match` igual → 304 sin cuerpo; `Cache-Control: private, no-cache`. El BFF reenvía `If-None-Match`/`ETag` y el 304. La segunda visita en 3G no baja nada. | 304 |
+| GET `/api/publico/cliente` | — | `{id, nombre, negocio:{nombre, whatsapp}, pedido_minimo, hora_corte, dias_visita, proxima_visita, tiene_ubicacion, credito:{limite, saldo, disponible}|null (de `v_saldo_cliente`; `null` si `limite_credito = 0` y `saldo = 0`), faltante_accion_predeterminada, faltante_minutos_respuesta, textos:{bienvenida, aviso_ubicacion}, pedido_propuesto:{id}|null, lealtad:{llevas, meta, premio, texto}|null (F11)}`; registra `apertura` una vez cada 30 min por dispositivo | 401 `ENLACE_INVALIDO`, `PIN_REQUERIDO` |
+| GET `/api/publico/catalogo` | — | `{categorias:[{id, nombre}], articulos:[{presentacion_id, producto, presentacion, factor, categoria_id, marca, contenido_ml, tipo_envase, miniatura, imagen, precio, favorito, buscar}], frecuentes:[{presentacion_id, ultima_cantidad}], ultimo_pedido:{folio, fecha, vista: fn_vista_borrador(sus líneas)}|null, sugerencias_zona:[{presentacion_id}] (F11, `fn_sugerencias_zona`, máx. 3), version}` (sin existencias ni costos). `buscar` = nombre + marca + alias normalizados para filtrar en el teléfono sin ir al servidor. `ETag` = `version` = hash del cuerpo de la respuesta (cambia con cualquier cosa que el cliente vea: precios, ofertas, catálogo, favoritos, frecuentes); `If-None-Match` igual → 304 sin cuerpo; `Cache-Control: private, no-cache`. El BFF reenvía `If-None-Match`/`ETag` y el 304. La segunda visita en 3G no baja nada. | 304 |
 | PUT/DELETE `/api/publico/favoritos/:presentacion_id` | — | 204 | 404 |
 | GET `/api/publico/pedidos` | — | últimos 20 `{id, folio, etapa, etiqueta, total, fecha_entrega, creado_en, editable, faltantes_pendientes, reparto:{parada, paradas}|null}` (en curso primero) | — |
 | GET `/api/publico/pedidos/:id` | — | `fn_seguimiento_pedido` (§2.4.2) | 404 (también si es de otro cliente) |
@@ -1916,24 +1947,40 @@ Cambios a rutas existentes: `GET /api/clientes/:id` agrega `semaforo:{color, dia
 max_dias_vencido, limite_sugerido}` (F7; solo con `cobranza.ver` o `clientes.credito`, igual que `saldo`, `vencido` y `disponible`) y `sugerir_pedido`; `PATCH /api/clientes/:id` acepta
 `sugerir_pedido`; `POST /api/pedidos` acepta `correcciones`; `GET /api/publico/catalogo` agrega
 `oferta:{precio_normal, hasta}` por artículo y `ofertas` primero (F2/F3), `sugerencias_zona` (F11);
-`GET /api/publico/cliente` agrega `pedido_propuesto:{id}|null`, `credito:{limite, saldo, disponible}` de `v_saldo_cliente` (F7; `null` si `limite_credito = 0` y `saldo = 0`) y `lealtad` (F11); `POST /api/avisos`
+`GET /api/publico/cliente` agrega `pedido_propuesto:{id}|null`, `credito:{limite, saldo, disponible}` de `v_saldo_cliente` (F7; `null` si `limite_credito = 0` y `saldo = 0`) y `lealtad:{llevas, meta, premio, texto}|null` (F11, `fn_lealtad_cliente`); `POST /api/avisos`
 acepta `wa_estado_cuenta` (como las demás manuales; con `saldo` y `vencido`, enlace `?ir=estado-cuenta`, igual que `wa_recordatorio_saldo`) y `wa_resumen_dia` (`{plantilla, fecha?}`: sin `cliente_id` ni clave; el destinatario lo resuelve SQL —usuario activo de menor `id` con rol de sistema, el dueño [P56]—, exige `reportes.ver` + `costos.ver`, clave `wa_resumen_dia:<fecha>:u<usuario>`, uno por día y destinatario, y solo ese usuario lo ve); `POST /api/pedidos/:id/entregar`
 acepta `recibio`, `foto_entrega`.
 
-**Reportes (F9)** — todos `?desde&hasta` (fechas locales, máx 366 días) salvo indicado. CSV en el navegador.
+**Cambios F11** (sin rutas nuevas; §2.12 B14/B15; brief `docs/fases/F11.md`): `PATCH /api/configuracion` acepta
+`lealtad_activa` (boolean), `lealtad_cada` (entero 1–1000) y `lealtad_presentacion_regalo_id` (id o `null`); esas llaves se
+escriben juntas con `fn_lealtad_configurar` y exigen **además** `precios.editar` (403 `SIN_PERMISO {permiso:'precios.editar'}`;
+prender sin regalo válido → 400 `VALIDACION {campo:'lealtad_presentacion_regalo_id'}`). `PATCH /api/presentaciones/:id` acepta
+`cuenta_lealtad` (exige además `precios.editar`); `GET /api/productos` y la presentación devuelven `cuenta_lealtad`.
+`GET /api/publico/cliente` → `lealtad`; `GET /api/publico/catalogo` → `sugerencias_zona:[{presentacion_id}]` (dentro del
+cuerpo y del `ETag`). `GET /api/rutas/:id/carga` → `regalos` (de `fn_orden_carga`). `POST /api/pedidos/:id/entregar` agrega
+`regalo:{producto, presentacion, cantidad}|null` (también al repetir). `Ticket.lineas[]` agrega `regalo` (boolean, de
+`fn_regalo_venta`).
+
+**Reportes (F9)** — solo lectura, módulo `reportes` (`apps/api/src/modulos/reportes`). Todos los de periodo aceptan `?desde&hasta` (fechas locales `YYYY-MM-DD`,
+inclusivas, defecto = mes en curso hasta hoy; `desde > hasta` o más de 366 días → `400 VALIDACION`). `agrupar` es una lista blanca (`z.enum`); un valor fuera de ella
+→ `400 VALIDACION` y nunca llega al SQL. Orden de cada ruta: zod → rango de fechas → permiso fino (`costos.ver`, 403 `SIN_PERMISO {permiso}`) → consulta. Cada fila
+agrupada trae `clave` (id como string, la fecha `YYYY-MM-DD`, el mes `YYYY-MM` o el valor del enum) y `etiqueta` (nombre de la entidad, folio de la ruta, la fecha); el grupo
+«público en general» / «sin ruta» / «sin zona» es **una fila con `clave: null` y `etiqueta: null`** (la pantalla la nombra). Filas y `totales` salen de la misma consulta SQL
+(`GROUP BY GROUPING SETS`): el conteo `num_ventas` de los totales es distinto, no la suma de los grupos. Dinero string con 2 decimales; conteos y piezas, número;
+`margen` string de 4 decimales o `null` si el importe es ≤ 0. Ninguna respuesta lleva IVA/IEPS/impuestos. CSV en el navegador (no hay ruta de exportación).
 
 | Método y ruta | Permiso | Query | Respuesta (fuente en §6) |
 |---|---|---|---|
-| GET `/api/reportes/ventas` | reportes.ver | `agrupar=dia|mes|usuario|cliente|zona|ruta|origen|producto|categoria|metodo` | `{filas:[{clave, etiqueta, num_ventas, piezas, importe}], totales}` |
-| GET `/api/reportes/compras` | reportes.ver | `agrupar=dia|mes|proveedor|producto|categoria` | `{filas:[{clave, etiqueta, num_compras, piezas, importe}], totales}` |
-| GET `/api/reportes/utilidad` | reportes.ver + costos.ver | `agrupar=dia|mes|producto|categoria|origen` | `{filas:[{clave, etiqueta, importe, costo, utilidad, margen}], ajustes:{mermas_por_causa, ajustes_netos}, utilidad_neta}` |
-| GET `/api/reportes/entregas` | reportes.ver | `agrupar=dia|ruta|repartidor|zona|cliente` | `{filas:[{clave, etiqueta, pedidos, entregados, fallidos, parciales, piezas_faltantes, importe_pedido, importe_entregado}]}` |
-| GET `/api/reportes/faltantes` | reportes.ver | `agrupar=producto|proveedor` | demanda perdida de `v_entregas` |
-| GET `/api/reportes/inventario-valorizado` | costos.ver | `?categoria_id` | `{filas, valor_total}` |
-| GET `/api/reportes/bajo-minimo` | inventario.ver | — | `{filas:[{producto, categoria, cantidad, existencia_minima, faltante, agotado}]}` |
-| GET `/api/reportes/ganancia` | reportes.ver + costos.ver | `agrupar=cliente|ruta|zona` | `{filas:[{clave, etiqueta, importe, costo, utilidad, gastos_ruta?, ganancia}]}` (B13) |
-| GET `/api/reportes/cuentas-por-cobrar` | cobranza.ver | `?al&zona_id` | `{filas: fn_cxc_antiguedad, totales}` |
-| GET `/api/reportes/cortes` | caja.supervisar o rutas.liquidar | `?tipo&usuario_id&caja_id` | `{filas:[Turno + ventas y abonos por método]}` |
+| GET `/api/reportes/ventas` | reportes.ver | `agrupar=dia\|mes\|usuario\|cliente\|zona\|ruta\|origen\|producto\|categoria\|metodo` (def. `dia`) | `{filas:[{clave, etiqueta, num_ventas, piezas, importe}], totales:{num_ventas, piezas, importe}}`. Importes netos de devoluciones (restan en su fecha); canceladas fuera. `num_ventas = count(distinct venta_id) filter (signo>0)`. `metodo` usa los pagos de ventas `completada` (bruto, el crédito cuenta como método): `piezas` es `null` y el total de importe suma todos los métodos |
+| GET `/api/reportes/compras` | reportes.ver + compras.ver (`exigirPermiso`: el importe de compras es costo) | `agrupar=dia\|mes\|proveedor\|producto\|categoria` (def. `dia`) | `{filas:[{clave, etiqueta, num_compras, piezas, importe}], totales:{num_compras, piezas, importe}}` (compras `registrada`; la fecha es la de la compra) |
+| GET `/api/reportes/utilidad` | reportes.ver + costos.ver (`exigirPermiso`) | `agrupar=dia\|mes\|producto\|categoria\|origen` (def. `dia`) | `{filas:[{clave, etiqueta, importe, costo, utilidad, margen}], totales:{importe, costo, utilidad, margen}, ajustes:{mermas_por_causa:{<causa>:"-60.00"}, ajustes_netos:"25.00"}, utilidad_neta}`. `utilidad_neta = Σ utilidad + Σ valor de mermas y ajustes` del periodo completo (los ajustes no se reparten por grupo; causa sin dato = `sin_causa`) |
+| GET `/api/reportes/entregas` | reportes.ver | `agrupar=dia\|ruta\|repartidor\|zona\|cliente` (def. `dia`) | `{filas:[{clave, etiqueta, pedidos, entregados, fallidos, parciales, piezas_faltantes, importe_pedido, importe_entregado}], totales:(mismas llaves salvo clave y etiqueta)}`. Por intento de entrega (`v_entregas`: fecha de la ruta; un pedido reprogramado cuenta en cada ruta con su resultado de ahí); `fallidos` = intento `no_entregado`; `piezas_faltantes = pedidas − confirmadas` del último intento de cada pedido |
+| GET `/api/reportes/faltantes` | reportes.ver | `agrupar=producto\|proveedor` (def. `producto`) | `{filas:[{clave, etiqueta, piezas_faltantes}], totales:{piezas_faltantes}}`: demanda perdida de `v_faltantes_lineas` por `fecha_entrega` |
+| GET `/api/reportes/inventario-valorizado` | costos.ver | `?categoria_id` (sin periodo: existencia de hoy) | `{filas:[{producto_id, producto, categoria, cantidad, cajas, sueltas, costo_promedio, valor}], valor_total}` (mayor valor primero) |
+| GET `/api/reportes/bajo-minimo` | inventario.ver | — | `{filas:[{producto_id, producto, categoria, cantidad, existencia_minima, faltante, agotado}]}` (agotados primero, luego mayor faltante). Sin costos |
+| GET `/api/reportes/ganancia` | reportes.ver + costos.ver (`exigirPermiso`) | `agrupar=cliente\|ruta\|zona` (def. `cliente`) | `{filas:[{clave, etiqueta, importe, costo, utilidad, gastos_ruta?, ganancia}], totales}` (B13). `cliente` y `zona`: ventas por su fecha, sin `gastos_ruta` y `ganancia = utilidad`. `ruta`: rutas con turno cuya `ruta.fecha` cae en el periodo (`v_ganancia_ruta`, con todas sus ventas aunque una devolución sea de otra fecha) más la fila «sin ruta» (`clave null`: ventas del periodo sin ruta, `gastos_ruta "0.00"`); `ganancia = utilidad − gastos_ruta` |
+| GET `/api/reportes/cuentas-por-cobrar` | cobranza.ver | `?al` («vencimiento al», def. hoy local) `&zona_id` (zona del cliente) | `{filas:[{cliente_id, nombre, zona, corriente, d1_30, d31_60, d61_90, d90_mas, total}], totales:{corriente, d1_30, d31_60, d61_90, d90_mas, total}}` de `fn_cxc_antiguedad(al)` (mayor deuda primero). Solo cuentas de la sucursal del usuario (`v_cxc_sucursal`) que ya existían el día `al` |
+| GET `/api/reportes/cortes` | caja.supervisar o rutas.liquidar | `?desde&hasta` (día local de apertura; def. mes en curso, máx. 366 días: acota la lista) `&tipo=mostrador\|ruta&usuario_id&caja_id` | `{filas:[{id, tipo, caja_id, ruta_id, usuario:{id, nombre}, caja:{id, nombre}\|null, estado, fondo_inicial, abierto_en, cerrado_en, efectivo_esperado, efectivo_contado, diferencia, ventas:{num, canceladas, efectivo, transferencia, tarjeta, credito}, abonos:{efectivo, transferencia, tarjeta}, entradas, salidas, retiros, reembolsos}]}` (`abierto_en desc`). Todo de `fn_resumen_turno` (§2.8): `efectivo_esperado` también en un turno abierto (el de hoy); `efectivo_contado` y `diferencia` son `null` hasta cerrar. Mismo alcance que `GET /turnos`: con `caja.supervisar` todos los turnos de la sucursal; solo con `rutas.liquidar`, los de tipo `ruta` |
 
 ### 4.5 Archivos (imágenes y comprobantes)
 
@@ -2106,6 +2153,9 @@ Semilla de roles: **Dueño** (`es_sistema`, todo), **Administrador** (opera todo
 | `reportes.ver` | reportes de ventas, compras, entregas, faltantes | ✓ | ✓ | | | |
 | `envases.gestionar` | F10 | ✓ | | | | |
 
+Lealtad (F11) no crea permisos: configurarla (`lealtad_*` en `PATCH /configuracion`) y marcar `cuenta_lealtad` exigen
+`precios.editar` además del permiso de la ruta (regalar producto es fijar un precio).
+
 Supuestos de esta matriz: el administrador no ve costos ni cambia precios [P37] (excepción decidida en F5: con `compras.registrar` ve los costos de **compra** en `/surtido` y `/surtido/promociones`, §2.6; nunca costo promedio, utilidad ni valorizado); quien tiene `rutas.liquidar` puede liquidar su propia ruta (con 2 personas no hay otro que lo haga); el repartidor puede dar
 crédito dentro del límite y recibir devoluciones en la visita.
 
@@ -2163,7 +2213,7 @@ frontend/UX. Si una regla choca con una decisión técnica, gana la regla y se c
 | C16 | «Lo de siempre»: del WhatsApp al pedido confirmado en **1 toque** («Sí, mándamelo»), con «Cambiar algo» y «No, gracias» al lado; vence solo. | Prueba cronometrada. | `?ir=pedido-<id>`, `POST /api/publico/pedidos/:id/aceptar` |
 | C17 | Ofertas por caducar arriba del catálogo, con precio normal tachado y «hasta el <fecha>». | Revisión. | `oferta` en `GET /api/publico/catalogo` |
 | C18 | Sugerencias «en tu zona también piden»: máximo 3, debajo de los frecuentes, sin ventanas emergentes. | Revisión. | `sugerencias_zona` (F11) |
-| C19 | Lealtad: una línea con el avance («Llevas 7 de 10 cajas para una gratis»), sin reglas largas. | Revisión. | `lealtad` en `GET /api/publico/cliente` (F11) |
+| C19 | Lealtad: una línea con el avance («Llevas 7 de 10 cajas para una gratis»), sin reglas largas. | Revisión. | `lealtad.texto` en `GET /api/publico/cliente` (F11; plantillas `pantalla_lealtad_avance` / `pantalla_lealtad_premio`) |
 | C20 | **Precios siempre al día**: «Repetir» y «lo de siempre» muestran el precio actual; si cambió, por línea «antes $310 → ahora $315» (resaltado) y arriba «Algunos precios cambiaron»; el total nuevo se ve antes de confirmar; lo que ya no se vende se quita con «Ya no tenemos: X». El WhatsApp nunca trae precios. Si el precio cambia entre ver y tocar «Sí», se muestra de nuevo y se vuelve a confirmar. | Cambiar un precio con un propuesto abierto y revisar. | `fn_vista_borrador`, `total_visto`, `PRECIOS_CAMBIARON` |
 | C21 | **Nunca se le quita el acceso a un cliente sin que una persona lo decida** (§0). Las esperas por PIN dicen cuántos minutos faltan; un dispositivo nuevo, muchas visitas sin pedido o inactividad solo generan avisos al personal. | Pruebas de F3 + búsqueda en el código: solo `fn_revocar_enlace`, `fn_generar_enlace`, `fn_quitar_dispositivo`, `fn_restablecer_pin` y `PATCH` de cliente tocan acceso. | `cliente_pin_espera`, `fn_alertas_clientes` |
 

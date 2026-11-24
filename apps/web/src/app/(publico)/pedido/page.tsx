@@ -12,7 +12,7 @@ export default async function Pedido() {
   const c = r.datos;
   return (
     <main>
-      <Encabezado negocio={c.negocio.nombre} credito={c.credito} saludo={c.textos.bienvenida} />
+      <Encabezado negocio={c.negocio.nombre} credito={c.credito} lealtad={c.lealtad} saludo={c.textos.bienvenida} />
       <h1 className="sr-only">Mi pedido</h1>
       <Catalogo cliente={c} />
     </main>

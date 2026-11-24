@@ -42,6 +42,7 @@ export const T = {
   ofertas: "Ofertas",
   ofertaHasta: (f: string) => `hasta el ${f}`,
   frecuentes: "Lo que sueles pedir",
+  enTuZona: "En tu zona también piden",
   todo: "Todo",
   catalogo: "Todos los productos",
   verMas: "Ver más productos",

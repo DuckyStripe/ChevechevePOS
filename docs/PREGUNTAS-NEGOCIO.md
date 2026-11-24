@@ -33,7 +33,7 @@ Respuestas del dueño que movieron el centro del sistema del mostrador a pedidos
 ## Nuevas preguntas (operación de pedidos y reparto)
 
 **P30. Repartidores: resuelto, son las mismas 2 personas. Falta confirmar: ¿es 1 camioneta? ¿Hace más de una vuelta al día? ¿Cuántas cajas le caben?**
-Supuesto: 1 camioneta, una o dos rutas por día; una persona reparte mientras la otra despacha y surte.
+**Respuesta (cuestionario, 2026-11-23): 1 camioneta, 2 o más vueltas al día.** Coincide con el supuesto: varias rutas por día con el mismo vehículo (sin candado por vehículo); una persona reparte mientras la otra despacha y surte. Falta: cuántas cajas le caben.
 El esquema ya soporta varias. `capacidad_cajas` solo avisa.
 
 **P31. ¿Hay hora de corte? (ej. lo pedido antes de las 6 pm se entrega mañana)**
@@ -50,7 +50,7 @@ siempre»— nunca traen precios viejos y muestran los cambios.)
 Supuesto: el del momento en que pidieron (lo que vieron). Despacho puede cambiarlo con permiso.
 
 **P34. ¿Cómo dividen la ciudad? ¿Por colonia, por día de la semana, por repartidor fijo?**
-Supuesto: zonas libres (catálogo) + días de visita por cliente; la ruta se arma por fecha y zona.
+**Respuesta (cuestionario, 2026-11-23): por colonia o zona.** Coincide con el supuesto: zonas libres (catálogo) + días de visita por cliente; la ruta se arma por fecha y zona.
 
 **P35. ¿Al cliente le pueden mostrar su saldo de fiado en su enlace?**
 Supuesto: sí, en una línea («Debes $1,250 · te quedan $750»). Si no, se oculta con una configuración.

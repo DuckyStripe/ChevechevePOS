@@ -32,8 +32,8 @@ export function Ticket80mm({ t }: { t: Ticket }) {
           <li key={i} className="flex flex-col">
             <span className="[overflow-wrap:anywhere]">{l.producto} · {l.presentacion}</span>
             <span className="flex justify-between gap-2 tabular-nums">
-              <span>{l.cantidad} × {dinero(l.precio_unitario)}</span>
-              <span>{dinero(l.importe)}</span>
+              <span>{l.regalo ? `${l.cantidad} × Regalo` : `${l.cantidad} × ${dinero(l.precio_unitario)}`}</span>
+              <span>{l.regalo ? "Regalo" : dinero(l.importe)}</span>
             </span>
           </li>
         ))}

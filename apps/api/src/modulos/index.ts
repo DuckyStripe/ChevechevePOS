@@ -33,6 +33,8 @@ import { rutasComprobantes } from "./comprobantes/rutas.js"; // F7
 import { rutasEntregas } from "./entregas/rutas.js"; // F7
 import { rutasTurnos } from "./turnos/rutas.js"; // F7
 import { rutasVentas } from "./ventas/rutas.js"; // F7
+import { rutasReportes } from "./reportes/rutas.js"; // F9
+import { rutasTablero } from "./tablero/rutas.js"; // F9
 
 /** Un modulo por linea, todos bajo /api. */
 export async function modulos(api: FastifyInstance): Promise<void> {
@@ -70,4 +72,6 @@ export async function modulos(api: FastifyInstance): Promise<void> {
   await api.register(rutasCobrar, { prefix: "/cobrar" }); // F7
   await api.register(rutasCierre, { prefix: "/cierre" }); // F7
   await api.register(rutasMovil, { prefix: "/movil" }); // /movil/push, /movil/actualizaciones
+  await api.register(rutasReportes, { prefix: "/reportes" }); // F9
+  await api.register(rutasTablero, { prefix: "/tablero" }); // F9
 }

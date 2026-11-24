@@ -24,6 +24,8 @@ export default async function PaginaProducto({ params }: { params: Promise<{ id:
   }
   if (!cat.ok) return <AvisoError mensaje={cat.mensaje} />;
   const permisos = yo.datos;
+  // F11: la casilla solo aparece con precios.editar y el programa prendido; si la config no se puede leer, no se muestra.
+  const cfg = tiene(permisos, "precios.editar") ? await apiServidor<{ lealtad_activa?: boolean }>("/configuracion") : null;
 
   return (
     <main>
@@ -40,6 +42,7 @@ export default async function PaginaProducto({ params }: { params: Promise<{ id:
         veCostos={tiene(permisos, "costos.ver")}
         puedeVerInventario={tiene(permisos, "inventario.ver")}
         puedeVerPrecios={tiene(permisos, "precios.editar")}
+        lealtadActiva={cfg?.ok === true && cfg.datos.lealtad_activa === true}
       />
     </main>
   );
