@@ -1,37 +1,167 @@
 @import "tailwindcss";
 
-/* Sistema visual: calido, un solo tema claro (se lee bien al sol y en pantallas baratas). Sin hex sueltos fuera de aqui. */
-@theme {
-  --color-fondo: #faf6ef;
-  --color-superficie: #fffdf9;
-  --color-texto: #2b2118;
-  --color-suave: #6b5d4f; /* texto secundario, AA sobre fondo y superficie */
-  --color-borde: #e3d9c8;
-  --color-marca: #b45309; /* acciones primarias; texto blanco encima: AA */
-  --color-marca-fuerte: #92400e;
-  --color-marca-suave: #fef3c7;
-  --color-peligro: #b91c1c;
-  --color-peligro-suave: #fee2e2;
-  --color-exito: #15803d;
-  --color-exito-suave: #dcfce7;
+/*
+ * Sistema visual «Caguama»: el ámbar tostado de la botella retornable sobre el gris frío del piso
+ * de bodega. Un solo acento (marca) para la acción primaria, foco y selección; el resto neutro.
+ * Sin hex sueltos fuera de este archivo: los componentes usan solo los tokens semánticos de @theme.
+ *
+ * Contraste WCAG medido (claro / oscuro):
+ *   texto/fondo 15.0 / 15.9 · suave/superficie 6.8 / 7.4 · blanco/marca 6.1 / 4.9
+ *   marca-fuerte/marca-suave 6.7 / 7.7 · peligro/peligro-suave 5.8 / 7.3 · exito/exito-suave 5.1 / 8.2
+ *   control (borde de campos)/superficie 3.3 / 3.5
+ * Regla de uso: `marca`, `peligro-relleno` y `exito-relleno` son rellenos con texto blanco encima;
+ * `marca-fuerte`, `peligro` y `exito` son color de TEXTO sobre superficie o su tono suave.
+ */
+:root {
+  --fondo: #eff0ec;
+  --superficie: #ffffff;
+  --hundido: #e6e8e2; /* rellenos neutros: chips, esqueletos, filas al pasar */
+  --texto: #1a1d1b;
+  --suave: #575c58;
+  --borde: #d8dbd4; /* decorativo: separa tarjetas y filas */
+  --control: #8c8f8a; /* borde de campos: 3:1 contra la superficie */
+  --marca: #a3470f;
+  --marca-presionado: #863a0c;
+  --marca-fuerte: #8a3b0b;
+  --marca-suave: #fbebdc;
+  --peligro: #b42318;
+  --peligro-relleno: #b42318;
+  --peligro-suave: #fdecea;
+  --exito: #17734a;
+  --exito-relleno: #17734a;
+  --exito-suave: #e2f3e9;
+  --velo: rgb(18 20 19 / 0.55);
+  /* Antiguedad de saldos (secuencial, un solo tono): al corriente claro -> mas de 90 dias oscuro. */
+  --antig-1: #f3c796;
+  --antig-2: #e39a55;
+  --antig-3: #c46a22;
+  --antig-4: #9a4a12;
+  --antig-5: #6b300a;
+
+  /* Elevacion: tres niveles suaves; en oscuro la profundidad la dan las superficies escalonadas. */
+  --sombra-1: 0 1px 2px rgb(26 29 27 / 0.06), 0 1px 1px rgb(26 29 27 / 0.04);
+  --sombra-2: 0 -1px 0 rgb(26 29 27 / 0.04), 0 8px 24px -6px rgb(26 29 27 / 0.18);
+  --sombra-3: 0 24px 64px -12px rgb(26 29 27 / 0.32);
+  --brillo-boton: inset 0 1px 0 rgb(255 255 255 / 0.16);
+
+  color-scheme: light;
+}
+
+/* Solo en pantalla: la impresion (tickets, hoja de carga) siempre sale en claro. */
+@media screen and (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #121413;
+    --superficie: #1b1e1c;
+    --hundido: #262a27;
+    --texto: #eeeee9;
+    --suave: #a9ada8;
+    --borde: #2e322f;
+    --control: #6e736f;
+    --marca: #b5541a;
+    --marca-presionado: #9a4714;
+    --marca-fuerte: #f4ae6e;
+    --marca-suave: #36261a;
+    --peligro: #ff968a;
+    --peligro-relleno: #c23a2e;
+    --peligro-suave: #3a1c19;
+    --exito: #62d29e;
+    --exito-relleno: #1d7a50;
+    --exito-suave: #14291f;
+    --velo: rgb(0 0 0 / 0.65);
+    /* En oscuro lo mas viejo es lo de mas contraste contra la superficie. */
+    --antig-1: #5a3514;
+    --antig-2: #844a1a;
+    --antig-3: #b5621f;
+    --antig-4: #e08a3c;
+    --antig-5: #f7b878;
+
+    --sombra-1: 0 0 0 1px rgb(255 255 255 / 0.02);
+    --sombra-2: 0 -1px 0 rgb(255 255 255 / 0.04), 0 8px 24px -6px rgb(0 0 0 / 0.6);
+    --sombra-3: 0 24px 64px -12px rgb(0 0 0 / 0.7);
+    --brillo-boton: inset 0 1px 0 rgb(255 255 255 / 0.12);
+
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-hundido: var(--hundido);
+  --color-texto: var(--texto);
+  --color-suave: var(--suave);
+  --color-borde: var(--borde);
+  --color-control: var(--control);
+  --color-marca: var(--marca);
+  --color-marca-presionado: var(--marca-presionado);
+  --color-marca-fuerte: var(--marca-fuerte);
+  --color-marca-suave: var(--marca-suave);
+  --color-peligro: var(--peligro);
+  --color-peligro-relleno: var(--peligro-relleno);
+  --color-peligro-suave: var(--peligro-suave);
+  --color-exito: var(--exito);
+  --color-exito-relleno: var(--exito-relleno);
+  --color-exito-suave: var(--exito-suave);
+  --color-velo: var(--velo);
+  --color-antig-1: var(--antig-1);
+  --color-antig-2: var(--antig-2);
+  --color-antig-3: var(--antig-3);
+  --color-antig-4: var(--antig-4);
+  --color-antig-5: var(--antig-5);
+
+  --shadow-tarjeta: var(--sombra-1);
+  --shadow-flotante: var(--sombra-2);
+  --shadow-dialogo: var(--sombra-3);
+  --shadow-boton: var(--brillo-boton);
+
+  /* Cuerpo con la fuente del sistema (Roboto en Android: cero bytes); titulos y cifras grandes con
+     Bricolage Grotesque, cargada con next/font en layout.tsx (font-display: swap). */
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --radius-tarjeta: 0.875rem;
+  --font-titulo: var(--fuente-titulo), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@theme {
+  /* Radios: control = rounded-xl (12 px, de Tailwind), tarjeta 16 px, pastilla = rounded-full. */
+  --radius-tarjeta: 1rem;
   --spacing-tocable: 3rem; /* 48 px: minimo para tocar */
+  --spacing-tocable-grande: 3.5rem; /* 56 px: accion primaria y reparto */
+
+  /* Movimiento: solo transform y opacity. Presion 120 ms, cambios 200 ms, cajones 300 ms. */
+  --ease-salida: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-movimiento: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-cajon: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 html {
-  color-scheme: light;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--color-fondo);
-  color: var(--color-texto);
+  background: var(--fondo);
+  color: var(--texto);
   font-family: var(--font-sans);
   font-size: 1rem;
   line-height: 1.5;
   min-height: 100dvh;
+}
+
+/* Escala de titulos: h1 24-30 px, h2 18-20 px, con la fuente de titulos y tracking apretado.
+   En @layer base para que las utilidades (text-2xl, leading-*) sigan mandando. */
+@layer base {
+  h1,
+  h2 {
+    font-family: var(--font-titulo);
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+}
+
+/* Cifras de dinero y conteos alineados. */
+@utility cifra {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-titulo);
+  letter-spacing: -0.01em;
 }
 
 /* Sin zoom de Android/iOS al enfocar un campo; sin retraso de doble toque. */
@@ -39,6 +169,7 @@ input,
 select,
 textarea,
 button,
+summary,
 a {
   touch-action: manipulation;
 }
@@ -47,14 +178,99 @@ select,
 textarea {
   font-size: 1rem;
 }
+/* Un control no se selecciona al mantenerlo presionado; el contenido si. */
+button,
+summary,
+[role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+@layer base {
+  summary {
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+}
 
 :focus-visible {
-  outline: 3px solid var(--color-marca);
+  outline: 3px solid var(--marca);
   outline-offset: 2px;
 }
 
+/* Dialogo nativo: aparece desde 96 % con opacidad (200 ms); el velo se funde. */
+dialog {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 200ms var(--ease-salida),
+    transform 200ms var(--ease-salida),
+    overlay 200ms allow-discrete,
+    display 200ms allow-discrete;
+}
+dialog:not([open]) {
+  opacity: 0;
+  transform: scale(0.96);
+}
+@starting-style {
+  dialog[open] {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
 dialog::backdrop {
-  background: rgb(43 33 24 / 0.5);
+  background: var(--velo);
+  transition: opacity 200ms var(--ease-salida);
+}
+@starting-style {
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Entrada de una barra fija inferior (carrito): sube desde su propio alto la primera vez que aparece. */
+.entra-abajo {
+  transition:
+    transform 300ms var(--ease-cajon),
+    opacity 200ms var(--ease-salida);
+}
+@starting-style {
+  .entra-abajo {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* Confirmacion (pedido enviado): la palomita aparece una vez, sin rebote. */
+.aparece {
+  animation: aparece 320ms var(--ease-salida) both;
+}
+@keyframes aparece {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+/* Esqueleto: barrido de luz (transform) en vez de spinner. */
+.esqueleto {
+  position: relative;
+  overflow: hidden;
+  background: var(--hundido);
+}
+.esqueleto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--superficie) 55%, transparent), transparent);
+  animation: barrido 1.4s ease-in-out infinite;
+}
+@keyframes barrido {
+  to {
+    transform: translateX(100%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -62,7 +278,11 @@ dialog::backdrop {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .esqueleto::after {
+    display: none;
   }
 }
 
@@ -84,7 +304,7 @@ dialog::backdrop {
     inset: 0 auto auto 0;
     width: 74mm;
     font-size: 11px;
-    color: var(--color-texto);
+    color: var(--texto);
   }
   /* Ticket de mostrador: sin colores y letra de 12 pt para la térmica. */
   .hoja-80[data-ticket] {
@@ -95,5 +315,34 @@ dialog::backdrop {
   .hoja-80[data-ticket] * {
     color: #000 !important;
     background: transparent !important;
+  }
+}
+
+/* Palomita de «pedido enviado»: se dibuja despues de que aparece el circulo (causa y efecto). */
+.palomita path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: traza 320ms 140ms var(--ease-salida) forwards;
+}
+@keyframes traza {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .palomita path {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Linea de tiempo del seguimiento: cada etapa entra 40 ms despues de la anterior (orden = historia). */
+.etapa-entra {
+  animation: etapa-entra 240ms var(--ease-salida) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+@keyframes etapa-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }

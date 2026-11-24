@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { NumeroPaso } from "@/componentes/ui/numero-paso";
 import { Tarjeta, Titulo } from "@/componentes/ui/tarjeta";
 import { apiServidor, obtenerYo } from "@/lib/api-servidor";
-import { TITULOS_GRUPO } from "@/lib/navegacion";
+import { NUMERO_PASO, TITULOS_GRUPO } from "@/lib/navegacion";
 import type { Despacho } from "@/lib/tipos";
 
 export const metadata = { title: "Hoy · ChevechevePOS" };
@@ -17,10 +18,13 @@ const PASOS = [
 
 function Contador({ n, texto, href, urgente = false }: { n: number; texto: string; href: string; urgente?: boolean }) {
   return (
-    <Link href={href} className="flex min-h-tocable items-center justify-between gap-3 rounded-xl border border-borde px-3 py-2 hover:bg-marca-suave">
-      <span className="text-base">{texto}</span>
-      <span className="flex items-center gap-1">
-        <span className={`rounded-full px-2.5 py-0.5 text-base font-bold ${n > 0 ? (urgente ? "bg-peligro-suave text-peligro" : "bg-marca-suave text-marca-fuerte") : "bg-borde/60 text-suave"}`}>{n}</span>
+    <Link
+      href={href}
+      className="flex min-h-tocable items-center justify-between gap-3 rounded-xl bg-fondo py-1.5 pl-3 pr-2 transition-[transform,background-color] duration-150 ease-salida hover:bg-hundido active:scale-[0.98] active:bg-hundido"
+    >
+      <span className="min-w-0 text-base [overflow-wrap:anywhere]">{texto}</span>
+      <span className="flex shrink-0 items-center gap-1">
+        <span className={`cifra min-w-9 rounded-full px-2.5 py-0.5 text-center text-base font-bold ${n > 0 ? (urgente ? "bg-peligro-suave text-peligro" : "bg-marca-suave text-marca-fuerte") : "bg-hundido text-suave"}`}>{n}</span>
         <ChevronRight aria-hidden className="size-5 text-suave" />
       </span>
     </Link>
@@ -46,11 +50,12 @@ export default async function Hoy() {
         </p>
       )}
       {!d.ok && d.error.status !== 403 && <p className="mb-4 rounded-xl bg-peligro-suave p-3 text-base font-medium text-peligro">{d.error.mensaje}</p>}
-      <ol className="flex flex-col gap-3">
+      <ol className="grid gap-3 lg:grid-cols-2">
         {PASOS.map((paso) => (
           <li key={paso.grupo}>
             <Tarjeta className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <NumeroPaso n={NUMERO_PASO[paso.grupo] ?? 0} />
                 <div className="min-w-0">
                   <h2 className="text-lg font-bold">{TITULOS_GRUPO[paso.grupo]}</h2>
                   <p className="text-base text-suave">{paso.texto}</p>

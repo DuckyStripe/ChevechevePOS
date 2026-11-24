@@ -1,14 +1,15 @@
 import { useId, type ComponentProps, type ReactNode } from "react";
 
+// Borde `control` (3:1 contra la superficie, WCAG 1.4.11); al enfocar se marca con el acento.
 const CONTROL =
-  "min-h-tocable w-full rounded-xl border border-borde bg-superficie px-4 py-2 text-base text-texto placeholder:text-suave/70 disabled:opacity-60";
+  "min-h-tocable w-full rounded-xl border border-control bg-superficie px-4 py-2 text-base text-texto transition-[border-color] duration-150 placeholder:text-suave focus:border-marca aria-invalid:border-peligro disabled:bg-hundido disabled:opacity-70";
 
 type Base = { etiqueta: string; ayuda?: string; error?: string };
 
 function Envoltura({ id, etiqueta, ayuda, error, children }: Base & { id: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-base font-medium">
+      <label htmlFor={id} className="text-base font-semibold">
         {etiqueta}
       </label>
       {children}
@@ -18,7 +19,7 @@ function Envoltura({ id, etiqueta, ayuda, error, children }: Base & { id: string
         </p>
       )}
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-sm font-medium text-peligro">
+        <p id={`${id}-error`} role="alert" className="text-base font-medium text-peligro">
           {error}
         </p>
       )}
@@ -61,7 +62,7 @@ export function Selector({ etiqueta, ayuda, error, className = "", children, ...
 /** Casilla con toda la fila tocable (>= 48 px). */
 export function Casilla({ etiqueta, ayuda, className = "", ...r }: { etiqueta: string; ayuda?: string } & Omit<ComponentProps<"input">, "type">) {
   return (
-    <label className={`flex min-h-tocable cursor-pointer items-start gap-3 rounded-xl px-1 py-2 ${className}`}>
+    <label className={`flex min-h-tocable cursor-pointer items-start gap-3 rounded-xl px-1 py-2 active:bg-hundido ${className}`}>
       <input type="checkbox" className="mt-0.5 size-6 shrink-0 accent-marca" {...r} />
       <span>
         <span className="block text-base">{etiqueta}</span>

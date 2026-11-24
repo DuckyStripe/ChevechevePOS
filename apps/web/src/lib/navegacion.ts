@@ -4,14 +4,17 @@ export type EntradaMenu = { ruta: string; titulo: string; permiso: string; grupo
 
 /** N2: la operacion del dia en orden, Mostrador aparte y Ajustes al final. */
 export const TITULOS_GRUPO: Record<Grupo, string> = {
-  paso1: "1 · Pedidos entrantes",
-  paso2: "2 · Surtir y comprar",
-  paso3: "3 · Cargar y rutas",
-  paso4: "4 · Entregar y cobrar",
-  paso5: "5 · Cierre del día",
+  paso1: "Pedidos entrantes",
+  paso2: "Surtir y comprar",
+  paso3: "Cargar y rutas",
+  paso4: "Entregar y cobrar",
+  paso5: "Cierre del día",
   mostrador: "Mostrador",
   ajustes: "Ajustes",
 };
+
+/** Numero del paso del dia (se pinta en un circulo junto al titulo); Mostrador y Ajustes no son pasos. */
+export const NUMERO_PASO: Partial<Record<Grupo, number>> = { paso1: 1, paso2: 2, paso3: 3, paso4: 4, paso5: 5 };
 
 const ORDEN: Grupo[] = ["paso1", "paso2", "paso3", "paso4", "paso5", "mostrador", "ajustes"];
 

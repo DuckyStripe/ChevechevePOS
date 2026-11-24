@@ -1,4 +1,4 @@
-import { Ban, CircleCheck, Clock, PackageCheck, Truck, type LucideIcon } from "lucide-react";
+import { Ban, Check, CircleCheck, Clock, PackageCheck, Truck, type LucideIcon } from "lucide-react";
 import { AccionesPedido } from "@/componentes/publico/acciones-pedido";
 import { Encabezado, ErrorPublico } from "@/componentes/publico/encabezado";
 import { hora } from "@/componentes/publico/formato-publico";
@@ -33,15 +33,18 @@ export default async function PedidoDetalle({ params }: { params: Promise<{ id: 
 
   return (
     <main className="flex flex-col gap-5">
-      <Encabezado negocio={c.datos.negocio.nombre} />
+      <Encabezado negocio={c.datos.negocio.nombre} actual="pedidos" />
       <header>
-        <h1 className="text-2xl font-bold">{T.pedidoNumero(p.folio)}</h1>
-        <p className="mt-2 flex items-center gap-2 rounded-tarjeta bg-marca-suave p-3 text-xl font-bold text-marca-fuerte">
-          <Icono aria-hidden className="size-7 shrink-0" /> {p.etiqueta}
+        <h1 className="text-3xl font-bold">{T.pedidoNumero(p.folio)}</h1>
+        <p className="mt-3 flex items-center gap-3 rounded-tarjeta bg-marca-suave p-4 font-titulo text-2xl font-bold leading-tight text-marca-fuerte">
+          <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full bg-marca text-white shadow-boton">
+            <Icono className="size-7" />
+          </span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">{p.etiqueta}</span>
         </p>
         {p.etapa === "entregado" && p.recibio && <p className="mt-2 text-lg">{T.recibio(p.recibio)}</p>}
         {p.reparto && (
-          <div className="mt-2 rounded-tarjeta border border-borde bg-superficie p-3 text-lg">
+          <div className="mt-3 rounded-tarjeta border border-borde bg-superficie p-4 text-lg shadow-tarjeta">
             <p className="font-bold">{T.paradaDe(p.reparto.parada, p.reparto.paradas)}</p>
             <p>{T.llegaEntre(hora(p.reparto.llegada_estimada_desde), hora(p.reparto.llegada_estimada_hasta))}</p>
             <p className="text-base text-suave">{T.antesDeTi(p.reparto.antes_que_tu)}</p>
@@ -65,7 +68,7 @@ export default async function PedidoDetalle({ params }: { params: Promise<{ id: 
         <h2 id="lineas" className="mb-2 text-xl font-bold">
           {T.productos}
         </h2>
-        <ul className="flex flex-col divide-y divide-borde rounded-tarjeta border border-borde bg-superficie">
+        <ul className="flex flex-col divide-y divide-borde rounded-tarjeta border border-borde bg-superficie shadow-tarjeta">
           {(propuesto && vista
             ? vista.lineas.map((l) => ({ k: String(l.presentacion_id), nombre: `${l.producto} ${l.presentacion}`, cantidad: l.cantidad, importe: null as string | null, precio: l.precio_actual, quitada: false, nota: null as string | null }))
             : p.lineas.map((l, i) => ({ k: `${i}`, nombre: `${l.producto} ${l.presentacion}`, cantidad: l.cantidad || l.cantidad_pedida, importe: l.importe, precio: l.precio_unitario ?? "", quitada: l.cantidad === 0, nota: l.motivo_ajuste }))
@@ -75,7 +78,7 @@ export default async function PedidoDetalle({ params }: { params: Promise<{ id: 
               <li key={l.k} className="flex flex-col gap-0.5 p-3">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className={`text-base [overflow-wrap:anywhere] ${l.quitada ? "text-suave line-through" : ""}`}>{T.linea(l.cantidad, l.nombre)}</span>
-                  {l.importe != null && !l.quitada && <span className="shrink-0 text-lg font-bold">{dinero(l.importe)}</span>}
+                  {l.importe != null && !l.quitada && <span className="cifra shrink-0 text-lg font-bold">{dinero(l.importe)}</span>}
                 </div>
                 {l.quitada && <span className="text-sm text-suave">{T.quitadoDelPedido}</span>}
                 {l.nota && <span className="text-sm text-suave [overflow-wrap:anywhere]">{l.nota}</span>}
@@ -85,19 +88,30 @@ export default async function PedidoDetalle({ params }: { params: Promise<{ id: 
             );
           })}
         </ul>
-        <p className="mt-3 flex items-baseline justify-between text-lg font-bold">
+        <p className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 text-lg font-bold">
           <span>{T.total}</span>
-          <span className="text-2xl">{dinero(propuesto && vista ? vista.total_actual : p.total)}</span>
+          <span className="cifra text-3xl">{dinero(propuesto && vista ? vista.total_actual : p.total)}</span>
         </p>
       </section>
 
       {p.linea_tiempo.length > 0 && (
-        <ol aria-label="Cómo va tu pedido" className="flex flex-col gap-1 border-l-2 border-borde pl-4">
-          {p.linea_tiempo.map((t) => (
-            <li key={`${t.etapa}-${t.en}`} className="text-base">
-              <span className="font-semibold">{t.etiqueta || T.etapaDesconocida}</span> <span className="text-suave">{fechaHora(t.en)}</span>
-            </li>
-          ))}
+        <ol aria-label="Cómo va tu pedido" className="flex flex-col">
+          {p.linea_tiempo.map((t, i) => {
+            const ultima = i === p.linea_tiempo.length - 1;
+            return (
+              // Punto + linea: las etapas pasadas con palomita, la mas reciente con anillo (no solo color: tambien la palomita).
+              <li key={`${t.etapa}-${t.en}`} style={{ "--i": i } as React.CSSProperties} className="etapa-entra relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 pb-4 last:pb-0">
+                {!ultima && <span aria-hidden className="absolute bottom-0 left-[0.8125rem] top-7 w-0.5 bg-marca" />}
+                <span aria-hidden className={`flex size-7 items-center justify-center rounded-full ${ultima ? "border-[3px] border-marca bg-superficie" : "bg-marca text-white"}`}>
+                  {!ultima && <Check className="size-4" strokeWidth={3} />}
+                </span>
+                <span className="min-w-0 pt-0.5 text-base">
+                  <span className={`font-semibold [overflow-wrap:anywhere] ${ultima ? "text-marca-fuerte" : ""}`}>{t.etiqueta || T.etapaDesconocida}</span>{" "}
+                  <span className="text-suave">{fechaHora(t.en)}</span>
+                </span>
+              </li>
+            );
+          })}
         </ol>
       )}
 

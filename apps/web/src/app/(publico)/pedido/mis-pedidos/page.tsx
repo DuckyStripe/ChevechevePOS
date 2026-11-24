@@ -14,9 +14,9 @@ const TERMINADAS = new Set(["entregado", "cancelado", "no_entregado"]);
 function Fila({ p }: { p: PedidoPublicoFila }) {
   return (
     <li>
-      <Link href={`/pedido/mis-pedidos/${p.id}`} className="flex min-h-tocable items-center gap-3 rounded-tarjeta border border-borde bg-superficie p-4">
+      <Link href={`/pedido/mis-pedidos/${p.id}`} className="flex min-h-tocable items-center gap-3 rounded-tarjeta border border-borde bg-superficie p-4 shadow-tarjeta transition-transform duration-150 ease-salida active:scale-[0.98]">
         <div className="min-w-0 flex-1">
-          <p className="text-lg font-bold">{T.pedidoNumero(p.folio)}</p>
+          <p className="font-titulo text-lg font-bold">{T.pedidoNumero(p.folio)}</p>
           <p className="text-base [overflow-wrap:anywhere]">{p.etiqueta}</p>
           {p.reparto && (
             <p className="flex items-center gap-1 text-base font-semibold text-marca-fuerte">
@@ -45,9 +45,9 @@ export default async function MisPedidos() {
 
   return (
     <main>
-      <Encabezado negocio={c.datos.negocio.nombre} credito={c.datos.credito} />
+      <Encabezado negocio={c.datos.negocio.nombre} credito={c.datos.credito} actual="pedidos" />
       <h1 className="mb-3 text-2xl font-bold">{T.misPedidos}</h1>
-      {lista.length === 0 && <p className="rounded-tarjeta border border-dashed border-borde p-6 text-center text-base text-suave">{T.sinPedidos}</p>}
+      {lista.length === 0 && <p className="rounded-tarjeta border border-dashed border-control/50 p-6 text-center text-base text-suave">{T.sinPedidos}</p>}
       {enCurso.length > 0 && (
         <section aria-labelledby="en-curso" className="mb-5">
           <h2 id="en-curso" className="mb-2 text-xl font-bold">

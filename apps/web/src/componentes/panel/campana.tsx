@@ -23,11 +23,11 @@ export function Campana({ inicial }: { inicial: number }) {
     <Link
       href="/notificaciones"
       aria-label={sinLeer > 0 ? `Avisos: ${sinLeer} sin leer` : "Avisos"}
-      className="relative flex size-12 items-center justify-center rounded-xl hover:bg-marca-suave"
+      className="relative flex size-12 items-center justify-center rounded-xl transition-transform duration-150 ease-salida hover:bg-hundido active:scale-95 active:bg-hundido"
     >
       <Bell aria-hidden className="size-6" />
       {sinLeer > 0 && (
-        <span className="absolute right-1 top-1 min-w-5 rounded-full bg-peligro px-1 text-center text-xs font-bold leading-5 text-white">
+        <span className="absolute right-1 top-1 min-w-5 rounded-full bg-peligro-relleno px-1 text-center text-xs font-bold leading-5 text-white">
           {sinLeer > 99 ? "99+" : sinLeer}
         </span>
       )}

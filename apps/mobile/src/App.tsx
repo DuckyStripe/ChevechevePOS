@@ -10,6 +10,7 @@ import WebViewBase from 'react-native-webview';
 import type { AndroidWebViewProps, ShouldStartLoadRequest, WebViewMessageEvent } from 'react-native-webview/lib/WebViewTypes';
 import { ProveedorActualizaciones, useActualizaciones } from './actualizaciones/proveedor';
 import { ORIGEN_PANEL } from './config';
+import { useTema } from './tema';
 import { decidirNavegacion } from './navegacion';
 import { pedirTokenPush, prepararNotificaciones, rutaDelAviso } from './push';
 import { guionParaPagina, interpretar, type MensajeSaliente } from './puente';
@@ -32,7 +33,7 @@ prepararNotificaciones();
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       {ORIGEN_PANEL === null ? (
         <MalConfigurada />
       ) : (
@@ -46,6 +47,7 @@ export default function App() {
 
 function Panel({ origen }: { origen: string }) {
   const insets = useSafeAreaInsets();
+  const t = useTema();
   const { estado, buscar, fijarSinGuardar } = useActualizaciones();
   const web = useRef<ManejadorWebView>(null);
   const puedeIrAtras = useRef(false);
@@ -130,10 +132,10 @@ function Panel({ origen }: { origen: string }) {
   );
 
   return (
-    <View style={[estilos.raiz, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[estilos.raiz, { backgroundColor: t.fondo, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <WebView
         ref={web}
-        style={sinConexion ? estilos.oculto : estilos.web}
+        style={[sinConexion ? estilos.oculto : estilos.web, { backgroundColor: t.fondo }]}
         source={{ uri: urlInicial }}
         // '*' + decisión propia: con una lista, react-native-webview abriría solo los demás enlaces con Linking.
         originWhitelist={['*']}
@@ -184,7 +186,7 @@ function Panel({ origen }: { origen: string }) {
 }
 
 const estilos = StyleSheet.create({
-  raiz: { flex: 1, backgroundColor: '#ffffff' },
+  raiz: { flex: 1 },
   web: { flex: 1 },
   oculto: { flex: 1, opacity: 0 },
   sobre: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },

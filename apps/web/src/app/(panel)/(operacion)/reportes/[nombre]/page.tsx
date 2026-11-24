@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BotonCsv } from "@/componentes/reportes/boton-csv";
+import { BarraAntiguedad, BarrasDiarias, serieDiaria } from "@/componentes/reportes/graficas";
 import { crudo, mostrar, puedeVer, reportePorSlug, type ColumnaReporte } from "@/componentes/reportes/definiciones";
 import { hoyMX, itemsDe } from "@/componentes/productos/formato";
 import { AvisoError, SinPermiso } from "@/componentes/ui/aviso-error";
@@ -81,6 +82,15 @@ export default async function Reporte({ params, searchParams }: { params: Promis
     filasCsv.push(["Utilidad neta", cuerpo.utilidad_neta]);
   }
   const opcionesExtra = opciones?.ok ? itemsDe<Ref>(opciones.datos) : [];
+  // Graficas (encima de la tabla, que sigue siendo la fuente de los numeros): ventas y utilidad por dia; antiguedad de CxC.
+  const porDia = agrupar === "dia" && def.fechas === "rango" ? ({ ventas: { clave: "importe", titulo: "Ventas por día" }, utilidad: { clave: "utilidad", titulo: "Utilidad por día" } } as const)[def.slug as "ventas" | "utilidad"] : undefined;
+  const grafica =
+    porDia && filas.some((f) => f[porDia.clave] != null) ? (
+      <BarrasDiarias titulo={porDia.titulo} puntos={serieDiaria(filas, porDia.clave, desde, hasta)} />
+    ) : def.slug === "cuentas-por-cobrar" && cuerpo.totales && ["corriente", "d1_30", "d31_60", "d61_90", "d90_mas"].some((k) => Number(cuerpo.totales?.[k]) > 0) ? (
+      <BarraAntiguedad totales={cuerpo.totales} />
+    ) : null;
+  const tituloGrafica = porDia?.titulo ?? "Desde cuándo te deben";
 
   return (
     <main className="flex flex-col gap-4">
@@ -138,6 +148,12 @@ export default async function Reporte({ params, searchParams }: { params: Promis
               filas={filasCsv}
             />
           </div>
+          {grafica && (
+            <Tarjeta aria-labelledby="titulo-grafica" className="flex flex-col gap-3">
+              <h2 id="titulo-grafica" className="text-lg font-bold">{tituloGrafica}</h2>
+              {grafica}
+            </Tarjeta>
+          )}
           <Tabla
             etiqueta={def.titulo}
             columnas={columnas.map((c, i) => ({ titulo: c.titulo, principal: i === 0, celda: (x: { f: FilaReporte }) => mostrar(x.f, c) }))}

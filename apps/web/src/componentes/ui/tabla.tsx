@@ -5,11 +5,11 @@ export type Columna<T> = { titulo: string; celda: (fila: T) => ReactNode; princi
 /** Tabla en pantallas anchas; en 360 px cada fila se apila como tarjeta con «titulo: valor». Sin scroll horizontal. */
 export function Tabla<T>({ columnas, filas, clave, etiqueta }: { columnas: Columna<T>[]; filas: T[]; clave: (f: T) => string | number; etiqueta: string }) {
   return (
-    <table aria-label={etiqueta} className="block w-full border-collapse text-base sm:table">
+    <table aria-label={etiqueta} className="block w-full border-collapse text-base tabular-nums sm:table">
       <thead className="sr-only sm:not-sr-only sm:table-header-group">
-        <tr className="border-b border-borde text-left text-sm text-suave">
+        <tr className="border-b border-borde bg-hundido/50 text-left text-sm text-suave">
           {columnas.map((c) => (
-            <th key={c.titulo} scope="col" className="px-3 py-2 font-medium">
+            <th key={c.titulo} scope="col" className="px-3 py-2.5 font-semibold">
               {c.titulo}
             </th>
           ))}
@@ -19,7 +19,7 @@ export function Tabla<T>({ columnas, filas, clave, etiqueta }: { columnas: Colum
         {filas.map((f) => (
           <tr
             key={clave(f)}
-            className="mb-3 block rounded-tarjeta border border-borde bg-superficie p-3 sm:mb-0 sm:table-row sm:rounded-none sm:border-0 sm:border-b sm:bg-transparent sm:p-0"
+            className="mb-3 block rounded-tarjeta border border-borde bg-superficie p-3 shadow-tarjeta sm:mb-0 sm:table-row sm:rounded-none sm:border-0 sm:border-b sm:bg-transparent sm:p-0 sm:shadow-none sm:hover:bg-hundido/40"
           >
             {columnas.map((c) => (
               <td

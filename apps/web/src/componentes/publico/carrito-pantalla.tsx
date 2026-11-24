@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
+import { clasesBoton } from "@/componentes/ui/boton";
 import { Esqueleto } from "@/componentes/ui/esqueleto";
 import { fecha } from "@/componentes/productos/formato";
 import { cambiarCarrito, fijarCantidad, resumenCarrito, useCarrito, vaciarCarrito } from "@/lib/carrito";
@@ -30,9 +31,9 @@ export function CarritoPantalla({ cliente }: { cliente: ClientePublico }) {
 
   if (error && !datos) {
     return (
-      <div role="alert" className="rounded-tarjeta border border-peligro/40 bg-peligro-suave p-4">
-        <p className="mb-3 text-base font-medium text-peligro">{T.sinRed}</p>
-        <button type="button" onClick={() => void recargar()} className="min-h-tocable rounded-xl border border-borde bg-superficie px-5 text-base font-semibold">
+      <div role="alert" className="rounded-tarjeta border border-peligro/30 bg-peligro-suave p-4">
+        <p className="mb-3 text-base font-semibold text-peligro">{T.sinRed}</p>
+        <button type="button" onClick={() => void recargar()} className={clasesBoton("secundario")}>
           {T.reintentar}
         </button>
       </div>
@@ -41,17 +42,17 @@ export function CarritoPantalla({ cliente }: { cliente: ClientePublico }) {
   if (!datos) {
     return (
       <div role="status" aria-label={T.cargando} className="flex flex-col gap-3">
-        <Esqueleto className="h-24" />
-        <Esqueleto className="h-24" />
+        <Esqueleto className="h-36 rounded-tarjeta" />
+        <Esqueleto className="h-36 rounded-tarjeta" />
       </div>
     );
   }
 
   if (Object.keys(carrito.lineas).length === 0) {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-tarjeta border border-dashed border-borde p-8 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-tarjeta border border-dashed border-control/50 p-8 text-center">
         <p className="text-lg">{T.carritoVacio}</p>
-        <Link href="/pedido" className="inline-flex min-h-tocable items-center rounded-xl bg-marca px-6 text-base font-semibold text-white">
+        <Link href="/pedido" className={clasesBoton("primario")}>
           {T.carritoVacioBoton}
         </Link>
       </div>
@@ -106,7 +107,7 @@ export function CarritoPantalla({ cliente }: { cliente: ClientePublico }) {
   }
 
   return (
-    <div className="pb-32">
+    <div className="pb-40">
       {editando && (
         <p className="mb-4 rounded-tarjeta border border-marca bg-marca-suave p-3 text-base font-medium text-marca-fuerte">{T.editando}</p>
       )}
@@ -126,20 +127,20 @@ export function CarritoPantalla({ cliente }: { cliente: ClientePublico }) {
         {resumen.lineas.map(({ articulo: a, cantidad }) => {
           const c = cambios.get(String(a.presentacion_id));
           return (
-            <li key={a.presentacion_id} className="flex flex-col gap-2 rounded-tarjeta border border-borde bg-superficie p-3">
+            <li key={a.presentacion_id} className="flex flex-col gap-2 rounded-tarjeta border border-borde bg-superficie p-3 shadow-tarjeta">
               <div className="flex items-start gap-3">
                 <FotoArticulo miniatura={a.miniatura} />
                 <div className="min-w-0 flex-1">
                   <p className="text-base font-semibold [overflow-wrap:anywhere]">{a.producto}</p>
                   <p className="text-base text-suave [overflow-wrap:anywhere]">{a.presentacion}</p>
-                  <p className="text-lg font-bold">{dinero(a.precio)}</p>
+                  <p className="cifra text-xl font-bold">{dinero(a.precio)}</p>
                   {c && (
                     <p className={`text-base font-semibold ${c.cambio === "sube" ? "text-peligro" : "text-exito"}`}>{T.antesAhora(dinero(c.precio_anterior), dinero(c.precio_actual))}</p>
                   )}
                 </div>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <button type="button" onClick={() => fijarCantidad(k, String(a.presentacion_id), 0)} className="flex min-h-tocable items-center gap-1 rounded-xl px-3 text-base font-medium text-peligro active:bg-peligro-suave">
+                <button type="button" onClick={() => fijarCantidad(k, String(a.presentacion_id), 0)} className="flex min-h-tocable shrink-0 items-center gap-1 rounded-xl px-3 text-base font-semibold text-peligro transition-transform duration-150 ease-salida active:scale-95 active:bg-peligro-suave">
                   <Trash2 aria-hidden className="size-5" /> {T.quitarLinea}
                 </button>
                 <SelectorCantidad cantidad={cantidad} nombre={`${a.producto} ${a.presentacion}`} alCambiar={(n) => fijarCantidad(k, String(a.presentacion_id), n)} />
@@ -153,8 +154,11 @@ export function CarritoPantalla({ cliente }: { cliente: ClientePublico }) {
         {cliente.proxima_visita ? `${T.entrega} ${fecha(cliente.proxima_visita)}.` : `${T.entregaSinFecha}.`} {T.minimo(dinero(cliente.pedido_minimo))}.
       </p>
 
-      <details className="mt-3 rounded-tarjeta border border-borde bg-superficie">
-        <summary className="flex min-h-tocable cursor-pointer items-center px-4 text-base font-medium">{T.masOpciones}</summary>
+      <details className="group mt-3 rounded-tarjeta border border-borde bg-superficie shadow-tarjeta">
+        <summary className="flex min-h-tocable cursor-pointer items-center justify-between gap-2 px-4 text-base font-semibold">
+          {T.masOpciones}
+          <ChevronDown aria-hidden className="size-5 shrink-0 text-suave transition-transform duration-200 ease-salida group-open:rotate-180" />
+        </summary>
         <div className="flex flex-col gap-3 px-4 pb-4">
           <label className="flex flex-col gap-1 text-base font-medium">
             {T.notasEtiqueta}
@@ -162,7 +166,7 @@ export function CarritoPantalla({ cliente }: { cliente: ClientePublico }) {
               value={carrito.notas}
               maxLength={500}
               onChange={(e) => cambiarCarrito(k, (c) => ({ ...c, notas: e.target.value }))}
-              className="min-h-24 rounded-xl border border-borde bg-fondo px-3 py-2 text-base font-normal"
+              className="min-h-24 rounded-xl border border-control bg-superficie px-3 py-2 text-base font-normal focus:border-marca"
             />
           </label>
           <label className="flex min-h-tocable items-center gap-3 text-base">
@@ -173,7 +177,7 @@ export function CarritoPantalla({ cliente }: { cliente: ClientePublico }) {
       </details>
 
       {mensaje && (
-        <p role="alert" className="mt-4 rounded-tarjeta border border-peligro/40 bg-peligro-suave p-3 text-base font-medium text-peligro">
+        <p role="alert" className="mt-4 rounded-tarjeta border border-peligro/30 bg-peligro-suave p-3 text-base font-semibold text-peligro">
           {mensaje}
         </p>
       )}
@@ -184,24 +188,24 @@ export function CarritoPantalla({ cliente }: { cliente: ClientePublico }) {
             vaciarCarrito(k);
             router.push(`/pedido/mis-pedidos/${editando}`);
           }}
-          className="mt-4 min-h-tocable w-full rounded-xl border border-borde bg-superficie text-base font-semibold"
+          className={`mt-4 ${clasesBoton("secundario", true)}`}
         >
           {T.cancelarEdicion}
         </button>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-borde bg-superficie p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-borde bg-superficie p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-flotante">
         <div className="mx-auto flex max-w-xl flex-col gap-2">
-          <p className="flex items-baseline justify-between text-lg font-bold">
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-lg font-bold">
             <span>{T.total}</span>
-            <span className="text-2xl">{dinero(resumen.total)}</span>
+            <span className="cifra text-3xl">{dinero(resumen.total)}</span>
           </p>
           <button
             type="button"
             onClick={() => void enviar()}
             disabled={enviando}
             aria-busy={enviando}
-            className="min-h-14 w-full rounded-xl bg-marca text-lg font-bold text-white active:bg-marca-fuerte disabled:opacity-60"
+            className={clasesBoton("primario", true, "grande")}
           >
             {enviando ? T.enviando : editando ? T.guardarCambios : T.enviar}
           </button>

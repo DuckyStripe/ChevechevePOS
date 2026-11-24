@@ -19,10 +19,10 @@ export function Dialogo({ abierto, titulo, alCerrar, children }: { abierto: bool
       ref={ref}
       onClose={alCerrar}
       aria-label={titulo}
-      className="m-auto max-h-[92dvh] w-[min(36rem,calc(100vw-1.5rem))] overflow-y-auto rounded-tarjeta bg-superficie p-0 text-texto shadow-xl"
+      className="m-auto max-h-[92dvh] w-[min(36rem,calc(100vw-1.5rem))] overflow-y-auto rounded-tarjeta border border-borde bg-superficie p-0 text-texto shadow-dialogo"
     >
       <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-borde bg-superficie px-4 py-2">
-        <h2 className="text-lg font-bold [overflow-wrap:anywhere]">{titulo}</h2>
+        <h2 className="text-xl font-bold [overflow-wrap:anywhere]">{titulo}</h2>
         <Boton variante="fantasma" aria-label="Cerrar" onClick={alCerrar} className="!px-3">
           <X aria-hidden className="size-6" />
         </Boton>

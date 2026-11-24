@@ -9,7 +9,7 @@ export function AvisoError({ mensaje, reintentar = true, alReintentar }: { mensa
   const router = useRouter();
   return (
     <div role="alert" className="flex flex-col items-start gap-3 rounded-tarjeta border border-peligro/40 bg-peligro-suave p-4">
-      <p className="flex gap-2 text-base font-medium text-peligro">
+      <p className="flex gap-2 text-base font-semibold text-peligro">
         <AlertTriangle aria-hidden className="mt-0.5 size-5 shrink-0" />
         <span>{mensaje}</span>
       </p>

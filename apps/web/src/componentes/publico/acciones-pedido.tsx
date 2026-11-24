@@ -2,12 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { clasesBoton } from "@/componentes/ui/boton";
 import { cargarLineas } from "@/lib/carrito";
 import { T } from "@/lib/textos-publico";
 import { llamarPublico } from "./llamar-publico";
 
 type Linea = { presentacion_id: number | string; cantidad: number };
-const BOTON = "min-h-14 w-full rounded-xl px-4 text-lg font-bold disabled:opacity-60";
+const PRIMARIO = clasesBoton("primario", true, "grande");
+const SECUNDARIO = clasesBoton("secundario", true, "grande");
 
 /** Acciones de un pedido en curso: cambiar o cancelar mientras `editable` (P32), y pedir lo mismo. */
 export function AccionesPedido({ claveCarrito, id, editable, lineas, propuesto, totalVisto }: { claveCarrito: string; id: string; editable: boolean; lineas: Linea[]; propuesto: boolean; totalVisto: string }) {
@@ -43,13 +45,13 @@ export function AccionesPedido({ claveCarrito, id, editable, lineas, propuesto, 
   if (propuesto) {
     return (
       <div className="flex flex-col gap-2">
-        <button type="button" disabled={ocupado} onClick={() => void llamar(`/pedidos/${id}/aceptar`, { total_visto: totalVisto })} className={`${BOTON} bg-marca text-white active:bg-marca-fuerte`}>
+        <button type="button" disabled={ocupado} onClick={() => void llamar(`/pedidos/${id}/aceptar`, { total_visto: totalVisto })} className={PRIMARIO}>
           {T.aceptarPropuesto}
         </button>
-        <button type="button" disabled={ocupado} onClick={() => aCarrito(null)} className={`${BOTON} border border-borde bg-superficie`}>
+        <button type="button" disabled={ocupado} onClick={() => aCarrito(null)} className={SECUNDARIO}>
           {T.cambiarAlgo}
         </button>
-        <button type="button" disabled={ocupado} onClick={() => void llamar(`/pedidos/${id}/cancelar`, {})} className={`${BOTON} border border-borde bg-superficie text-suave`}>
+        <button type="button" disabled={ocupado} onClick={() => void llamar(`/pedidos/${id}/cancelar`, {})} className={`${SECUNDARIO} !text-suave`}>
           {T.noGracias}
         </button>
         {mensaje && <p role="alert" className="text-base font-medium text-peligro">{mensaje}</p>}
@@ -60,28 +62,28 @@ export function AccionesPedido({ claveCarrito, id, editable, lineas, propuesto, 
   return (
     <div className="flex flex-col gap-2">
       {editable && lineas.length > 0 && (
-        <button type="button" disabled={ocupado} onClick={() => aCarrito(id)} className={`${BOTON} bg-marca text-white active:bg-marca-fuerte`}>
+        <button type="button" disabled={ocupado} onClick={() => aCarrito(id)} className={PRIMARIO}>
           {T.cambiarPedido}
         </button>
       )}
       {lineas.length > 0 && (
-        <button type="button" disabled={ocupado} onClick={() => aCarrito(null)} className={`${BOTON} border border-borde bg-superficie`}>
+        <button type="button" disabled={ocupado} onClick={() => aCarrito(null)} className={SECUNDARIO}>
           {T.repetirPedido}
         </button>
       )}
       {editable &&
         (confirmando ? (
-          <div role="alertdialog" aria-label={T.seguroCancelar} className="flex flex-col gap-2 rounded-tarjeta border border-peligro/40 bg-peligro-suave p-3">
+          <div role="alertdialog" aria-label={T.seguroCancelar} className="flex flex-col gap-2 rounded-tarjeta border border-peligro/30 bg-peligro-suave p-3">
             <p className="text-lg font-bold text-peligro">{T.seguroCancelar}</p>
-            <button type="button" disabled={ocupado} onClick={() => void llamar(`/pedidos/${id}/cancelar`, {})} className={`${BOTON} bg-peligro text-white`}>
+            <button type="button" disabled={ocupado} onClick={() => void llamar(`/pedidos/${id}/cancelar`, {})} className={clasesBoton("peligro", true, "grande")}>
               {ocupado ? T.cancelando : T.siCancelar}
             </button>
-            <button type="button" disabled={ocupado} onClick={() => setConfirmando(false)} className={`${BOTON} border border-borde bg-superficie`}>
+            <button type="button" disabled={ocupado} onClick={() => setConfirmando(false)} className={SECUNDARIO}>
               {T.noCancelar}
             </button>
           </div>
         ) : (
-          <button type="button" onClick={() => setConfirmando(true)} className="min-h-tocable w-full rounded-xl px-4 text-base font-semibold text-peligro">
+          <button type="button" onClick={() => setConfirmando(true)} className="min-h-tocable w-full rounded-xl px-4 text-base font-semibold text-peligro transition-transform duration-150 ease-salida active:scale-[0.97] active:bg-peligro-suave">
             {T.cancelarPedido}
           </button>
         ))}

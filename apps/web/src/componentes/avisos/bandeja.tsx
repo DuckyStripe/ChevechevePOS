@@ -123,7 +123,7 @@ export function BandejaAvisos({ puedeMarcar }: { puedeMarcar: boolean }) {
           setManual(true);
         }}
         aria-label={total > 0 ? `Avisos por enviar: ${total}` : "Avisos por enviar"}
-        className="relative flex size-12 items-center justify-center rounded-xl hover:bg-marca-suave"
+        className="relative flex size-12 items-center justify-center rounded-xl transition-transform duration-150 ease-salida hover:bg-hundido active:scale-95 active:bg-hundido"
       >
         <MessageCircle aria-hidden className="size-6" />
         {total > 0 && <span className="absolute right-1 top-1 min-w-5 rounded-full bg-marca px-1 text-center text-xs font-bold leading-5 text-white">{total > 99 ? "99+" : total}</span>}
@@ -167,7 +167,7 @@ export function BandejaAvisos({ puedeMarcar }: { puedeMarcar: boolean }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setAbiertos((x) => (x.includes(id) ? x : [...x, id]))}
-                    className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-exito text-base font-bold text-white"
+                    className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-exito-relleno text-base font-bold text-white"
                   >
                     <MessageCircle aria-hidden className="size-5" /> Abrir WhatsApp
                   </a>

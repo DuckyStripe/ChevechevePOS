@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
-import { CircleCheck } from "lucide-react";
+import { Check, MessageCircle } from "lucide-react";
+import { clasesBoton } from "@/componentes/ui/boton";
 import { dinero } from "@/lib/dinero";
 import { T } from "@/lib/textos-publico";
 import type { PedidoEnviado } from "@/lib/tipos";
@@ -28,25 +29,26 @@ export function Enviado({ id, folio, total, etiqueta }: { id: string; folio: str
   }
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-3 rounded-tarjeta border border-exito/40 bg-exito-suave p-4">
-        <CircleCheck aria-hidden className="mt-1 size-7 shrink-0 text-exito" />
-        <div>
-          <h1 className="text-2xl font-bold">{T.enviadoTitulo}</h1>
-          <p className="mt-1 text-lg">{enviado?.texto_confirmacion ?? etiqueta}</p>
-          <p className="mt-2 text-lg font-bold">
-            {T.pedidoNumero(folio)} · {dinero(total)}
-          </p>
-        </div>
+      {/* Confirmacion (momento raro: aqui si cabe un detalle). El circulo aparece y la palomita se dibuja una vez. */}
+      <div role="status" className="flex flex-col items-center gap-3 px-2 pb-2 pt-4 text-center">
+        <span aria-hidden className="aparece flex size-22 items-center justify-center rounded-full bg-exito-suave text-exito">
+          <Check className="palomita size-12" strokeWidth={2.5} />
+        </span>
+        <h1 className="text-3xl font-bold">{T.enviadoTitulo}</h1>
+        <p className="text-lg [overflow-wrap:anywhere]">{enviado?.texto_confirmacion ?? etiqueta}</p>
+        <p className="inline-flex flex-wrap items-baseline justify-center gap-x-2 rounded-xl border border-borde bg-superficie px-4 py-2 text-lg font-bold shadow-tarjeta">
+          {T.pedidoNumero(folio)} <span aria-hidden>·</span> <span className="cifra text-xl">{dinero(total)}</span>
+        </p>
       </div>
-      {enviado?.avisar_negocio?.url?.startsWith("https://wa.me/") && (
-        <a href={enviado.avisar_negocio.url} className="flex min-h-14 items-center justify-center rounded-xl bg-exito text-lg font-bold text-white">
-          {T.avisarWhatsapp}
-        </a>
-      )}
-      <Link href={`/pedido/mis-pedidos/${id}`} className="flex min-h-14 items-center justify-center rounded-xl bg-marca text-lg font-bold text-white">
+      <Link href={`/pedido/mis-pedidos/${id}`} className={clasesBoton("primario", true, "grande")}>
         {T.verSeguimiento}
       </Link>
-      <Link href="/pedido" className="flex min-h-tocable items-center justify-center rounded-xl border border-borde bg-superficie text-base font-semibold">
+      {enviado?.avisar_negocio?.url?.startsWith("https://wa.me/") && (
+        <a href={enviado.avisar_negocio.url} className={clasesBoton("secundario", true)}>
+          <MessageCircle aria-hidden className="size-5 text-exito" /> {T.avisarWhatsapp}
+        </a>
+      )}
+      <Link href="/pedido" className={clasesBoton("fantasma", true)}>
         {T.volverAlCatalogo}
       </Link>
     </div>

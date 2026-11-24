@@ -10,7 +10,7 @@ import { llamarPublico } from "./llamar-publico";
 
 type Faltante = Seguimiento["faltantes"][number];
 
-const BASE = "min-h-14 w-full rounded-xl px-4 text-lg font-bold disabled:opacity-60";
+const BASE = "min-h-tocable-grande w-full rounded-xl px-4 text-lg font-bold transition-transform duration-150 ease-salida active:scale-[0.97] disabled:opacity-60";
 
 /** C12: una pregunta por linea. Si no hay mas de una opcion no aparece «Otra opcion». Contestar es un toque. */
 export function ResponderFaltante({ faltante, accionPredeterminada }: { faltante: Faltante; accionPredeterminada?: "quitar" | "reducir" }) {
@@ -43,13 +43,13 @@ export function ResponderFaltante({ faltante, accionPredeterminada }: { faltante
   if (listo) return <p role="status" className="rounded-tarjeta bg-exito-suave p-4 text-lg font-bold text-exito">{T.respondido}</p>;
 
   return (
-    <section aria-label={T.faltanteNoHay(nombreLinea)} className="flex flex-col gap-3 rounded-tarjeta border-2 border-marca bg-superficie p-4">
+    <section aria-label={T.faltanteNoHay(nombreLinea)} className="flex flex-col gap-3 rounded-tarjeta border-2 border-marca bg-superficie p-4 shadow-tarjeta">
       <p className="text-lg font-bold [overflow-wrap:anywhere]">{T.faltanteNoHay(nombreLinea)}</p>
       {faltante.nota && <p className="text-base [overflow-wrap:anywhere]">{faltante.nota}</p>}
       {primera && <p className="text-lg [overflow-wrap:anywhere]">{pregunta(primera)}</p>}
       <div className="flex flex-col gap-2">
         {primera && (
-          <button type="button" disabled={enviando} onClick={() => void responder(primera)} className={`${BASE} bg-marca text-white active:bg-marca-fuerte`}>
+          <button type="button" disabled={enviando} onClick={() => void responder(primera)} className={`${BASE} bg-marca text-white shadow-boton active:bg-marca-presionado`}>
             {enviando ? T.respondiendo : primera.tipo === "reducir" ? T.faltanteSiReducir : T.faltanteSi}
           </button>
         )}

@@ -4,7 +4,8 @@
     "slug": "chevechevepos",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#eff0ec",
     "newArchEnabled": true,
     "platforms": ["android"],
     "android": {

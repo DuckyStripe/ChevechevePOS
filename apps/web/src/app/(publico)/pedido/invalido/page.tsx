@@ -13,7 +13,7 @@ export default async function Invalido({ searchParams }: { searchParams: Promise
     <main className="flex flex-col items-start gap-4 pt-10">
       <h1 className="text-2xl font-bold">{sinServicio ? T.sinServicio : datos.textos?.enlace_invalido || `${T.invalidoTitulo}. ${T.invalidoTexto}`}</h1>
       {!sinServicio && whatsapp && (
-        <a href={`https://wa.me/${whatsapp}`} className="inline-flex min-h-14 items-center rounded-xl bg-exito px-6 text-lg font-bold text-white">
+        <a href={`https://wa.me/${whatsapp}`} className="inline-flex min-h-14 items-center rounded-xl bg-exito-relleno px-6 text-lg font-bold text-white">
           {T.invalidoBoton}
         </a>
       )}

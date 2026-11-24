@@ -52,7 +52,7 @@ export function FormLogin() {
           {error}
         </p>
       )}
-      <Boton type="submit" cargando={cargando} ancho>
+      <Boton type="submit" cargando={cargando} ancho tam="grande">
         Entrar
       </Boton>
     </form>
