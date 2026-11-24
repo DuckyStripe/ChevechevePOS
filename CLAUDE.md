@@ -110,8 +110,10 @@ Todo en español (identificadores sin acentos, comentarios en español).
 - El cliente del link solo ve lo suyo: un recurso de otro cliente responde el mismo `404`.
 - Al cambiar la contraseña o desactivar a un usuario, se revocan **todas** sus sesiones (`jti`). En
   chacha la rotación dejaba vivo el token hijo.
-- IP del visitante: solo `apps/web/src/lib/ip-visitante.ts` (`X-Real-Ip`, si no la **más a la derecha**
-  de `X-Forwarded-For`; la de la izquierda la escribe el cliente). En el BFF la cookie gana sobre `Authorization`.
+- IP del visitante: solo `apps/web/src/lib/ip-visitante.ts`, y **solo la entrada más a la derecha** de
+  `X-Forwarded-For` (la que agrega Traefik). `X-Real-Ip` se ignora porque el cliente puede escribirla, y
+  la de la izquierda de XFF también. IPv6 se agrupa por /64. En el BFF la cookie gana sobre `Authorization`.
+- **Ninguna espera automática dura más de 15 minutos** (C21): ni la del PIN ni la de un ataque al enlace.
 - Archivos subidos (comprobantes, fotos): tipo por **bytes mágicos**, nunca por `Content-Type`; tamaño
   limitado antes de leer el cuerpo. Nunca loguear su contenido, teléfonos completos ni tokens de link.
 - Un `401`/`403` con motivo no se convierte en otro genérico (p. ej. sesión cerrada ≠ token inválido).

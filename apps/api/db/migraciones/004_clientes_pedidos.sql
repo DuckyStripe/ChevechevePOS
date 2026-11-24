@@ -713,7 +713,7 @@ begin
   return app.fn_dispositivo_registrar(p_cliente_enlace_id, p_dispositivo_hash, p_navegador, v_alertar);
 end $$;
 
--- Cuenta un PIN malo contra el enlace (sin importar la IP). A los 20 en una hora: espera de 1 hora para TODO el enlace y aviso al
+-- Cuenta un PIN malo contra el enlace (sin importar la IP). A los 20 en una hora: espera de 15 minutos para TODO el enlace y aviso al
 -- personal (clave por hora). Solo frena y avisa: ni revoca el enlace ni quita dispositivos (C21).
 create function app.fn_pin_fallo_global(p_cliente_enlace_id bigint) returns void
 language plpgsql as $$
@@ -2081,7 +2081,7 @@ alter table app.rol_permiso enable trigger trg_auditar;
 alter table app.plantilla disable trigger trg_auditar;
 insert into app.plantilla (clave, canal, titulo, texto, variables)
 values ('estado_propuesto', 'pantalla', null, 'Esperando tu confirmación', '{}'),
-  ('push_pin_ataque', 'push', 'Muchos PIN equivocados', 'Alguien probó {{intentos}} PIN en el enlace de {{cliente}}. Se pausó por una hora; el enlace sigue activo.', '{cliente,intentos}');
+  ('push_pin_ataque', 'push', 'Muchos PIN equivocados', 'Alguien probó {{intentos}} PIN en el enlace de {{cliente}}. Se pausó 15 minutos; el enlace sigue activo.', '{cliente,intentos}');
 alter table app.plantilla enable trigger trg_auditar;
 
 -- Auditoria despues de las semillas: la bitacora arranca vacia. Sin token_hash, token_cifrado ni pin_hash (fn_auditar).

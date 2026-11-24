@@ -9,14 +9,21 @@ Reglas del dueño: sin builds hasta terminar todo el plan (solo lint, typecheck 
 | F1 A infra | Hecho | `d0947eb` |
 | F1 B 001_auth | Hecho | `dc54318` |
 | F1 C/D + revisión (12 hallazgos corregidos) | Hecho, 114 pruebas | `dac9d30` |
-| F2 | B hecho (148 pruebas), D hecho; C (API) y revisor SQL corriendo | — |
+| F2 | Hecho, 263 pruebas | `edca44f` |
+| F3 | Hecho, 457 pruebas (dos corridas en verde) | `53d496a` |
+| Docs sincronizados con F3 + briefs F4, F5, F6 | Hecho (sin commit) | — |
+| F4 | Brief listo (`docs/fases/F4.md`) | — |
+| F5 ∥ F6 | Briefs listos (`docs/fases/F5.md`, `F6.md`; 006 y 007 en paralelo) | — |
 
 ## Pendientes conocidos
 - `apps/web` no tiene pruebas automáticas del BFF (Origin, cookies, 204, `..`): cubrir antes de la validación final.
 - Bloqueo de usuarios inexistentes es en memoria por proceso (`shortcut` en el código).
 - Respaldos (`infra/respaldo`) sin probar: requiere build y destino rclone.
-- F4: compilar APK y llaves de firma quedan para la validación final.
-- Importar Eleventa: falta el archivo real.
+- F4: llaves (OTA y APK), primera APK, instalación en los 2 teléfonos, `logica.test.ts`/`novedades.test.ts` y la «Salida» de PLAN F4 en teléfono real quedan para la validación final (regla: sin builds; el código móvil se valida solo con tsc + lint).
+- `CLAUDE.md` (raíz) aún dice «`X-Real-Ip`, si no la más a la derecha»: desde F3 es **solo** la más a la derecha de XFF (CONTRATOS §4.1). Corregir esa línea (fuera de `docs/`, no la tocó la sincronización).
+- Texto sembrado de `push_pin_ataque` dice «una hora» (la espera es 15 min): lo corrige 005 (F4.md paquete B).
+- Importar Eleventa: falta el archivo real (simulacro con conteos del dueño antes de producción; `saldos` en F7).
+- Prueba manual del dueño de F3 pendiente.
 - Decisiones de contrato de F2 a revisar con el dueño: `GET /catalogo-venta` pasa a F3; `v_por_caducar` cuenta líneas sin caducidad; dependencia nueva `@fastify/multipart`.
 
 ## F2 — notas para el paquete C (de D)
@@ -63,4 +70,5 @@ Reglas del dueño: sin builds hasta terminar todo el plan (solo lint, typecheck 
 - Paquete E (importador Eleventa) escrito: `scripts/importar-eleventa.mjs` + `scripts/eleventa/`, 10 pruebas unitarias OK. Falta correr `test/eleventa/importar.test.ts` contra la base (coordinador, después de C). Usuario `televenta_*` no se limpia (kárdex). Saldos en F7 (`fn_saldo_inicial`).
 - Revisión F3 (API/web): 3 ALTO (avisos manuales del Repartidor con token del link; /p/[token] borraba cookies en 429/5xx; bloqueo por IP antes de validar token → CGNAT), 2 MEDIO (IPv6 /64, X-Real-Ip falsificable → solo XFF más a la derecha). En corrección. Nuevo endpoint `GET /api/publico/negocio` (no cuenta como fallo). Docs: agregar filas F3 al mapa de pantallas, endpoint negocio, umbral global de PIN por enlace con aviso al personal.
 - F3 cerrada: 457 pruebas, dos corridas seguidas en verde. Espera automática por ataque distribuido al PIN bajada a 15 min (C21: ninguna espera automática > 15 min). Búsqueda en `productos.test.ts` filtra a productos propios (otras suites dejan productos activos).
-- Pendiente docs F3: filas del mapa de pantallas, `GET /api/publico/negocio`, `pin_ataque`, `cliente_pin_fallo`, umbral 20 fallos/h por enlace, XFF solo el de la derecha.
+- Docs de F3 sincronizados (2026-11-23): CONTRATOS (§2.1 evento/plantilla `pin_ataque`, §2.4 `cliente_pin_fallo`, `fn_entrar_con_pin` jsonb + umbral 20/h, folio al aceptar, `v_comprometido` con `esperando_cliente`, `sin_lineas`, descarte de avisos, `fn_marcar_aviso`; §4.1 IP/XFF//64 y `publica` `GET /publico/negocio`; §4.4 límites, `/publico/cliente`, `total_visto`, permisos de `/avisos`), PLAN (mapa, estados F1–F3, banderas del importador), F3.md «Hechos».
+- Decisiones de los briefs F4–F6 (ya en CONTRATOS): 005 agrega `fn_quitar_dispositivos`, `fn_envios_tomar`, `fn_envio_resultado`; `@noble/hashes` en el cascarón; `fn_lista_surtido` cuenta `esperando_cliente` y fija costo estimado/promoción/filtro; paradas de cobro (`fn_agregar_cobro`, `POST /rutas/:id/cobros`) pasan a F7; 007 rehace `fn_seguimiento_pedido` (`surtiendo` + `reparto`) y `fn_marcar_aviso` (Repartidor, TODO F6) con la misma firma, agrega `fn_reparto_pedido`, `fn_requiere_surtido`, `fn_puede_ver_aviso`, `trg_pedido_cancelado_ruta`, `GET /rutas/repartidores`, `GET /rutas/:id/candidatos`; forma de `despacho.rutas`. Paralelo F5∥F6: migración `.borrador` hasta su turno, candado `/tmp/chevechevepos-prueba.lock`, cada agente corre solo sus archivos.

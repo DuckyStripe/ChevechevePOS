@@ -98,7 +98,7 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 | Pantalla | Responsabilidad única | Acciones propias (rutas) | Enlaza a |
 |---|---|---|---|
 | Layout del panel (menú, campana, usuario) | Navegar; contador de la campana; salir | `GET /auth/yo` (cada 30 s), `POST /auth/logout` (BFF) | `/notificaciones`, `/cambiar-contrasena` |
-| `/` Hoy | Ver los 5 pasos del día y qué falta (en F1–F2, sin contadores: `/despacho` llega en F3) | `GET /despacho` (única fuente de contadores) | cada paso |
+| `/` Hoy | Ver los 5 pasos del día y qué falta (contadores del paso 1, avisos y respaldo desde F3; paso 2 en F5, paso 3 en F6, pasos 4–5 en F7) | `GET /despacho` (única fuente de contadores) | cada paso |
 | `/notificaciones` | Leer avisos internos; preferencias; en el cascarón: «Activar avisos» y «Esta app» (versión, novedades, «Buscar actualización» por el puente, sin ruta de API) | `GET /notificaciones`, `POST /notificaciones/leer`, `GET/PUT /notificaciones/preferencias`, `POST/DELETE /movil/push/registrar` | la entidad de cada aviso |
 | Bandeja «Avisos por enviar» (panel lateral del layout) | Mandar WhatsApp; **único lugar que crea avisos manuales** (otras pantallas la abren con `?nuevo=<plantilla>&cliente=`) | `GET/POST /avisos`, `POST /avisos/:id/enviado`, `POST /avisos/:id/descartar` | `/pedidos/[id]`, `/clientes/[id]` |
 
@@ -106,7 +106,7 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
-| `/pedidos` | Bandeja: qué pedidos hay y en qué etapa (pestañas Por confirmar · Esperando cliente · Confirmados por fecha) | `GET /pedidos` | `/pedidos/[id]`, `/pedidos/nuevo`, Siguiente: `/surtido` |
+| `/pedidos` | Bandeja: qué pedidos hay y en qué etapa (pestañas Por confirmar · Esperando cliente · Confirmados por fecha); filtros zona/fecha/origen | `GET /pedidos` | `/pedidos/[id]`, `/pedidos/nuevo`, bandeja de avisos filtrada, Siguiente: `/surtido` (botón desde F5) |
 | `/pedidos/nuevo` | Capturar un pedido por llamada | `POST /pedidos`, `POST /pedidos/interpretar` (pegar WhatsApp → borrador, F3) | `/pedidos/[id]` |
 | `/pedidos/[id]` | Decidir sobre un pedido | `GET /pedidos/:id`, `POST /pedidos/:id/{confirmar,ajustar,faltantes,cancelar,reprogramar}`, `GET /pedidos/:id/sugerencias`, `POST /propuestas/:id/{responder,cancelar}` | `/clientes/[id]`, `/cobrar?pedido=` (si recoge), bandeja de avisos, Siguiente: pedido siguiente por confirmar |
 
@@ -123,15 +123,15 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
-| `/rutas` | Rutas de una fecha; crear ruta | `GET /rutas`, `POST /rutas` | `/rutas/[id]` |
-| `/rutas/[id]` | Armar una ruta | `GET /rutas/:id`, `POST /rutas/:id/{pedidos,cobros,optimizar,cargar,cancelar}`, `DELETE /rutas/paradas/:id`, `PUT /rutas/:id/orden`, `GET /rutas/:id/sugerencias-cobro` (F7) | `/pedidos/[id]`, `/surtido` (si `FALTA_SURTIR`), Siguiente: `/rutas/[id]/carga` |
+| `/rutas` | Rutas de una fecha; crear ruta | `GET /rutas`, `POST /rutas`, `GET /rutas/repartidores` (selector) | `/rutas/[id]` |
+| `/rutas/[id]` | Armar una ruta | `GET /rutas/:id`, `GET /rutas/:id/candidatos`, `POST /rutas/:id/{pedidos,optimizar,cargar,cancelar}`, `DELETE /rutas/paradas/:id`, `PUT /rutas/:id/orden`; F7: `POST /rutas/:id/cobros` y `GET /rutas/:id/sugerencias-cobro` | `/pedidos/[id]`, `/surtido` (si `FALTA_SURTIR`), Siguiente: `/rutas/[id]/carga` |
 | `/rutas/[id]/carga` | Hoja de carga LIFO imprimible | `GET /rutas/:id/carga` | Siguiente: `/rutas` |
 
 **4. Entregar y cobrar**
 
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
-| `/reparto` (repartidor) | Su ruta de hoy: iniciar, recorrer, terminar | `POST /rutas/:id/iniciar`, `POST /rutas/paradas/:id/no-entregado`, `POST /rutas/:id/terminar` | `/cobrar?pedido=` (entregar), `/cobrar?cliente=&parada=` (abono), `/caja?volver=/reparto` (gasto), Google Maps/Waze |
+| `/reparto` (repartidor) | Su ruta de hoy: iniciar, recorrer, terminar (lee `GET /rutas?fecha=hoy` propio y `GET /rutas/:id`) | `POST /rutas/:id/iniciar`, `POST /rutas/paradas/:id/no-entregado`, `POST /rutas/:id/terminar` | Google Maps/Waze, bandeja de avisos (los de sus pedidos, F6); desde F7: `/cobrar?pedido=` (entregar), `/cobrar?cliente=&parada=` (abono), `/caja?volver=/reparto` (gasto) |
 | `/cobrar` | **Único lugar donde entra dinero de un cliente**: `?pedido=` entrega y cobra un pedido (reparto o recoge; paso 1 cantidades, paso 2 pago); `?cliente=` registra un abono. Captura el comprobante de transferencia. Prueba de entrega opcional (recibió + foto). Muestra el semáforo junto a «Fiado» (lectura) | `POST /pedidos/:id/entregar`, `POST /abonos`, `POST /comprobantes` | Volver: `/reparto`, `/pedidos` o `/cobranza`; aviso de nota de entrega en la bandeja; «Mandar datos de transferencia» abre la bandeja con `?nuevo=wa_datos_transferencia` |
 | `/cobranza` | Quién debe y cuánto | `GET /cuentas-por-cobrar`, `GET /abonos`, `POST /abonos/:id/cancelar` | `/cobrar?cliente=`, `/clientes/[id]` |
 
@@ -176,7 +176,7 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 | Pantalla | Responsabilidad única | Acciones propias | Enlaza a |
 |---|---|---|---|
 | `/p/[token]` (route handler) | Canjear el token por la cookie; `?ir=pedido-<id>|estado-cuenta` lleva directo ahí | `GET /publico/cliente` | `/pedido` o `/pedido/invalido` |
-| `/pedido/pin` | Elegir o escribir los 4 números en un navegador nuevo | `POST /publico/pin/elegir`, `POST /publico/pin/entrar` (vía BFF) | `/pedido`; «Olvidé mis números» → wa.me al negocio |
+| `/pedido/pin` | Elegir o escribir los 4 números en un navegador nuevo (funciona sin JS) | `POST /publico/pin/elegir`, `POST /publico/pin/entrar` (vía BFF); lee `GET /publico/negocio` | `/pedido`; «Olvidé mis números» → wa.me al negocio |
 | `/pedido` | Elegir productos (repetir, frecuentes, buscar, favoritos); ofertas arriba; banner «¿Te mando lo de siempre?» si hay propuesto; sugerencias de zona (F11) | `GET /publico/cliente`, `GET /publico/catalogo`, `PUT/DELETE /publico/favoritos/:id` | barra de carrito → `/pedido/carrito` |
 | `/pedido/carrito` | Revisar y enviar (o guardar la edición de un pedido «recibido») | `POST /publico/pedidos`, `PATCH /publico/pedidos/:id` | `/pedido/enviado/[id]` |
 | `/pedido/enviado/[id]` | Confirmación | — | `/pedido/mis-pedidos/[id]`, wa.me al negocio |
@@ -184,7 +184,7 @@ agregar su fila aquí en el mismo cambio. Rutas sin prefijo `/api` por brevedad.
 | `/pedido/mis-pedidos/[id]` | Seguimiento; contestar faltantes; cancelar; aceptar «lo de siempre» | `GET /publico/pedidos/:id`, `POST /publico/propuestas/:id/responder`, `POST /publico/pedidos/:id/cancelar`, `POST /publico/pedidos/:id/aceptar` | «Cambiar» y «Repetir» → `/pedido/carrito` precargado |
 | `/pedido/estado-cuenta` | Mi cuenta: cargos, abonos y saldo (F7) | `GET /publico/estado-cuenta` | `/pedido/mis-pedidos` |
 | `/pedido/ubicacion` | Compartir ubicación | `POST /publico/ubicacion` | Volver |
-| `/pedido/invalido` | Enlace no válido | — | wa.me al negocio |
+| `/pedido/invalido` | Enlace no válido (mismo texto para dado de baja o desconocido) | lee `GET /publico/negocio` | wa.me al negocio |
 
 ### Cascarón Android (`apps/mobile`, F4) — solo piezas nativas
 
@@ -208,7 +208,8 @@ No hay tabla de pantallas: el cascarón muestra **las mismas pantallas del panel
 `/pedidos/nuevo`, `/pedidos/[id]` y `/pos`), `GET /clientes?buscar` (selector de cliente),
 `GET /productos?buscar` (selector en `/compras/nueva` y `/inventario/ajustes`), `GET /presentaciones/codigo/:codigo`
 (escáner en `/pos`, `/compras/nueva` y `/pedidos/nuevo`), `GET /proveedores`,
-`GET /listas-precio`, `GET /zonas`, `GET /vehiculos`, `GET /categorias`, `GET /marcas`, `GET /imagenes/:archivo`.
+`GET /listas-precio`, `GET /zonas`, `GET /vehiculos`, `GET /categorias`, `GET /marcas`, `GET /imagenes/:archivo`;
+en el enlace del cliente, `GET /publico/negocio` (pública: nombre, WhatsApp y textos de `/pedido/pin` y `/pedido/invalido`).
 
 ## F0 — Infra (andamiaje hecho)
 
@@ -224,8 +225,8 @@ fuera del servidor y una **prueba de restauración** hecha y anotada (CONTRATOS 
 ## F1 — Auth, usuarios, roles, configuración, plantillas, notificaciones
 
 Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/F1.md`.
-**Estado (2026-11-23): implementada, sin commit, en revisión** (revisor + prueba manual del dueño). Lo que la
-implementación fijó está en `docs/fases/F1.md` («Hechos de la implementación»).
+**Estado: implementada y en `main`** (`dac9d30`). Lo que la implementación fijó está en `docs/fases/F1.md`
+(«Hechos de la implementación»).
 
 - **Alinear el andamiaje con CONTRATOS §3.1 y §4.1** (primer paso de F1):
   - En `.env.example`, `env.ts`, los dos compose y `README.md`: quitar `SESSION_SECRET`,
@@ -260,8 +261,8 @@ implementación fijó está en `docs/fases/F1.md` («Hechos de la implementació
 ## F2 — Catálogo, inventario, proveedores, compras
 
 Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/F2.md`.
-**Estado (2026-11-23): implementada, sin commit, en revisión** (revisor + prueba manual del dueño). Lo que la
-implementación fijó está en `docs/fases/F2.md` («Hechos de la implementación») y ya en CONTRATOS.
+**Estado: implementada y en `main`** (`edca44f`). Lo que la implementación fijó está en `docs/fases/F2.md`
+(«Hechos de la implementación») y ya en CONTRATOS.
 
 - Migraciones `002_catalogo_inventario.sql`, `003_compras.sql`.
 - API: módulos `categorias`, `marcas`, `productos` (presentaciones, imagen + miniatura, alias,
@@ -292,7 +293,9 @@ implementación fijó está en `docs/fases/F2.md` («Hechos de la implementació
 ## F3 — Clientes, enlace personal, pedidos, faltantes, avisos, despacho
 
 Brief ejecutable por paquetes (archivos, orden, pruebas, comandos): `docs/fases/F3.md` (incluye el script
-de Eleventa como paquete E). Empieza cuando F2 está en `main`.
+de Eleventa como paquete E). **Estado: implementada y en `main`** (`53d496a`, 457 pruebas, dos corridas
+seguidas en verde). Lo que la implementación fijó está en `docs/fases/F3.md` («Hechos de la implementación»)
+y ya en CONTRATOS. Pendiente del dueño: prueba manual de F3 y la importación real de Eleventa.
 
 El corazón. Tres agentes en paralelo tras fijar la migración: API, panel, páginas del cliente.
 
@@ -368,8 +371,14 @@ Hoy usan Eleventa (versión vieja) [R11, P46–P48]. No es pantalla: script
   lista Mayoreo; mínimo → `existencia_minima`; costo + existencia → `inventario_inicial`; cliente
   (nombre, teléfono a `telefono_whatsapp` normalizado a 52 + 10 dígitos, dirección, `ya_compro = true`); saldo → saldo inicial de
   fiado (`fn_saldo_inicial`, requiere 008).
-- Por partes (`--parte catalogo|clientes|existencias|saldos`) y con `--simulacro` (no escribe): reporte de
-  rechazados (sin nombre, precio vacío, código repetido, teléfono inválido) y duplicados. Idempotente:
+- Por partes (`--parte catalogo|clientes|existencias|saldos`) y con `--simulacro` (corre todo y hace
+  `ROLLBACK`): reporte de rechazados (sin nombre, precio vacío, código repetido, teléfono inválido; el teléfono
+  inválido **no** rechaza: el cliente entra sin teléfono y va al reporte) y duplicados. Otras banderas:
+  `--corte` (obligatoria para `existencias` y `saldos`: confirma que es el día del cambio), `--mapeo <json>`
+  (ajusta nombres de columnas al archivo real) y `--reporte <json>` (guarda el reporte; teléfonos
+  enmascarados). Hecho en F3: `apps/api/scripts/importar-eleventa.mjs` + `scripts/eleventa/{leer,mapeo}.mjs`;
+  pruebas en `apps/api/test/eleventa/` (`unit/{leer,mapeo}.test.ts` sin base, `importar.test.ts` contra la
+  base de pruebas, fixtures en `test/eleventa/fixtures/`). `saldos` sale con código 2 hasta F7. Idempotente:
   llave = código de barras (productos) o nombre normalizado + teléfono (clientes); volver a correr
   actualiza, no duplica. `existencias` y `saldos` se corren **una sola vez, el día del cambio** (antes
   cambian a diario en Eleventa).
@@ -389,6 +398,8 @@ Hoy usan Eleventa (versión vieja) [R11, P46–P48]. No es pantalla: script
   (4) Eleventa queda de consulta (solo lectura) 30 días.
 
 ## F4 — Cascarón Android + push del personal
+
+Brief ejecutable por paquetes: `docs/fases/F4.md`. Empieza cuando F3 está en `main`.
 
 - Migración `005_push.sql`. API: módulo `movil` (registrar/quitar dispositivo, versión),
   `notificaciones/envio.ts` (FCM HTTP v1 con `jose`) y tarea `envio-push`.
@@ -423,6 +434,8 @@ Hoy usan Eleventa (versión vieja) [R11, P46–P48]. No es pantalla: script
 
 ## F5 — Lista de surtido (paralela a F6)
 
+Brief ejecutable por paquetes: `docs/fases/F5.md` (migración 006, en paralelo con F6).
+
 - Migración `006_surtido.sql`. API: módulo `surtido`.
 - Pantallas: `/surtido` (fecha y ruta opcional; agrupado por proveedor con piezas y cajas sugeridas;
   imprimir; WhatsApp al proveedor con `wa_surtido_proveedor`; «Registrar compra» abre
@@ -438,10 +451,13 @@ Hoy usan Eleventa (versión vieja) [R11, P46–P48]. No es pantalla: script
 
 ## F6 — Rutas, orden de carga, vista del repartidor (paralela a F5)
 
+Brief ejecutable por paquetes: `docs/fases/F6.md` (migración 007, en paralelo con F5). Paradas de cobro
+(`fn_agregar_cobro`, `POST /rutas/:id/cobros`) pasan a F7: «con saldo» no existe sin 008.
+
 - Migración `007_rutas.sql`. API: módulos `vehiculos`, `rutas` (incl. `optimizar.ts` puro con pruebas
   unitarias de vecino más cercano + 2-opt); `fn_iniciar_ruta` vive aquí (sin turno: F7 la reemplaza con la misma firma).
 - Pantallas: `/rutas` (por fecha; «Nueva ruta» aquí mismo), `/rutas/[id]` (asignar pedidos del día por zona,
-  agregar cobros, Optimizar, reordenar con flechas/arrastre, km, avisos de sin ubicación y de capacidad,
+  Optimizar, reordenar con flechas/arrastre, km, avisos de sin ubicación y de capacidad,
   Cargar → Siguiente: hoja de carga), `/rutas/[id]/carga` (hoja imprimible LIFO + totales por producto),
   vehículos en `/configuracion`, `/reparto` (repartidor, mobile-first: su ruta de hoy, una parada por
   pantalla, Navegar en Google Maps/Waze, ruta completa en tramos, No entregado con motivo, Terminar).
