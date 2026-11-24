@@ -48,6 +48,9 @@ export const CLAVES_EDITABLES = {
   visitas_dias: entero(1, 365),
   inactividad_dias: entero(1, 3650),
   enlace_tras_primera_compra: z.boolean(),
+  lealtad_activa: z.boolean(),
+  lealtad_cada: entero(1, 1000),
+  lealtad_presentacion_regalo_id: z.string().regex(/^\d{1,18}$/).nullable(),
 } as const;
 
 const coord = (max: number) =>

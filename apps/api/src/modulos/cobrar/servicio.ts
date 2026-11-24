@@ -31,14 +31,16 @@ export async function contexto(u: UsuarioSesion, q: { pedido?: string; cliente?:
               coalesce((select json_agg(json_build_object('id', l.id::text, 'producto', pr.nombre, 'presentacion', pz.nombre, 'cantidad', l.cantidad,
                           'precio_unitario', l.precio_unitario::text, 'importe', l.importe::text) order by l.numero)
                           from app.pedido_linea l join app.presentacion pz on pz.id = l.presentacion_id join app.producto pr on pr.id = l.producto_id
-                         where l.pedido_id = p.id and l.estado = 'activa' and l.cantidad > 0), '[]'::json) as lineas
+                         where l.pedido_id = p.id and l.estado = 'activa' and l.cantidad > 0), '[]'::json) as lineas,
+              case when p.ruta_id is not null then (select json_build_object('producto', g.r #>> '{regalo,producto}', 'presentacion', g.r #>> '{regalo,presentacion}', 'cantidad', 1)
+                      from (select app.fn_lealtad_cliente(p.cliente_id) as r) g where (g.r ->> 'premio')::boolean) end as regalo_pendiente
          from app.pedido p ${DESDE_CLIENTE.replace("from app.cliente c", "join app.cliente c on c.id = p.cliente_id")}
         where p.id = $1`,
       [q.pedido],
     );
     const f = p.rows[0]!;
-    const { id, folio, estado, entrega_tipo, total, ruta_id, entregable, cliente, lineas } = f;
-    return { modo: "entrega", pedido: { id, folio, estado, entrega_tipo, total, ruta_id, entregable }, cliente, lineas, turno: await turnoDe(u), metodos: metodos(u, false) };
+    const { id, folio, estado, entrega_tipo, total, ruta_id, entregable, cliente, lineas, regalo_pendiente } = f;
+    return { modo: "entrega", pedido: { id, folio, estado, entrega_tipo, total, ruta_id, entregable }, cliente, lineas, regalo_pendiente, turno: await turnoDe(u), metodos: metodos(u, false) };
   }
   const cliente = q.cliente!;
   if (!u.permisos.includes("cobranza.abonar")) throw new AppError("SIN_PERMISO", { permiso: "cobranza.abonar" });

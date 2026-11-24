@@ -767,6 +767,8 @@ export type ContextoEntrega = {
   pedido: { id: string; folio: string; estado: string; entrega_tipo: string; total: string; ruta_id: string | null; entregable: boolean };
   cliente: ClienteCobro;
   lineas: { id: string; producto: string; presentacion: string; cantidad: number; precio_unitario: string; importe: string }[];
+  /** F11: premio de lealtad de un pedido en ruta (el repartidor confirma si lo lleva); `null` si no hay. */
+  regalo_pendiente?: { producto: string; presentacion: string; cantidad: number } | null;
   turno: TurnoCobro;
   metodos: string[];
 };
@@ -812,4 +814,4 @@ export type RespuestaReporte = {
 export type RegaloEntrega = { producto: string; presentacion: string; cantidad: number } | null;
 
 /** Llaves de lealtad en `GET /api/configuracion`. */
-export type ConfigLealtad = { lealtad_activa?: boolean; lealtad_cada?: number | string; lealtad_presentacion_regalo_id?: string | number | null };
+export type ConfigLealtad = { lealtad_activa?: boolean; lealtad_cada?: number | string; lealtad_presentacion_regalo_id?: string | number | null; lealtad_regalo?: { producto: string; presentacion: string } | null };

@@ -9,7 +9,7 @@ const ref = (alias: string, nulo = false) =>
 
 const PRESENTACIONES = `(select coalesce(json_agg(json_build_object(
     'id', pz.id::text, 'nombre', pz.nombre, 'factor', pz.factor, 'codigo_barras', pz.codigo_barras,
-    'se_vende', pz.se_vende, 'se_compra', pz.se_compra, 'activa', pz.activa,
+    'se_vende', pz.se_vende, 'se_compra', pz.se_compra, 'activa', pz.activa, 'cuenta_lealtad', pz.cuenta_lealtad,
     'precios', (select coalesce(json_agg(json_build_object('lista_precio_id', pr.lista_precio_id::text, 'precio', pr.precio::text)
                                           order by pr.lista_precio_id), '[]'::json)
                   from app.precio pr where pr.presentacion_id = pz.id)
@@ -161,7 +161,7 @@ export async function editarProducto(actor: string, sucursal: string, veCostos: 
 
 async function leerPresentacion(c: pg.PoolClient, id: string) {
   const r = await c.query(
-    `select pz.id, pz.producto_id, pz.nombre, pz.factor, pz.codigo_barras, pz.se_vende, pz.se_compra, pz.activa,
+    `select pz.id, pz.producto_id, pz.nombre, pz.factor, pz.codigo_barras, pz.se_vende, pz.se_compra, pz.activa, pz.cuenta_lealtad,
             (select coalesce(json_agg(json_build_object('lista_precio_id', pr.lista_precio_id::text, 'precio', pr.precio::text)
                                       order by pr.lista_precio_id), '[]'::json)
                from app.precio pr where pr.presentacion_id = pz.id) as precios

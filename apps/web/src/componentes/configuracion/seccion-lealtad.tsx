@@ -22,7 +22,7 @@ export function SeccionLealtad({ config: cfg }: { config: Record<string, unknown
   const [activa, setActiva] = useState(config.lealtad_activa === true);
   const [cada, setCada] = useState(String(config.lealtad_cada ?? 10));
   const [regaloId, setRegaloId] = useState<string | null>(config.lealtad_presentacion_regalo_id == null ? null : String(config.lealtad_presentacion_regalo_id));
-  const [regaloNombre, setRegaloNombre] = useState<string | null>(null);
+  const [regaloNombre, setRegaloNombre] = useState<string | null>(config.lealtad_regalo ? `${config.lealtad_regalo.presentacion} · ${config.lealtad_regalo.producto}` : null);
   const [cambiando, setCambiando] = useState(regaloId === null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);

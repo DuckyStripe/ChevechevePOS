@@ -6,7 +6,7 @@ import { Check, Minus, Plus } from "lucide-react";
 import { Aviso, CampoFoto, mensajeCobro, Teclado, textoSemaforo, useClave } from "./comunes";
 import { conVolver, montoValido } from "./volver";
 import { Boton, BotonEnlace } from "@/componentes/ui/boton";
-import { Campo, Selector } from "@/componentes/ui/campo";
+import { Campo, Casilla, Selector } from "@/componentes/ui/campo";
 import { Insignia } from "@/componentes/ui/insignia";
 import { Tarjeta } from "@/componentes/ui/tarjeta";
 import { llamar } from "@/lib/api-cliente";
@@ -19,6 +19,8 @@ export type DatosEntrega = {
   cliente: { id: string; nombre: string; saldo: string | null; vencido: string | null; disponible: string | null; semaforo: Semaforo | null };
   /** `null` = quien entrega no puede leer las líneas del pedido: solo se entrega completo. */
   lineas: { id: string; texto: string; cantidad: number; precio: string }[] | null;
+  /** F11: premio de lealtad pendiente de un pedido en ruta; solo se da si el repartidor confirma que lo lleva. */
+  regaloPendiente?: { producto: string; presentacion: string; cantidad: number } | null;
 };
 type Metodo = "efectivo" | "transferencia" | "fiado" | "mixto";
 const NOMBRE_METODO: Record<Metodo, string> = { efectivo: "Efectivo", transferencia: "Transferencia", fiado: "Fiado", mixto: "Pago mixto" };
@@ -31,10 +33,11 @@ const saldoDe = (s: ResultadoEntrega["saldo_cliente"]): string | null => (s == n
  * `POST /cobrar/vista` (SQL): esta pantalla no suma ni resta dinero.
  */
 export function Entrega({ datos, volver, hayTurno, puedeFiado, puedeAvisar }: { datos: DatosEntrega; volver: string; hayTurno: boolean; puedeFiado: boolean; puedeAvisar: boolean }) {
-  const { pedido, cliente, lineas } = datos;
+  const { pedido, cliente, lineas, regaloPendiente } = datos;
   const [clave] = useClave(`chv:entrega:${pedido.id}`);
   const [metodo, setMetodo] = useState<Metodo | null>(null);
   const [cant, setCant] = useState<Record<string, number>>(() => Object.fromEntries((lineas ?? []).map((l) => [l.id, l.cantidad])));
+  const [conRegalo, setConRegalo] = useState(false);
   const [recibio, setRecibio] = useState("");
   const [fotoEntrega, setFotoEntrega] = useState<string | null>(null);
   const [referencia, setReferencia] = useState("");
@@ -105,6 +108,7 @@ export function Entrega({ datos, volver, hayTurno, puedeFiado, puedeAvisar }: { 
       ...(efectivoRecibido ? { efectivo_recibido: efectivoRecibido } : {}),
       ...(recibio.trim() ? { recibio: recibio.trim() } : {}),
       ...(fotoEntrega ? { foto_entrega: fotoEntrega } : {}),
+      ...(regaloPendiente ? { con_regalo: conRegalo } : {}),
     });
     setEnviando(false);
     if (!r.ok) return setError(`No se guardó. ${mensajeCobro(r.error)}`);
@@ -198,6 +202,18 @@ export function Entrega({ datos, volver, hayTurno, puedeFiado, puedeAvisar }: { 
           </ul>
           {!hayAlgo && <Aviso texto="No hay nada que entregar. Si no se entregó, usa «No entregado» en la ruta." />}
         </details>
+      )}
+
+      {regaloPendiente && (
+        <Tarjeta className="rounded-tarjeta border-2 border-marca bg-marca-suave">
+          <Casilla
+            etiqueta={`Entregué también el regalo: ${regaloPendiente.producto} ${regaloPendiente.presentacion}`}
+            ayuda="Márcalo solo si lo llevas en la camioneta. Si no, el cliente lo recibe en su siguiente pedido."
+            checked={conRegalo}
+            onChange={(e) => setConRegalo(e.target.checked)}
+            className="[&_input]:size-8 [&_span]:text-lg [&_span]:font-bold"
+          />
+        </Tarjeta>
       )}
 
       <details className="rounded-tarjeta border border-borde bg-superficie px-4 py-2">

@@ -31,11 +31,11 @@ export const transferencia = (monto: string, referencia = "ABC123", comprobante?
 /** fn_entregar_pedido con clave aleatoria (o la dada). Devuelve `{venta_id, repetida}`. */
 export async function entregar(
   c: pg.PoolClient, usuario: string, ped: string,
-  o: Pagos & { lineas?: { pedido_linea_id: string; cantidad_entregada: number }[]; clave?: string; hash?: string; recibio?: string; foto_entrega?: string; notas?: string },
+  o: Pagos & { lineas?: { pedido_linea_id: string; cantidad_entregada: number }[]; clave?: string; hash?: string; recibio?: string; foto_entrega?: string; notas?: string; con_regalo?: boolean },
 ): Promise<{ venta_id: string; repetida: boolean }> {
   const datos = {
     clave_idempotencia: o.clave ?? randomUUID(), lineas: o.lineas, pagos: o.pagos, efectivo_recibido: o.efectivo_recibido,
-    recibio: o.recibio, foto_entrega: o.foto_entrega, notas: o.notas,
+    recibio: o.recibio, foto_entrega: o.foto_entrega, notas: o.notas, con_regalo: o.con_regalo,
   };
   const r = await c.query("select venta_id, repetida from app.fn_entregar_pedido($1, $2, $3::jsonb, $4)", [usuario, ped, JSON.stringify(datos), o.hash ?? "hash-e"]);
   return r.rows[0];

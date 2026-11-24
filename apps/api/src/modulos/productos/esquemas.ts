@@ -41,6 +41,7 @@ export const esquemaEditarPresentacion = z.strictObject({
   se_vende: presentacion.se_vende,
   se_compra: presentacion.se_compra,
   activa: z.boolean().optional(),
+  cuenta_lealtad: z.boolean().optional(),
 });
 
 const campos = {

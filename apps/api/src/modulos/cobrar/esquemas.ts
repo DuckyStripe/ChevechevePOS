@@ -20,6 +20,7 @@ const comunes = { pagos: z.array(pagoVista).max(4), efectivo_recibido: dinero.op
 const vistaEntrega = z.object({
   pedido_id: idEsquema,
   lineas: z.array(z.object({ pedido_linea_id: idEsquema, cantidad_entregada: z.number().int().min(0).max(1_000_000) })).max(200).optional(),
+  con_regalo: z.boolean().optional(),
   ...comunes,
 });
 /** Venta de mostrador (/pos): sin pedido. */

@@ -19,6 +19,7 @@ const esquemaEntrega = z.object({
   notas: z.string().trim().min(1).max(500).optional(),
   recibio: z.string().trim().min(1).max(80).optional(),
   foto_entrega: comprobanteNombre.optional(),
+  con_regalo: z.boolean().default(false),
 });
 const esquemaLiquidar = z.object({ efectivo_contado: dinero, notas: z.string().trim().min(1).max(500).optional() });
 
@@ -33,7 +34,8 @@ async function entregar(u: UsuarioSesion, pedido: string, d: z.infer<typeof esqu
     const f = await c.query(
       `select json_build_object('id', v.id::text, 'folio', v.folio, 'total', v.total::text, 'cambio', v.cambio::text) as venta,
               json_build_object('id', p.id::text, 'folio', p.folio, 'estado', p.estado, 'entregado_en', p.entregado_en, 'recibio', p.recibio) as pedido,
-              (select ${SALDO_CLIENTE("s")} from app.v_saldo_cliente s where s.cliente_id = p.cliente_id) as saldo_cliente
+              (select ${SALDO_CLIENTE("s")} from app.v_saldo_cliente s where s.cliente_id = p.cliente_id) as saldo_cliente,
+              (app.fn_regalo_venta(v.id) - 'venta_linea_id') as regalo
          from app.venta v join app.pedido p on p.id = v.pedido_id where v.id = $1`,
       [venta_id],
     );

@@ -2,6 +2,7 @@ import multipart from "@fastify/multipart";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { extensionPorBytes, guardarImagen } from "../../comun/archivos.js";
 import { AppError } from "../../comun/errores.js";
+import { exigirPermiso } from "../../comun/permisos.js";
 import { paramId } from "../../comun/ids.js";
 import {
   esquemaCatalogoVenta,
@@ -87,7 +88,9 @@ export async function rutasProductos(app: FastifyInstance): Promise<void> {
 
   app.patch("/presentaciones/:id", { config: editar }, async (req) => {
     const { id } = paramId.parse(req.params);
-    return editarPresentacion(req.usuario!.id, id, esquemaEditarPresentacion.parse(req.body));
+    const d = esquemaEditarPresentacion.parse(req.body);
+    if (d.cuenta_lealtad !== undefined) exigirPermiso(req, "precios.editar");
+    return editarPresentacion(req.usuario!.id, id, d);
   });
 
   app.get("/presentaciones/codigo/:codigo", { config: porCodigo }, async (req) => {

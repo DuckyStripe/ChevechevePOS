@@ -40,6 +40,7 @@ export default async function Cobrar({ searchParams }: { searchParams: SP }) {
     const datos: DatosEntrega = {
       pedido: { id: ctx.pedido.id, folio: ctx.pedido.folio, total: ctx.pedido.total },
       cliente: { id: ctx.cliente.id, nombre: ctx.cliente.nombre, saldo: ctx.cliente.saldo, vencido: ctx.cliente.vencido, disponible: ctx.cliente.disponible, semaforo: ctx.cliente.semaforo },
+      regaloPendiente: ctx.regalo_pendiente ?? null,
       lineas: ctx.lineas.map((l) => ({ id: l.id, texto: `${l.producto} · ${l.presentacion}`, cantidad: l.cantidad, precio: l.precio_unitario })),
     };
     if (ctx.pedido.estado === "entregado") return <main><Titulo titulo="Cobrar" /><AvisoError reintentar={false} mensaje="Este pedido ya se entregó." />{salida}</main>;

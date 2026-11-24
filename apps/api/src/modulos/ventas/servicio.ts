@@ -71,7 +71,8 @@ export async function ticketVenta(q: Q, u: UsuarioSesion, id: string) {
             json_build_object('id', u.id::text, 'nombre', u.nombre) as usuario,
             case when c.id is null then null else json_build_object('id', c.id::text, 'nombre', c.nombre) end as cliente,
             coalesce((select json_agg(json_build_object('cantidad', l.cantidad, 'presentacion', pz.nombre, 'producto', pr.nombre,
-                        'precio_unitario', l.precio_unitario::text, 'importe', l.importe::text) order by l.numero)
+                        'precio_unitario', l.precio_unitario::text, 'importe', l.importe::text,
+                        'regalo', coalesce(l.id::text = (app.fn_regalo_venta(v.id) ->> 'venta_linea_id'), false)) order by l.numero)
                         from app.venta_linea l join app.presentacion pz on pz.id = l.presentacion_id join app.producto pr on pr.id = l.producto_id where l.venta_id = v.id), '[]'::json) as lineas,
             v.total::text as total,
             coalesce((select json_agg(json_build_object('metodo', p.metodo, 'monto', p.monto::text, 'referencia', p.referencia) order by p.id)

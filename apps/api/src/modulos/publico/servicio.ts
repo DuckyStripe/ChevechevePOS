@@ -79,6 +79,7 @@ export async function perfilCliente(c: ClienteEnlace) {
             (select texto from app.fn_render_plantilla('pantalla_bienvenida', jsonb_build_object('cliente', c.nombre, 'negocio', app.fn_config('negocio_nombre')))) as bienvenida,
             (select texto from app.fn_render_plantilla('pantalla_aviso_ubicacion', jsonb_build_object('negocio', app.fn_config('negocio_nombre')))) as aviso_ubicacion,
             (select p.id::text from app.pedido p where p.cliente_id = c.id and p.estado = 'propuesto' and p.propuesto_vence_en > now() order by p.id desc limit 1) as propuesto,
+            (app.fn_lealtad_cliente(c.id) - 'regalo') as lealtad,
             case when s.limite_credito = 0 and s.saldo = 0 then null
                  else json_build_object('limite', s.limite_credito::text, 'saldo', s.saldo::text, 'disponible', s.disponible::text) end as credito
        from app.cliente c join app.v_saldo_cliente s on s.cliente_id = c.id where c.id = $1`,
@@ -100,6 +101,7 @@ export async function perfilCliente(c: ClienteEnlace) {
     faltante_minutos_respuesta: f.faltante_minutos_respuesta,
     textos: { bienvenida: f.bienvenida, aviso_ubicacion: f.aviso_ubicacion },
     pedido_propuesto: f.propuesto ? { id: f.propuesto } : null,
+    lealtad: f.lealtad as { llevas: number; meta: number; premio: boolean; texto: string } | null,
   };
 }
 
@@ -154,7 +156,9 @@ export async function catalogoCliente(c: ClienteEnlace) {
     ultimo_pedido = { folio: ult.rows[0].folio, fecha: ult.rows[0].fecha, vista: vistaConIdsTexto(v.rows[0]!.v as Vista) };
   }
 
-  const cuerpo = { categorias: cats, articulos: art.rows, frecuentes: frec.rows, ultimo_pedido };
+  // Solo ids, en el orden de SQL: nunca cuantos clientes de la zona compran (B15).
+  const zona = await consulta<{ presentacion_id: string }>("select presentacion_id::text as presentacion_id from app.fn_sugerencias_zona($1)", [c.cliente_id]);
+  const cuerpo = { categorias: cats, articulos: art.rows, frecuentes: frec.rows, ultimo_pedido, sugerencias_zona: zona.rows };
   const version = sha256(JSON.stringify(cuerpo));
   return { cuerpo: { ...cuerpo, version }, version };
 }

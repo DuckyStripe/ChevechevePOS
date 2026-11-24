@@ -30,7 +30,9 @@ describe("GET /api/configuracion", () => {
     const b = res.json();
     expect(b).toMatchObject({ pedido_minimo: "0.00", hora_corte: "18:00", faltante_accion_predeterminada: "quitar", respaldo_ultima_prueba: null, sucursal: { lat: null, lng: null } });
     const n = await pool.query<{ n: number }>("select count(*)::int as n from app.configuracion");
-    expect(Object.keys(b)).toHaveLength(n.rows[0]!.n + 1);
+    // todas las claves + sucursal + lealtad_regalo (derivada de la presentacion elegida, no es una clave)
+    expect(Object.keys(b)).toHaveLength(n.rows[0]!.n + 2);
+    expect(b.lealtad_regalo).toBeNull();
   });
   it("401 sin token", async () => {
     expect((await pedir("GET")).statusCode).toBe(401);
