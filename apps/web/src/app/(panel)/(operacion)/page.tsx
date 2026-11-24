@@ -62,7 +62,7 @@ export default async function Hoy() {
       <ol className="grid gap-3 lg:grid-cols-2">
         {PASOS.map((paso) => (
           <li key={paso.grupo}>
-            <Tarjeta className="flex flex-col gap-3">
+            <Tarjeta className="flex h-full flex-col gap-3">
               <div className="flex items-start gap-3">
                 <NumeroPaso n={NUMERO_PASO[paso.grupo] ?? 0} />
                 <div className="min-w-0">

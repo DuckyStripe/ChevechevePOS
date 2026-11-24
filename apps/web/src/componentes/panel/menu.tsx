@@ -3,12 +3,22 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { House, KeyRound, LogOut, Menu as IconoMenu, X } from "lucide-react";
+import {
+  BarChart3, Boxes, ClipboardList, FileClock, House, KeyRound, LogOut, Menu as IconoMenu, Navigation, PackageCheck, Receipt, Route,
+  Settings, ShieldCheck, ShoppingCart, Store, Tags, Truck, UserCog, Users, Wallet, Warehouse, HandCoins, Lock, Package, X, type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Marca } from "@/componentes/ui/marca";
-import { NumeroPaso } from "@/componentes/ui/numero-paso";
 import { llamar } from "@/lib/api-cliente";
 import { NUMERO_PASO, type Grupo } from "@/lib/navegacion";
+
+// Solo presentacion: un icono por pantalla para leer el menu de un vistazo (la ruta y el permiso siguen en navegacion.ts).
+const ICONOS: Record<string, LucideIcon> = {
+  "/pedidos": ClipboardList, "/surtido": PackageCheck, "/compras": ShoppingCart, "/rutas": Route, "/reparto": Navigation,
+  "/cobranza": HandCoins, "/cierre": Lock, "/ventas": Receipt, "/pos": Store, "/caja": Wallet, "/reportes": BarChart3,
+  "/clientes": Users, "/productos": Package, "/precios": Tags, "/catalogos": Boxes, "/inventario": Warehouse,
+  "/proveedores": Truck, "/usuarios": UserCog, "/roles": ShieldCheck, "/configuracion": Settings, "/auditoria": FileClock,
+};
 
 type Props = {
   grupos: { grupo: Grupo; titulo: string; entradas: { ruta: string; titulo: string }[] }[];
@@ -18,9 +28,10 @@ type Props = {
   restringido: boolean;
 };
 
-// Activo: fondo de marca suave + barra a la izquierda (no solo color: tambien `aria-current`).
+// Activo: fondo de marca suave + barra a la izquierda (no solo color: tambien `aria-current`). 44px en PC, 48px en el cajon del telefono.
 const ENLACE =
-  "relative flex min-h-tocable items-center gap-3 rounded-xl px-3 text-base font-medium transition-[background-color,transform] duration-150 ease-salida active:scale-[0.98] active:bg-hundido hover:bg-hundido aria-[current=page]:bg-marca-suave aria-[current=page]:font-semibold aria-[current=page]:text-marca-fuerte aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-2.5 aria-[current=page]:before:left-0 aria-[current=page]:before:w-1 aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-marca";
+  "relative flex min-h-tocable items-center gap-3 rounded-lg px-3 text-base font-medium text-texto/85 transition-[background-color,transform] duration-150 ease-salida active:scale-[0.98] active:bg-hundido hover:bg-hundido lg:min-h-11 lg:text-[0.9375rem] aria-[current=page]:bg-marca-suave aria-[current=page]:font-semibold aria-[current=page]:text-marca-fuerte aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-2 aria-[current=page]:before:left-0 aria-[current=page]:before:w-1 aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-marca";
+const ICONO = "size-5 shrink-0 opacity-80";
 
 export function Menu({ grupos, nombre, rol, restringido }: Props) {
   const pathname = usePathname();
@@ -71,9 +82,10 @@ export function Menu({ grupos, nombre, rol, restringido }: Props) {
           abierto ? "visible translate-x-0" : "invisible -translate-x-full"
         }`}
       >
-        <div className="mb-3 flex min-h-tocable items-center justify-between pl-2">
+        {/* Misma altura que la barra de arriba (h-14) para que la linea inferior siga de lado a lado. */}
+        <div className="-mx-3 -mt-3 mb-2 flex h-14 shrink-0 items-center justify-between border-b border-borde px-5 pt-[env(safe-area-inset-top)] lg:pt-0">
           <Marca />
-          <button type="button" onClick={cerrar} aria-label="Cerrar menú" className="flex size-12 items-center justify-center rounded-xl active:bg-hundido lg:hidden">
+          <button type="button" onClick={cerrar} aria-label="Cerrar menú" className="-mr-2 flex size-12 items-center justify-center rounded-xl active:bg-hundido lg:hidden">
             <X aria-hidden className="size-6" />
           </button>
         </div>
@@ -81,37 +93,40 @@ export function Menu({ grupos, nombre, rol, restringido }: Props) {
         {!restringido && (
           <>
             <Link href="/" onClick={cerrar} aria-current={pathname === "/" ? "page" : undefined} className={ENLACE}>
-              <House aria-hidden className="size-5" /> Hoy
+              <House aria-hidden className={ICONO} /> Hoy
             </Link>
             {grupos.map((g) => {
               const n = NUMERO_PASO[g.grupo];
               return (
-                <div key={g.grupo} className="mt-3">
-                  <p className="flex items-center gap-2.5 px-3 pb-1 text-sm font-semibold text-suave">
-                    {n ? <NumeroPaso n={n} chico /> : null}
+                <div key={g.grupo} role="group" aria-labelledby={`menu-${g.grupo}`} className="mt-3">
+                  <p id={`menu-${g.grupo}`} className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-suave">
+                    {n ? <span className="cifra text-marca">{n} · </span> : null}
                     {g.titulo}
                   </p>
-                  {g.entradas.map((e) => (
-                    <Link key={e.ruta} href={e.ruta} onClick={cerrar} aria-current={actual(e.ruta)} className={`${ENLACE} ${n ? "pl-[2.875rem]" : ""}`}>
-                      {e.titulo}
-                    </Link>
-                  ))}
+                  {g.entradas.map((e) => {
+                    const Icono = ICONOS[e.ruta] ?? House;
+                    return (
+                      <Link key={e.ruta} href={e.ruta} onClick={cerrar} aria-current={actual(e.ruta)} className={ENLACE}>
+                        <Icono aria-hidden className={ICONO} /> {e.titulo}
+                      </Link>
+                    );
+                  })}
                 </div>
               );
             })}
           </>
         )}
 
-        <div className="mt-auto border-t border-borde pt-3">
+        <div className="mt-auto border-t border-borde pt-3 lg:mt-6">
           <p className="px-3 text-base font-semibold [overflow-wrap:anywhere]">{nombre}</p>
           <p className="px-3 pb-2 text-sm text-suave">{rol}</p>
           {!restringido && (
             <Link href="/cambiar-contrasena" onClick={cerrar} aria-current={actual("/cambiar-contrasena")} className={ENLACE}>
-              <KeyRound aria-hidden className="size-5" /> Cambiar contraseña
+              <KeyRound aria-hidden className={ICONO} /> Cambiar contraseña
             </Link>
           )}
           <button type="button" onClick={salir} disabled={saliendo} className={`${ENLACE} w-full text-left disabled:opacity-50`}>
-            <LogOut aria-hidden className="size-5" /> Salir
+            <LogOut aria-hidden className={ICONO} /> Salir
           </button>
         </div>
       </nav>
