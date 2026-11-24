@@ -1,9 +1,12 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { Zonas } from "@/componentes/clientes/zonas";
+import { itemsDe } from "@/componentes/productos/formato";
 import { FormConfiguracion, type Config } from "@/componentes/configuracion/form-configuracion";
 import { AvisoError, SinPermiso } from "@/componentes/ui/aviso-error";
 import { Titulo } from "@/componentes/ui/tarjeta";
 import { apiServidor, obtenerYo, tiene } from "@/lib/api-servidor";
+import type { Lista, Zona } from "@/lib/tipos";
 
 export const metadata = { title: "Configuración · ChevechevePOS" };
 
@@ -12,7 +15,7 @@ export default async function Configuracion() {
   if (!yo.ok) return <AvisoError mensaje={yo.error.mensaje} />;
   if (!tiene(yo.datos, "configuracion.editar")) return <SinPermiso />;
 
-  const cfg = await apiServidor<Config>("/configuracion");
+  const [cfg, zonas] = await Promise.all([apiServidor<Config>("/configuracion"), tiene(yo.datos, "clientes.ver") ? apiServidor<Lista<Zona> | Zona[]>("/zonas", { por_pagina: "200" }) : null]);
   if (!cfg.ok) return <AvisoError mensaje={cfg.error.mensaje} reintentar={cfg.error.status !== 403} />;
 
   return (
@@ -25,6 +28,7 @@ export default async function Configuracion() {
         </span>
         <ChevronRight aria-hidden className="size-6 shrink-0 text-suave" />
       </Link>
+      {zonas?.ok && <Zonas zonas={itemsDe(zonas.datos)} puedeEditar={tiene(yo.datos, "clientes.editar")} />}
       <FormConfiguracion config={cfg.datos} />
     </main>
   );

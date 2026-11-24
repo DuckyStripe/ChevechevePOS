@@ -1,0 +1,26 @@
+# SUPUESTO: 10 mensajes redactados a partir de los ejemplos de PLAN («2 cajas de corona», «un carton de tecate lite»,
+# «media de xx», «6 caguamas y 3 six indio»...). Se REEMPLAZAN por 10 reales del dueno cuando los mande.
+# Cada mensaje termina en una linea con tres guiones.
+Hola buenas tardes, me manda 2 cajas de corona y 3 six indio
+---
+un cartón de tecate lite
+---
+media de xx
+---
+6 caguamas y 3 six indio
+---
+Buenos días
+1 caja modelo
+2 cajas victoria
+1 six corona
+---
+caja de corona, caja de xx
+---
+3 six de corona por favor
+---
+2 cartones de indio
+---
+necesito 4 cajas de modelo especial
+---
+una de xx y una de tecate
+---

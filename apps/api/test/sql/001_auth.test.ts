@@ -18,7 +18,7 @@ const CLAVES_CONFIG = [
 const PUSH = [
   "pedido_nuevo", "pedido_modificado", "pedido_cancelado_cliente", "surtido_listo", "ruta_asignada",
   "entrega_fallida", "ubicacion_propuesta", "dispositivo_nuevo", "visitas_sin_pedido", "cliente_inactivo",
-  "faltante_respondido",
+  "faltante_respondido", "pin_ataque",
 ].map((e) => `push_${e}`);
 const WA = [
   "enlace_cliente", "pedido_recibido", "pedido_confirmado", "pedido_faltante", "pedido_ajustado", "pedido_en_ruta",
@@ -29,7 +29,7 @@ const PANTALLA = [
   "elegir_pin", "pedir_pin", "pin_espera", "pedido_enviado", "enlace_invalido", "aviso_ubicacion", "bienvenida", "faltante",
 ].map((e) => `pantalla_${e}`);
 const ESTADO = [
-  "recibido", "esperando_cliente", "confirmado", "surtiendo", "cargado", "en_ruta", "entregado", "no_entregado", "cancelado",
+  "propuesto", "recibido", "esperando_cliente", "confirmado", "surtiendo", "cargado", "en_ruta", "entregado", "no_entregado", "cancelado",
 ].map((e) => `estado_${e}`);
 
 describe("migracion 001", () => {
@@ -41,7 +41,7 @@ describe("migracion 001", () => {
     expect(p.stdout).toContain("nada pendiente");
   });
 
-  it("semillas: roles, permisos, configuracion y 44 plantillas", async () => {
+  it("semillas: roles, permisos, configuracion y 46 plantillas", async () => {
     const roles = await pool.query("select nombre, es_sistema from app.rol order by id");
     expect(roles.rows.map((x) => x.nombre)).toEqual(["Dueño", "Administrador", "Repartidor", "Cajero", "Almacenista"]);
     expect(roles.rows.filter((x) => x.es_sistema)).toHaveLength(1);
@@ -61,7 +61,7 @@ describe("migracion 001", () => {
     expect(v.rows.map((x) => x.valor)).toEqual(["18:00", null]);
 
     const pl = await pool.query("select clave, canal, titulo from app.plantilla");
-    expect(pl.rows).toHaveLength(44);
+    expect(pl.rows).toHaveLength(46);
     expect(pl.rows.map((x) => x.clave).sort()).toEqual([...PUSH, ...WA, ...PANTALLA, ...ESTADO].sort());
     for (const x of pl.rows) {
       const canal = x.clave.startsWith("wa_") ? "whatsapp" : x.clave.startsWith("push_") ? "push" : "pantalla";
@@ -79,9 +79,12 @@ describe("funciones", () => {
 
   it("fn_siguiente_folio: consecutivo", async () => {
     await enTransaccion(async (c) => {
+      // Relativo: desde 004 los pedidos tambien gastan folios P.
       const a = await c.query("select app.fn_siguiente_folio(1, 'P') f");
       const b = await c.query("select app.fn_siguiente_folio(1, 'P') f");
-      expect([a.rows[0].f, b.rows[0].f]).toEqual(["P-000001", "P-000002"]);
+      const n = (x: string) => Number(x.slice(2));
+      expect(a.rows[0].f).toMatch(/^P-\d{6}$/);
+      expect(n(b.rows[0].f)).toBe(n(a.rows[0].f) + 1);
     });
   });
 
@@ -159,12 +162,12 @@ describe("fn_notificar", () => {
 
   it("sin p_usuario_id: solo usuarios activos con el permiso del evento", async () => {
     await enTransaccion(async (c) => {
-      await c.query("insert into app.permiso (codigo, modulo, descripcion) values ('pedidos.gestionar', 'pedidos', 'x')");
+      await c.query("insert into app.permiso (codigo, modulo, descripcion) values ('pedidos.gestionar', 'pedidos', 'x') on conflict do nothing");   // existe desde 004
       const con = await crearUsuario(c, ROL.admin);
       const inactivo = await crearUsuario(c, ROL.admin, false);
       const sin = await crearUsuario(c, ROL.admin);
       const dueno = await crearUsuario(c, ROL.dueno); // trg_permiso_a_sistema se lo dio
-      await c.query("insert into app.rol_permiso (rol_id, permiso_codigo) select id, 'pedidos.gestionar' from app.rol where nombre = 'Administrador'");
+      await c.query("insert into app.rol_permiso (rol_id, permiso_codigo) select id, 'pedidos.gestionar' from app.rol where nombre = 'Administrador' on conflict do nothing");
       // `sin`: otro rol sin el permiso
       await c.query("update app.usuario set rol_id = (select id from app.rol where nombre = 'Cajero') where id = $1", [sin]);
       const n = await c.query("select app.fn_notificar('pedido_nuevo', 'k1', $1::jsonb) n", [vars]);

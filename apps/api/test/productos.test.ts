@@ -8,6 +8,7 @@ let h: ReturnType<typeof ayudaF2>;
 let dueno: string;
 let admin: string;
 let cajero: string;
+let repartidor: string;
 let menudeo: string;
 let mayoreo: string;
 let categoria: string;
@@ -20,6 +21,7 @@ beforeAll(async () => {
   dueno = await tokenF2(app, "Dueño");
   admin = await tokenF2(app, "Administrador");
   cajero = await tokenF2(app, "Cajero");
+  repartidor = await tokenF2(app, "Repartidor");
   const listas = (await pedir("GET", "/api/listas-precio", dueno)).json().items as { id: string; nombre: string }[];
   menudeo = listas.find((l) => l.nombre === "Menudeo")!.id;
   mayoreo = listas.find((l) => l.nombre === "Mayoreo")!.id;
@@ -219,7 +221,9 @@ describe("busqueda tolerante GET /productos?buscar=", () => {
     prod.equis = await mk("Dos Equis Lager", ["xx"]);
     void marca;
   });
-  const buscar = async (t: string) => ((await pedir("GET", `/api/productos?buscar=${encodeURIComponent(t)}`, dueno)).json().items as { id: string }[]).map((x) => x.id);
+  // Solo cuenta los productos de esta suite: otras suites pueden dejar productos activos con nombres parecidos.
+  const propios = () => new Set(Object.values(prod).map((x) => x!.id));
+  const buscar = async (t: string) => ((await pedir("GET", `/api/productos?buscar=${encodeURIComponent(t)}`, dueno)).json().items as { id: string }[]).map((x) => x.id).filter((id) => propios().has(id));
 
   it("caguama -> Familiar primero", async () => expect((await buscar("caguama"))[0]).toBe(prod.familiar!.id));
   it("tecate lite y tecate light -> Tecate Light", async () => {
@@ -289,7 +293,8 @@ describe("GET /presentaciones/codigo/:codigo", () => {
     const codigo = `inact${sufijo()}`;
     await pedir("PATCH", `/api/presentaciones/${p.por(1).id}`, dueno, { codigo_barras: codigo, activa: false });
     expect((await pedir("GET", `/api/presentaciones/codigo/${codigo}`, dueno)).statusCode).toBe(404);
-    const c = await pedir("GET", `/api/presentaciones/codigo/${codigo}`, cajero);
+    // Repartidor: ni ventas.crear, ni compras.registrar, ni pedidos.capturar (Cajero ya captura pedidos desde 004).
+    const c = await pedir("GET", `/api/presentaciones/codigo/${codigo}`, repartidor);
     expect(c.statusCode).toBe(403);
     expect(errorDe(c).codigo).toBe("SIN_PERMISO");
     expect((await pedir("GET", `/api/presentaciones/codigo/${codigo}`)).statusCode).toBe(401);

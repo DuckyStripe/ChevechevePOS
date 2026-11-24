@@ -30,7 +30,7 @@ export async function listarExistencias(
   const desplazo = arg(offset(f));
   const r = await consulta<{ total: string }>(
     `select p.id as producto_id, p.nombre as producto, json_build_object('id', c.id::text, 'nombre', c.nombre) as categoria,
-            p.modo_surtido, coalesce(e.cantidad, 0) as cantidad, 0 as confirmadas, 0 as cargadas,
+            p.modo_surtido, coalesce(e.cantidad, 0) as cantidad, coalesce(d.confirmadas, 0) as confirmadas, coalesce(d.cargadas, 0) as cargadas,
             coalesce(e.cantidad, 0) / f.factor as cajas, coalesce(e.cantidad, 0) % f.factor as sueltas,
             p.existencia_minima
             ${veCostos ? ", e.costo_promedio, round(coalesce(e.cantidad, 0) * e.costo_promedio, 2) as valor" : ""},
@@ -38,6 +38,7 @@ export async function listarExistencias(
        from app.producto p
        join app.categoria c on c.id = p.categoria_id
        left join app.existencia e on e.producto_id = p.id and e.sucursal_id = $1
+       left join app.v_disponible d on d.producto_id = p.id and d.sucursal_id = $1
        cross join lateral (select coalesce(max(pz.factor), 1) as factor from app.presentacion pz where pz.producto_id = p.id and pz.activa) f
        ${unir}
       where ${donde.join(" and ")}

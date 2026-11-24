@@ -1,17 +1,22 @@
 import type { FastifyInstance } from "fastify";
 import { rutasAuditoria } from "./auditoria/rutas.js";
 import { rutasAuth } from "./auth/rutas.js";
+import { rutasAvisos } from "./avisos/rutas.js";
 import { rutasCategorias } from "./categorias/rutas.js";
 import { rutasCompras } from "./compras/rutas.js";
+import { rutasClientes } from "./clientes/rutas.js";
 import { rutasConfiguracion } from "./configuracion/rutas.js";
+import { rutasDespacho } from "./despacho/rutas.js";
 import { rutasImagenes } from "./imagenes/rutas.js";
 import { rutasInventario } from "./inventario/rutas.js";
 import { rutasMarcas } from "./marcas/rutas.js";
 import { rutasNotificaciones } from "./notificaciones/rutas.js";
+import { rutasPedidos } from "./pedidos/rutas.js";
 import { rutasPlantillas } from "./plantillas/rutas.js";
 import { rutasPrecios } from "./precios/rutas.js";
 import { rutasProductos } from "./productos/rutas.js";
 import { rutasProveedores } from "./proveedores/rutas.js";
+import { rutasPublico } from "./publico/rutas.js";
 import { rutasRoles } from "./roles/rutas.js";
 import { rutasUsuarios } from "./usuarios/rutas.js";
 
@@ -32,4 +37,9 @@ export async function modulos(api: FastifyInstance): Promise<void> {
   await api.register(rutasInventario, { prefix: "/inventario" });
   await api.register(rutasCompras, { prefix: "/compras" });
   await api.register(rutasImagenes); // /imagenes/:archivo
+  await api.register(rutasClientes); // /zonas, /clientes
+  await api.register(rutasPedidos); // /pedidos, /propuestas
+  await api.register(rutasAvisos, { prefix: "/avisos" });
+  await api.register(rutasDespacho); // /despacho
+  await api.register(rutasPublico, { prefix: "/publico" });
 }

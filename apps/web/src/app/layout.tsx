@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +13,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className="antialiased">
         {children}
-        <Toaster position="top-center" toastOptions={{ className: "text-base" }} />
       </body>
     </html>
   );

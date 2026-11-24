@@ -131,7 +131,8 @@ end $$;
 
 -- Revierte la compra con sus propios movimientos del kardex, exactamente al costo de cada linea.
 -- Solo si despues de ella no hubo salidas ni revaluaciones del producto (si no, el promedio quedaria mal):
--- COMPRA_CON_SALIDAS {producto_id}. Todo o nada.
+-- COMPRA_CON_SALIDAS {producto_id}. Todo o nada. La cancelacion de una compra POSTERIOR no cuenta como salida
+-- (ya devolvio al promedio lo suyo): asi se cancela de la mas nueva a la mas vieja.
 create function app.fn_cancelar_compra(p_usuario_id bigint, p_compra_id bigint, p_motivo text) returns void
 language plpgsql as $$
 declare
@@ -166,6 +167,9 @@ begin
       select 1 from app.movimiento_inventario s
       where s.sucursal_id = v_c.sucursal_id and s.producto_id = r.producto_id and s.id > r.primero
         and (s.cantidad < 0 or s.tipo = 'revaluacion')
+        and not (s.tipo = 'cancelacion_compra' and exists (
+          select 1 from app.compra_linea cl2
+          where cl2.id = s.referencia_id and s.referencia_tabla = 'compra_linea' and cl2.compra_id > p_compra_id))
     ) then
       raise exception 'COMPRA_CON_SALIDAS' using errcode = 'P0001',
         detail = jsonb_build_object('producto_id', r.producto_id)::text;

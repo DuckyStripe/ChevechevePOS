@@ -92,3 +92,8 @@ export const esquemaEditarProducto = z.object({
 
 export const paramCodigo = z.object({ codigo: z.string().trim().min(1).max(60) });
 export const esquemaCodigo = z.object({ lista_precio_id: idEsquema.optional() });
+
+export const esquemaCatalogoVenta = z.object({ lista_precio_id: idEsquema.optional() });
+export const esquemaEquivalentes = z.object({
+  equivalentes: z.array(z.object({ producto_id: idEsquema, orden: z.number().int().min(1).max(100) })).max(50),
+});

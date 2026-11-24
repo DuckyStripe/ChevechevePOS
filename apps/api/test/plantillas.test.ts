@@ -24,12 +24,12 @@ afterAll(async () => {
 });
 
 describe("GET /api/plantillas", () => {
-  it("lista las 44 y filtra por canal", async () => {
+  it("lista las 46 y filtra por canal", async () => {
     const todas = await pedir("GET", "/api/plantillas", tokenAdmin);
     expect(todas.statusCode).toBe(200);
-    expect(todas.json()).toHaveLength(44);
+    expect(todas.json()).toHaveLength(46);
     const push = (await pedir("GET", "/api/plantillas?canal=push", tokenAdmin)).json() as Array<{ canal: string; titulo: string }>;
-    expect(push).toHaveLength(11);
+    expect(push).toHaveLength(12);
     expect(push.every((p) => p.canal === "push" && p.titulo)).toBe(true);
     expect((await pedir("GET", "/api/plantillas?canal=sms", tokenAdmin)).statusCode).toBe(400);
   });

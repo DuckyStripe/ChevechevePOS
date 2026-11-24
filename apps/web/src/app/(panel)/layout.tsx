@@ -1,8 +1,11 @@
+import { Suspense } from "react";
+import { Toaster } from "sonner";
 import { Beer } from "lucide-react";
+import { BandejaAvisos } from "@/componentes/avisos/bandeja";
 import { Campana } from "@/componentes/panel/campana";
 import { Menu } from "@/componentes/panel/menu";
 import { AvisoError } from "@/componentes/ui/aviso-error";
-import { obtenerYo } from "@/lib/api-servidor";
+import { obtenerYo, tiene } from "@/lib/api-servidor";
 import { menuPara } from "@/lib/navegacion";
 
 /** Marco del panel (N2 menu por permisos, N5 campana). Solo escribe `logout`; el resto son lecturas. */
@@ -25,10 +28,16 @@ export default async function LayoutPanel({ children }: { children: React.ReactN
           <Beer aria-hidden className="size-5 text-marca" /> Chevecheve
         </span>
         <div className="flex items-center">
+          {tiene(yo, "avisos.enviar") && (
+            <Suspense>
+              <BandejaAvisos puedeMarcar={tiene(yo, "pedidos.ver")} />
+            </Suspense>
+          )}
           {/* key: al leer avisos el servidor manda otro conteo y la campana arranca con el nuevo */}
           <Campana key={yo.notificaciones_sin_leer} inicial={yo.notificaciones_sin_leer} />
         </div>
       </header>
+      <Toaster position="top-center" toastOptions={{ className: "text-base" }} />
       <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">{children}</div>
     </div>
   );

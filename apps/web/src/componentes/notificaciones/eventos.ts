@@ -9,6 +9,7 @@ export const EVENTOS: Record<string, string> = {
   entrega_fallida: "No se pudo entregar un pedido",
   ubicacion_propuesta: "Un cliente mandó su ubicación",
   dispositivo_nuevo: "Abrieron un link en un aparato nuevo",
+  pin_ataque: "Muchos intentos fallidos de números en un link",
   visitas_sin_pedido: "Un cliente entra y no pide",
   cliente_inactivo: "Un cliente lleva tiempo sin pedir",
 };

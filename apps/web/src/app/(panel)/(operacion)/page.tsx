@@ -1,7 +1,10 @@
-import { Titulo } from "@/componentes/ui/tarjeta";
-import { Tarjeta } from "@/componentes/ui/tarjeta";
-import { obtenerYo } from "@/lib/api-servidor";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { Insignia } from "@/componentes/ui/insignia";
+import { Tarjeta, Titulo } from "@/componentes/ui/tarjeta";
+import { apiServidor, obtenerYo } from "@/lib/api-servidor";
 import { TITULOS_GRUPO } from "@/lib/navegacion";
+import type { Despacho } from "@/lib/tipos";
 
 export const metadata = { title: "Hoy · ChevechevePOS" };
 
@@ -13,22 +16,54 @@ const PASOS = [
   { grupo: "paso5", texto: "Liquidar al repartidor y cerrar caja." },
 ] as const;
 
-/** N4: solo informa. Sin contadores ni enlaces hasta que exista la pantalla de cada paso (llegan con `GET /despacho`). */
+function Contador({ n, texto, href, urgente = false }: { n: number; texto: string; href: string; urgente?: boolean }) {
+  return (
+    <Link href={href} className="flex min-h-tocable items-center justify-between gap-3 rounded-xl border border-borde px-3 py-2 hover:bg-marca-suave">
+      <span className="text-base">{texto}</span>
+      <span className="flex items-center gap-1">
+        <span className={`rounded-full px-2.5 py-0.5 text-base font-bold ${n > 0 ? (urgente ? "bg-peligro-suave text-peligro" : "bg-marca-suave text-marca-fuerte") : "bg-borde/60 text-suave"}`}>{n}</span>
+        <ChevronRight aria-hidden className="size-5 text-suave" />
+      </span>
+    </Link>
+  );
+}
+
+/** N4: informa y lleva al paso; no tiene acciones propias. Los contadores salen de `GET /despacho` (unica fuente). */
 export default async function Hoy() {
-  const r = await obtenerYo();
+  const [r, d] = await Promise.all([obtenerYo(), apiServidor<Despacho>("/despacho")]);
   const nombre = r.ok ? r.datos.nombre.split(" ")[0] : "";
+  const despacho = d.ok ? d.datos : null;
+  const p = despacho?.pedidos;
+
   return (
     <main>
-      <Titulo titulo={nombre ? `Hola, ${nombre}` : "Hoy"} ayuda="Así será tu día en ChevechevePOS, paso por paso." />
+      <Titulo titulo={nombre ? `Hola, ${nombre}` : "Hoy"} ayuda="Así va tu día en ChevechevePOS, paso por paso." />
+      {despacho?.respaldo?.vencido && (
+        <p role="alert" className="mb-4 rounded-tarjeta border border-peligro/40 bg-peligro-suave p-4 text-base font-bold text-peligro">
+          Hace mucho que no se prueba un respaldo de tu información. Pídele a quien lo maneja que lo revise.
+        </p>
+      )}
+      {!d.ok && d.error.status !== 403 && <p className="mb-4 rounded-xl bg-peligro-suave p-3 text-base font-medium text-peligro">{d.error.mensaje}</p>}
       <ol className="flex flex-col gap-3">
-        {PASOS.map((p) => (
-          <li key={p.grupo}>
-            <Tarjeta className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-lg font-bold">{TITULOS_GRUPO[p.grupo]}</h2>
-                <p className="text-base text-suave">{p.texto}</p>
+        {PASOS.map((paso) => (
+          <li key={paso.grupo}>
+            <Tarjeta className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold">{TITULOS_GRUPO[paso.grupo]}</h2>
+                  <p className="text-base text-suave">{paso.texto}</p>
+                </div>
+                {paso.grupo !== "paso1" && <Insignia>Próximamente</Insignia>}
               </div>
-              <span className="shrink-0 rounded-full bg-borde/60 px-2.5 py-0.5 text-sm text-suave">Próximamente</span>
+              {paso.grupo === "paso1" && p && (
+                <div className="flex flex-col gap-2">
+                  <Contador n={p.por_confirmar} texto="Pedidos por confirmar" href="/pedidos?vista=por-confirmar" />
+                  <Contador n={p.esperando_cliente} texto="Esperando respuesta del cliente" href="/pedidos?vista=esperando" />
+                  <Contador n={p.faltantes_vencen_1h} texto="Faltantes que vencen en 1 hora" href="/pedidos?vista=esperando" urgente />
+                  <Contador n={p.confirmados_sin_ruta} texto="Confirmados sin ruta" href="/pedidos?vista=confirmados" />
+                  {despacho?.avisos_pendientes != null && <Contador n={despacho.avisos_pendientes} texto="Mensajes de WhatsApp por enviar" href="/?bandeja=1" />}
+                </div>
+              )}
             </Tarjeta>
           </li>
         ))}

@@ -21,7 +21,7 @@ const columnas = (veCostos: boolean) => `
   ${ref("c")} as categoria, ${ref("m", true)} as marca,
   p.contenido_ml, p.tipo_envase, p.imagen, p.modo_surtido, p.margen_objetivo,
   ${ref("pv", true)} as proveedor,
-  p.existencia_minima, p.activo, coalesce(e.cantidad, 0) as existencia, 0 as comprometido,
+  p.existencia_minima, p.activo, coalesce(e.cantidad, 0) as existencia, coalesce(d.confirmadas, 0) + coalesce(d.cargadas, 0) as comprometido,
   ${
     veCostos
       ? `e.costo_promedio,
@@ -35,7 +35,8 @@ const DESDE = `from app.producto p
   join app.categoria c on c.id = p.categoria_id
   left join app.marca m on m.id = p.marca_id
   left join app.proveedor pv on pv.id = p.proveedor_id
-  left join app.existencia e on e.producto_id = p.id and e.sucursal_id = $1`;
+  left join app.existencia e on e.producto_id = p.id and e.sucursal_id = $1
+  left join app.v_disponible d on d.producto_id = p.id and d.sucursal_id = $1`;
 
 export interface FiltrosProductos extends Pagina {
   buscar?: string;
@@ -194,17 +195,18 @@ export async function editarPresentacion(actor: string, id: string, d: Record<st
   });
 }
 
-/** `ArticuloPos`: `disponible_piezas` = existencia hasta que F3 reste lo comprometido. */
+/** `ArticuloPos`: `disponible_piezas` sale de `v_disponible` (existencia menos lo comprometido en pedidos). */
 export async function articuloPorCodigo(sucursal: string, codigo: string, listaId?: string) {
   const r = await consulta(
     `select pz.id as presentacion_id, p.id as producto_id, p.nombre as producto, pz.nombre as presentacion, pz.factor,
             pz.codigo_barras, pz.se_vende, pz.se_compra, p.categoria_id, m.nombre as marca, p.imagen,
             app.fn_precio(pz.id, coalesce($3::bigint, (select l.id from app.lista_precio l where l.es_predeterminada))) as precio,
-            coalesce(e.cantidad, 0) as existencia_piezas, coalesce(e.cantidad, 0) as disponible_piezas
+            coalesce(e.cantidad, 0) as existencia_piezas, coalesce(d.disponible, coalesce(e.cantidad, 0)) as disponible_piezas
        from app.presentacion pz
        join app.producto p on p.id = pz.producto_id
        left join app.marca m on m.id = p.marca_id
        left join app.existencia e on e.producto_id = p.id and e.sucursal_id = $1
+       left join app.v_disponible d on d.producto_id = p.id and d.sucursal_id = $1
       where pz.codigo_barras = $2 and pz.activa and p.activo`,
     [sucursal, codigo, listaId ?? null],
   );
@@ -223,4 +225,58 @@ export async function fijarImagen(actor: string, id: string, imagen: string | nu
 
 export async function existeProducto(id: string): Promise<boolean> {
   return (await consulta("select 1 from app.producto where id = $1", [id])).rowCount === 1;
+}
+
+/* ---------------------------------------------------------------- F3: catalogo de venta y equivalentes */
+
+/** `GET /catalogo-venta`: presentaciones vendibles con precio de la lista y `disponible_piezas` de `v_disponible`. */
+export async function catalogoVenta(sucursal: string, listaId?: string) {
+  const r = await consulta(
+    `select pz.id::text as presentacion_id, p.id::text as producto_id, p.nombre as producto, pz.nombre as presentacion, pz.factor, pz.codigo_barras,
+            p.categoria_id::text as categoria_id, m.nombre as marca, p.imagen, l.precio::text as precio,
+            coalesce(e.cantidad, 0) as existencia_piezas, coalesce(d.disponible, 0) as disponible_piezas
+       from app.presentacion pz
+       join app.producto p on p.id = pz.producto_id and p.activo
+       left join app.marca m on m.id = p.marca_id
+       left join app.existencia e on e.producto_id = p.id and e.sucursal_id = $1
+       left join app.v_disponible d on d.producto_id = p.id and d.sucursal_id = $1
+       cross join lateral (select app.fn_precio(pz.id, coalesce($2::bigint, (select id from app.lista_precio where es_predeterminada))) as precio) l
+      where pz.activa and pz.se_vende and l.precio is not null
+      order by p.nombre, pz.factor, pz.id`,
+    [sucursal, listaId ?? null],
+  );
+  return r.rows;
+}
+
+export async function listarEquivalentes(productoId: string, q: pg.Pool | pg.PoolClient = pool) {
+  if (!(await q.query("select 1 from app.producto where id = $1", [productoId])).rowCount) throw new AppError("NO_ENCONTRADO");
+  const r = await q.query(
+    `select e.equivalente_id::text as producto_id, p.nombre as producto, e.orden from app.producto_equivalente e join app.producto p on p.id = e.equivalente_id
+      where e.producto_id = $1 order by e.orden, e.equivalente_id`,
+    [productoId],
+  );
+  return r.rows;
+}
+
+/** Reemplaza la lista: borra lo que sobra y actualiza el orden de lo que queda (la bitacora solo ve cambios reales). */
+export async function reemplazarEquivalentes(actor: string, productoId: string, lista: { producto_id: string; orden: number }[]) {
+  const ids = lista.map((x) => x.producto_id);
+  if (new Set(ids).size !== ids.length) throw invalido("equivalentes", "Hay productos repetidos");
+  if (ids.includes(productoId)) throw invalido("equivalentes", "Un producto no puede ser equivalente de si mismo");
+  return conUsuario(actor, async (c) => {
+    await listarEquivalentes(productoId, c);
+    if (ids.length) {
+      const n = await c.query("select count(*)::int as n from app.producto where id = any($1::bigint[])", [ids]);
+      if (n.rows[0].n !== ids.length) throw invalido("equivalentes", "Hay productos que no existen");
+    }
+    await c.query("delete from app.producto_equivalente where producto_id = $1 and not (equivalente_id = any($2::bigint[]))", [productoId, ids]);
+    for (const x of lista) {
+      await c.query(
+        `insert into app.producto_equivalente (producto_id, equivalente_id, orden) values ($1, $2, $3)
+         on conflict (producto_id, equivalente_id) do update set orden = excluded.orden where producto_equivalente.orden <> excluded.orden`,
+        [productoId, x.producto_id, x.orden],
+      );
+    }
+    return listarEquivalentes(productoId, c);
+  });
 }

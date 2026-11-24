@@ -12,6 +12,7 @@ import { Tarjeta } from "@/componentes/ui/tarjeta";
 import { llamar } from "@/lib/api-cliente";
 import { dinero } from "@/lib/dinero";
 import type { ListaPrecio, Presentacion, Producto } from "@/lib/tipos";
+import { Equivalentes } from "@/componentes/equivalentes/equivalentes";
 import { CamposProducto, leerProducto, type Catalogos } from "./campos-producto";
 import { FotoProducto } from "./foto-producto";
 import { mensajeError, piezasTexto } from "./formato";
@@ -271,6 +272,7 @@ export function FichaProducto({ producto, catalogos, listas, puedeEditar, veCost
 
       <Presentaciones producto={producto} listas={listas} puedeEditar={puedeEditar} />
       <Alias producto={producto} puedeEditar={puedeEditar} />
+      <Equivalentes productoId={id} puedeEditar={puedeEditar} />
       <Datos producto={producto} catalogos={catalogos} puedeEditar={puedeEditar} />
     </div>
   );

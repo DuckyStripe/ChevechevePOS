@@ -60,7 +60,7 @@ describe("notificaciones propias", () => {
   it("preferencias: todos los eventos con push=true por omision; PUT guarda y devuelve igual", async () => {
     const g = await pedir("GET", "/api/notificaciones/preferencias", token);
     expect(g.statusCode).toBe(200);
-    expect(g.json().preferencias).toHaveLength(11);
+    expect(g.json().preferencias).toHaveLength(12);
     expect(g.json().preferencias.every((p: { push: boolean }) => p.push)).toBe(true);
     const put = await pedir("PUT", "/api/notificaciones/preferencias", token, { preferencias: [{ evento: "pedido_nuevo", push: false }] });
     expect(put.statusCode).toBe(200);

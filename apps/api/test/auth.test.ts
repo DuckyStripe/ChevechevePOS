@@ -149,7 +149,7 @@ describe("GET /api/auth/yo", () => {
       id: u.id,
       usuario: u.usuario,
       rol: { nombre: "Administrador" },
-      permisos: ["auditoria.ver", "catalogo.editar", "catalogo.ver", "compras.registrar", "compras.ver", "configuracion.editar", "inventario.ajustar", "inventario.ver", "proveedores.gestionar"],
+      permisos: ["auditoria.ver", "avisos.enviar", "catalogo.editar", "catalogo.ver", "clientes.credito", "clientes.editar", "clientes.enlace", "clientes.ver", "compras.registrar", "compras.ver", "configuracion.editar", "inventario.ajustar", "inventario.ver", "pedidos.capturar", "pedidos.gestionar", "pedidos.ver", "proveedores.gestionar"],
       sucursal: { nombre: "Bodega principal" },
       turno_abierto: null,
       notificaciones_sin_leer: 2,

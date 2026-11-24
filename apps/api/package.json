@@ -12,7 +12,8 @@
     "lint": "eslint src scripts test",
     "typecheck": "tsc --noEmit",
     "prueba": "node --env-file-if-exists=../../.env scripts/preparar-pruebas.mjs && vitest run",
-    "migrar": "node scripts/migrar.mjs"
+    "migrar": "node scripts/migrar.mjs",
+    "importar:eleventa": "node scripts/importar-eleventa.mjs"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.0",
@@ -24,6 +25,7 @@
     "jose": "^6.0.0",
     "pg": "^8.11.5",
     "pino-pretty": "^13.0.0",
+    "read-excel-file": "^9.3.20",
     "zod": "^4.0.0"
   },
   "devDependencies": {

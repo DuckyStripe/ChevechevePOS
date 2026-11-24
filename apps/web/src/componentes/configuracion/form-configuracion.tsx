@@ -10,7 +10,7 @@ import { llamar } from "@/lib/api-cliente";
 
 export type Config = Record<string, unknown> & { sucursal?: { lat?: string | null; lng?: string | null } };
 
-type Def = { clave: string; etiqueta: string; ayuda?: string; tipo?: "texto" | "numero" | "decimal" | "hora" | "accion" | "clabe" | "telefono"; };
+type Def = { clave: string; etiqueta: string; ayuda?: string; tipo?: "texto" | "numero" | "decimal" | "hora" | "accion" | "clabe" | "telefono" | "bool"; };
 
 const SECCIONES: { titulo: string; campos: Def[] }[] = [
   {
@@ -32,6 +32,23 @@ const SECCIONES: { titulo: string; campos: Def[] }[] = [
       { clave: "faltante_minutos_respuesta", etiqueta: "Minutos que tiene el cliente para contestar un faltante", tipo: "numero" },
       { clave: "faltante_accion_predeterminada", etiqueta: "Si el cliente no contesta", tipo: "accion" },
       { clave: "credito_dias_predeterminado", etiqueta: "Días de crédito para clientes nuevos", tipo: "numero", ayuda: "0 si no das fiado por defecto." },
+    ],
+  },
+  {
+    titulo: "Link de clientes",
+    campos: [
+      { clave: "visitas_umbral", etiqueta: "Avisarme si abre su link esta cantidad de veces sin pedir", tipo: "numero" },
+      { clave: "visitas_dias", etiqueta: "…en cuántos días", tipo: "numero" },
+      { clave: "inactividad_dias", etiqueta: "Avisarme si pasan estos días sin que pida", tipo: "numero", ayuda: "Solo te avisa: nunca le quita el link a nadie." },
+      { clave: "enlace_tras_primera_compra", etiqueta: "Generar el link solo después de su primera compra", tipo: "bool" },
+    ],
+  },
+  {
+    titulo: "Lo de siempre",
+    campos: [
+      { clave: "sugerencia_hora", etiqueta: "Hora para proponerlo", tipo: "hora" },
+      { clave: "sugerencia_dias_tolerancia", etiqueta: "Días de atraso antes de proponerlo", tipo: "numero" },
+      { clave: "sugerencia_vigencia_horas", etiqueta: "Horas que dura la propuesta", tipo: "numero" },
     ],
   },
   {
@@ -60,6 +77,13 @@ function Control({ def, valor }: { def: Def; valor: unknown }) {
       <Selector {...comun}>
         <option value="quitar">Quitarle ese producto del pedido</option>
         <option value="reducir">Mandar la cantidad que sí hay</option>
+      </Selector>
+    );
+  if (def.tipo === "bool")
+    return (
+      <Selector {...comun} defaultValue={valor === false ? "false" : "true"}>
+        <option value="true">Sí</option>
+        <option value="false">No</option>
       </Selector>
     );
   if (def.tipo === "numero") return <Campo {...comun} type="number" inputMode="numeric" min={0} step={1} />;
@@ -91,7 +115,8 @@ export function FormConfiguracion({ config }: { config: Config }) {
     for (const def of SECCIONES.flatMap((s) => s.campos)) {
       const nuevo = String(f.get(def.clave) ?? "").trim();
       if (nuevo === texto(config[def.clave])) continue;
-      if (def.tipo === "numero") {
+      if (def.tipo === "bool") cambios[def.clave] = nuevo === "true";
+      else if (def.tipo === "numero") {
         if (nuevo === "" || !Number.isFinite(Number(nuevo))) return setError(`«${def.etiqueta}» debe ser un número.`);
         cambios[def.clave] = Number(nuevo);
       } else cambios[def.clave] = nuevo;

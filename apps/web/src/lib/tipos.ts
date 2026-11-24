@@ -219,3 +219,258 @@ export type MargenCompra = {
 
 /** `GET /presentaciones/codigo/:codigo` */
 export type ArticuloPos = { presentacion_id: number | string; producto_id: number | string; producto: string; presentacion: string; factor: number; codigo_barras: string | null; se_compra?: boolean };
+
+/* ---------- F3: clientes, enlace, pedidos, avisos, despacho (CONTRATOS §4.4) ---------- */
+
+export type Zona = { id: number | string; nombre: string; activa: boolean };
+
+export type EstadoEnlace = "activo" | "sin_activar" | "dado_de_baja" | "sin_link";
+export type ClienteFila = {
+  id: number | string;
+  nombre: string;
+  tipo_negocio: string;
+  zona: Ref | null;
+  telefono_whatsapp: string | null;
+  dias_visita: number[];
+  tiene_ubicacion: boolean;
+  tiene_propuesta: boolean;
+  tiene_enlace: boolean;
+  lista_precio: Ref | string | null;
+  limite_credito: string;
+  saldo?: string | null;
+  vencido?: string | null;
+  activo: boolean;
+  alertas?: string[];
+  enlace?: { estado: EstadoEnlace; baja: { en: string; motivo: string; nota: string | null; por: Ref | string | null } | null };
+};
+
+/** `GET /clientes/:id`: el contrato lista solo lo nuevo; el resto se asume de las columnas de §2.4. */
+export type ClienteDetalle = Omit<ClienteFila, "enlace"> & {
+  contacto?: string | null;
+  direccion?: string | null;
+  referencias?: string | null;
+  notas?: string | null;
+  dias_credito?: number;
+  sugerir_pedido?: boolean;
+  lista_precio_id?: number | string | null;
+  lat?: string | null;
+  lng?: string | null;
+  lat_propuesta?: string | null;
+  lng_propuesta?: string | null;
+  proxima_visita?: string | null;
+  enlace: { creado_en: string; ultimo_uso_en: string | null } | null;
+  frecuentes: { presentacion_id: number | string; veces: number; ultima_cantidad: number }[];
+  ultimo_pedido: { id: number | string; folio: string; fecha: string; lineas: { presentacion_id: number | string; cantidad: number }[] } | null;
+};
+
+export type Dispositivo = { id: number | string; navegador: string | null; primer_uso_en: string; ultimo_uso_en: string };
+
+export type PedidoFila = {
+  id: number | string;
+  folio: string;
+  cliente: Ref;
+  zona: Ref | null;
+  origen: "enlace" | "captura" | "sugerido";
+  estado: string;
+  entrega_tipo: "reparto" | "recoge";
+  fecha_solicitada: string | null;
+  fecha_entrega: string | null;
+  total: string;
+  num_lineas: number;
+  requiere_surtido: boolean;
+  faltantes_pendientes?: number;
+  ruta?: Ref | null;
+  creado_en: string;
+  version: number;
+};
+
+export type OpcionFaltante = { id: number | string; tipo: "sustituto" | "reducir"; producto: string; presentacion: string; imagen?: string | null; cantidad: number; precio_unitario: string; importe: string };
+export type PropuestaFaltante = {
+  id: number | string;
+  pedido_linea_id?: number | string;
+  estado: "pendiente" | "aceptada" | "rechazada" | "vencida" | "cancelada";
+  causa?: string;
+  nota: string | null;
+  limite_en: string;
+  opciones: OpcionFaltante[];
+};
+
+export type PedidoLinea = {
+  id: number | string;
+  numero?: number;
+  presentacion_id: number | string;
+  producto: string;
+  presentacion: string;
+  factor?: number;
+  cantidad_pedida: number;
+  cantidad: number;
+  precio_unitario: string;
+  importe: string;
+  estado: "activa" | "faltante" | "sustituida" | "quitada";
+  motivo_ajuste: string | null;
+  disponible_piezas?: number | null;
+};
+
+/** `GET /pedidos/:id`: pedido + lineas + eventos + cliente. Las propuestas no estan detalladas en el contrato: se asumen en `propuestas`. */
+export type PedidoDetalle = Omit<PedidoFila, "cliente"> & {
+  cliente: Ref & { telefono_whatsapp?: string | null; saldo?: string | null };
+  notas: string | null;
+  notas_internas: string | null;
+  respuesta_limite_en?: string | null;
+  lineas: PedidoLinea[];
+  eventos: { id?: number | string; tipo: string; detalle?: Record<string, unknown>; usuario?: Ref | string | null; creado_en: string }[];
+  propuestas?: PropuestaFaltante[];
+};
+
+export type Sugerencia = { presentacion_id: number | string; producto: string; presentacion: string; factor: number; precio: string; disponible_piezas: number; imagen: string | null };
+
+export type LineaInterpretada = {
+  texto: string;
+  cantidad: number;
+  presentacion_id?: number | string | null;
+  color: "verde" | "amarillo" | "rojo";
+  candidatos: { presentacion_id: number | string; producto: string; presentacion: string; precio: string; puntaje: number }[];
+};
+
+export type Aviso = {
+  id: number | string;
+  cliente: Ref | string | null;
+  pedido_folio: string | null;
+  plantilla: string;
+  estado: "pendiente" | "enviado" | "descartado";
+  creado_en: string;
+  telefono_completo: boolean;
+  texto: string;
+  url: string | null;
+};
+
+export type Despacho = {
+  fecha: string;
+  pedidos?: {
+    por_confirmar: number;
+    esperando_cliente: number;
+    faltantes_vencen_1h: number;
+    confirmados_sin_ruta: number;
+    recoge?: number;
+    por_zona?: { zona: string; pedidos: number; sin_ruta: number; total: string }[];
+  };
+  avisos_pendientes?: number;
+  respaldo?: { ultimo: string | null; ok: boolean; vencido: boolean };
+};
+
+export type ArticuloVenta = {
+  presentacion_id: number | string;
+  producto_id: number | string;
+  producto: string;
+  presentacion: string;
+  factor: number;
+  codigo_barras: string | null;
+  categoria_id?: number | string | null;
+  marca?: Ref | string | null;
+  imagen: string | null;
+  precio: string | null;
+  existencia_piezas: number;
+  disponible_piezas: number;
+};
+
+export type Equivalente = { producto_id: number | string; producto: string; orden: number };
+
+/* ----- Enlace del cliente: /api/publico/* (nunca existencias ni costos) ----- */
+
+export type ClientePublico = {
+  id: string;
+  nombre: string;
+  negocio: { nombre: string; whatsapp: string | null };
+  pedido_minimo: string;
+  hora_corte: string | null;
+  dias_visita: number[];
+  proxima_visita: string | null;
+  tiene_ubicacion: boolean;
+  credito: { limite: string; saldo: string; disponible: string } | null;
+  textos: { bienvenida: string; aviso_ubicacion: string };
+  pedido_propuesto?: { id: number | string } | null;
+  faltante_accion_predeterminada?: "quitar" | "reducir";
+  faltante_minutos_respuesta?: number;
+};
+
+export type LineaVista = {
+  presentacion_id: number | string;
+  producto: string;
+  presentacion: string;
+  cantidad: number;
+  precio_actual: string;
+  precio_anterior: string | null;
+  cambio: "sube" | "baja" | null;
+};
+export type VistaBorrador = { lineas: LineaVista[]; quitadas: { producto: string; motivo: string }[]; total_actual: string; hay_cambios: boolean };
+
+export type ArticuloPublico = {
+  presentacion_id: number | string;
+  producto: string;
+  presentacion: string;
+  factor: number;
+  categoria_id: number | string | null;
+  marca: string | null;
+  contenido_ml: number | null;
+  tipo_envase: string | null;
+  miniatura: string | null;
+  imagen: string | null;
+  precio: string;
+  favorito: boolean;
+  buscar: string;
+  oferta?: { precio_normal: string; hasta: string } | null;
+};
+
+export type CatalogoPublico = {
+  categorias: { id: number | string; nombre: string }[];
+  articulos: ArticuloPublico[];
+  frecuentes: { presentacion_id: number | string; ultima_cantidad: number }[];
+  ultimo_pedido: { folio: string; fecha: string; vista: VistaBorrador } | null;
+  version: string;
+};
+
+export type PedidoPublicoFila = {
+  id: number | string;
+  folio: string;
+  etapa: string;
+  etiqueta: string;
+  total: string;
+  fecha_entrega: string | null;
+  creado_en: string;
+  editable: boolean;
+  faltantes_pendientes: number;
+  reparto: { parada: number; paradas: number } | null;
+};
+
+export type Seguimiento = {
+  id: string;
+  /** `null` mientras un pedido sugerido esta propuesto (el folio nace al aceptar). */
+  folio: string | null;
+  etapa: string;
+  etiqueta: string;
+  /** `null` mientras el pedido esta `propuesto` (la 004 no manda precios de un borrador). */
+  total: string | null;
+  fecha_entrega: string | null;
+  entrega_tipo: "reparto" | "recoge";
+  lineas: {
+    id: string;
+    presentacion_id: string;
+    producto: string;
+    presentacion: string;
+    cantidad_pedida: number;
+    cantidad: number;
+    cantidad_entregada: number | null;
+    estado: string;
+    motivo_ajuste: string | null;
+    precio_unitario: string | null;
+    importe: string | null;
+  }[];
+  faltantes: { propuesta_id: number | string; linea: string | { producto: string; presentacion: string; cantidad: number }; causa: string; nota: string | null; limite_en: string; opciones: OpcionFaltante[] }[];
+  linea_tiempo: { etapa: string; en: string; etiqueta: string }[];
+  reparto: { parada: number; paradas: number; antes_que_tu: number; llegada_estimada_desde: string; llegada_estimada_hasta: string } | null;
+  editable: boolean;
+  /** Solo `propuesto` (`fn_vista_borrador`); el contrato no da el nombre del campo, la migracion 004 lo llama `borrador`. */
+  borrador?: VistaBorrador | null;
+};
+
+export type PedidoEnviado = { id: number | string; folio: string; total: string; estado: string; texto_confirmacion: string; avisar_negocio?: { url: string } | null };

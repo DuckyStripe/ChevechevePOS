@@ -44,3 +44,23 @@ Reglas del dueño: sin builds hasta terminar todo el plan (solo lint, typecheck 
 ## Estado
 - F2 hecha (`edca44f`, 263 pruebas). Ninguna base fuera de la de pruebas tiene migraciones aplicadas (dev `chevechevepos` vacía, sin Dokploy): editar 001–003 aún es seguro hasta el primer despliegue. A partir del primer despliegue, solo migraciones nuevas.
 - F3 en curso. Decisión: corregir en 003 que la cancelación de una compra POSTERIOR no cuente como salida para cancelar una anterior (así se puede cancelar de la más nueva a la más vieja).
+
+## F3 — requisitos de D para C (API)
+- Ruta pública sin sesión (o `detalles` en `ENLACE_INVALIDO`/`PIN_REQUERIDO`) con: nombre del negocio, WhatsApp del negocio, textos `pantalla_*` necesarios para PIN e inválido.
+- `GET /publico/cliente`: incluir `id`, `faltante_accion_predeterminada` y su plazo.
+- Seguimiento: líneas con `id` y `presentacion_id`; etiquetas de etapas (o códigos estables); `reparto` real cuando exista.
+- `GET /pedidos/:id`: `propuestas[]` con `opciones` (forma en `apps/web/src/lib/tipos.ts`).
+- `GET /clientes/:id`: incluir `lat`, `lng`, `proxima_visita` (de `fn_proxima_visita`, no calcularla en web).
+- Coordenadas entran como string con 6 decimales.
+- `catalogo-venta`: `articulo.oferta` define ofertas; `miniatura` = nombre de archivo.
+- Fecha de entrega: el carrito manda `proxima_visita` por omisión y «recoger en bodega».
+## F3 — pendientes de D
+- Mover `<Toaster>` (Sonner) del `app/layout.tsx` raíz al layout del panel para no cargarlo en las páginas del cliente.
+- Quitar el cálculo de `proxima_visita` en `estados.ts` cuando la API lo dé.
+- Filas del mapa de pantallas de F3 en PLAN.
+- Revisión SQL de 004: hallazgos enviados al agente de la API. Decisiones: `v_comprometido` incluye líneas activas de pedidos `esperando_cliente`; los propuestos toman folio P- solo al aceptarse; el Repartidor no marca avisos hasta F6 (rutas); `total_visto` obligatorio en el camino del cliente; pedido que queda sin líneas por faltantes se cancela (`sin_lineas`).
+- F6 TODO: en `fn_marcar_aviso`, permitir al Repartidor los avisos de pedidos de sus rutas.
+- Paquete E (importador Eleventa) escrito: `scripts/importar-eleventa.mjs` + `scripts/eleventa/`, 10 pruebas unitarias OK. Falta correr `test/eleventa/importar.test.ts` contra la base (coordinador, después de C). Usuario `televenta_*` no se limpia (kárdex). Saldos en F7 (`fn_saldo_inicial`).
+- Revisión F3 (API/web): 3 ALTO (avisos manuales del Repartidor con token del link; /p/[token] borraba cookies en 429/5xx; bloqueo por IP antes de validar token → CGNAT), 2 MEDIO (IPv6 /64, X-Real-Ip falsificable → solo XFF más a la derecha). En corrección. Nuevo endpoint `GET /api/publico/negocio` (no cuenta como fallo). Docs: agregar filas F3 al mapa de pantallas, endpoint negocio, umbral global de PIN por enlace con aviso al personal.
+- F3 cerrada: 457 pruebas, dos corridas seguidas en verde. Espera automática por ataque distribuido al PIN bajada a 15 min (C21: ninguna espera automática > 15 min). Búsqueda en `productos.test.ts` filtra a productos propios (otras suites dejan productos activos).
+- Pendiente docs F3: filas del mapa de pantallas, `GET /api/publico/negocio`, `pin_ataque`, `cliente_pin_fallo`, umbral 20 fallos/h por enlace, XFF solo el de la derecha.

@@ -223,6 +223,27 @@ describe("cancelar compra", () => {
       expect((await existencia(c, b.id)).cantidad).toBe(23);
     });
   });
+
+  it("de la mas nueva a la mas vieja: cancelar B y luego A deja existencia y promedio iniciales; al reves, COMPRA_CON_SALIDAS", async () => {
+    await enTransaccion(async (c) => {
+      const p = await producto(c, { factores: [1, 24], costo: "10.00", piezas: 24 });
+      const caja = p.pf(24);
+      const a = await compra(c, cajas(caja, 1, "360.00"));
+      const b = await compra(c, cajas(caja, 1, "480.00"));
+      expect(await existencia(c, p.id)).toEqual({ cantidad: 72, costo_promedio: "15.000000" });
+
+      await c.query("select app.fn_cancelar_compra($1, $2, 'b')", [p.usuario, b.id]);
+      expect(await existencia(c, p.id)).toEqual({ cantidad: 48, costo_promedio: "12.500000" });
+      await c.query("select app.fn_cancelar_compra($1, $2, 'a')", [p.usuario, a.id]);
+      expect(await existencia(c, p.id)).toEqual({ cantidad: 24, costo_promedio: "10.000000" });
+
+      // Al reves: la cancelacion de la vieja SI es salida para la nueva.
+      const a2 = await compra(c, cajas(caja, 1, "360.00"));
+      const b2 = await compra(c, cajas(caja, 1, "480.00"));
+      await c.query("select app.fn_cancelar_compra($1, $2, 'a2')", [p.usuario, a2.id]);
+      expect((await error(c, () => c.query("select app.fn_cancelar_compra($1, $2, 'b2')", [p.usuario, b2.id]))).message).toBe("COMPRA_CON_SALIDAS");
+    });
+  });
 });
 
 describe("margen y precio sugerido (A1)", () => {

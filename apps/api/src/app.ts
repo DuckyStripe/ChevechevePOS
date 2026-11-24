@@ -10,6 +10,7 @@ import { AppError, mapearError } from "./comun/errores.js";
 import { saludRoutes } from "./modulos/salud/rutas.js";
 import { permisosPlugin } from "./comun/permisos.js";
 import { modulos } from "./modulos/index.js";
+import { registrarTareas } from "./tareas.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -77,6 +78,9 @@ export async function buildApp() {
 
   // Todos los modulos de negocio van bajo /api.
   await app.register(modulos, { prefix: "/api" });
+
+  // Las pruebas llaman las funciones SQL directo: sin tareas con reloj.
+  if (env.NODE_ENV !== "test") registrarTareas(app);
 
   app.addHook("onClose", async () => {
     await cerrarPool();

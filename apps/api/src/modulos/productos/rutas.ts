@@ -4,24 +4,29 @@ import { extensionPorBytes, guardarImagen } from "../../comun/archivos.js";
 import { AppError } from "../../comun/errores.js";
 import { paramId } from "../../comun/ids.js";
 import {
+  esquemaCatalogoVenta,
   esquemaCodigo,
   esquemaCrearProducto,
   esquemaEditarPresentacion,
   esquemaEditarProducto,
+  esquemaEquivalentes,
   esquemaListaProductos,
   esquemaPresentacionNueva,
   paramCodigo,
 } from "./esquemas.js";
 import {
   articuloPorCodigo,
+  catalogoVenta,
   crearPresentacion,
   crearProducto,
   editarPresentacion,
   editarProducto,
   existeProducto,
   fijarImagen,
+  listarEquivalentes,
   listarProductos,
   obtenerProducto,
+  reemplazarEquivalentes,
 } from "./servicio.js";
 
 const ver = { permiso: "catalogo.ver" };
@@ -89,6 +94,18 @@ export async function rutasProductos(app: FastifyInstance): Promise<void> {
     const { codigo } = paramCodigo.parse(req.params);
     const { lista_precio_id } = esquemaCodigo.parse(req.query);
     return articuloPorCodigo(req.usuario!.sucursal_id, codigo, lista_precio_id);
+  });
+
+  // F3: catalogo de venta (precios de la lista del cliente) y equivalentes para sugerir sustitutos de un faltante.
+  app.get("/catalogo-venta", { config: { permiso: ["ventas.crear", "pedidos.capturar"] } }, async (req) =>
+    catalogoVenta(req.usuario!.sucursal_id, esquemaCatalogoVenta.parse(req.query).lista_precio_id),
+  );
+
+  app.get("/productos/:id/equivalentes", { config: ver }, async (req) => listarEquivalentes(paramId.parse(req.params).id));
+
+  app.put("/productos/:id/equivalentes", { config: editar }, async (req) => {
+    const { id } = paramId.parse(req.params);
+    return reemplazarEquivalentes(req.usuario!.id, id, esquemaEquivalentes.parse(req.body).equivalentes);
   });
 
   app.put("/productos/:id/imagen", { config: editar }, async (req) => {
