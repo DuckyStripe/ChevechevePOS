@@ -46,7 +46,12 @@ export default async function Hoy() {
       <Titulo titulo={nombre ? `Hola, ${nombre}` : "Hoy"} ayuda="Así va tu día en ChevechevePOS, paso por paso." />
       {despacho?.respaldo?.vencido && (
         <p role="alert" className="mb-4 rounded-tarjeta border border-peligro/40 bg-peligro-suave p-4 text-base font-bold text-peligro">
-          Hace mucho que no se prueba un respaldo de tu información. Pídele a quien lo maneja que lo revise.
+          {!despacho.respaldo.ultimo
+            ? "Todavía no se ha hecho ningún respaldo de tu información."
+            : despacho.respaldo.ok
+              ? "El último respaldo tiene más de un día."
+              : "El último respaldo no se guardó fuera del servidor."}{" "}
+          Pídele a quien maneja el sistema que lo revise.
         </p>
       )}
       {!d.ok && d.error.status !== 403 && <p className="mb-4 rounded-xl bg-peligro-suave p-3 text-base font-medium text-peligro">{d.error.mensaje}</p>}
