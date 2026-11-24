@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { conVolver } from "@/componentes/cobro/volver";
 import { AccionesPedido } from "@/componentes/pedidos/acciones-pedido";
 import { PropuestasPedido } from "@/componentes/pedidos/propuestas-pedido";
 import { EVENTO_PEDIDO, ESTADO_PEDIDO, ORIGEN_PEDIDO } from "@/componentes/pedidos/estados";
@@ -31,9 +32,14 @@ export default async function Pedido({ params, searchParams }: { params: Promise
   return (
     <main className="flex flex-col gap-4">
       <Titulo titulo={`Pedido ${p.folio}`}>
-        <BotonEnlace variante="secundario" href="/pedidos">
-          Volver a pedidos
-        </BotonEnlace>
+        <div className="flex flex-wrap gap-2">
+          {p.entrega_tipo === "recoge" && p.estado === "confirmado" && tiene(yo.datos, "ventas.crear") && (
+            <BotonEnlace href={conVolver(`/cobrar?pedido=${p.id}`, `/pedidos/${p.id}`)}>Entregar y cobrar</BotonEnlace>
+          )}
+          <BotonEnlace variante="secundario" href="/pedidos">
+            Volver a pedidos
+          </BotonEnlace>
+        </div>
       </Titulo>
 
       <Tarjeta className="flex flex-col gap-1">

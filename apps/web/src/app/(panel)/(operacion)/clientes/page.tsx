@@ -13,7 +13,7 @@ import type { ClienteFila, Lista, Zona } from "@/lib/tipos";
 
 export const metadata = { title: "Clientes · ChevechevePOS" };
 
-type SP = Promise<{ buscar?: string; zona_id?: string; dia_visita?: string; sin_ubicacion?: string; con_propuesta?: string; alerta?: string; enlace?: string; pagina?: string; revocar?: string }>;
+type SP = Promise<{ buscar?: string; zona_id?: string; dia_visita?: string; sin_ubicacion?: string; con_propuesta?: string; con_saldo?: string; alerta?: string; enlace?: string; pagina?: string; revocar?: string }>;
 
 export default async function Clientes({ searchParams }: { searchParams: SP }) {
   const { revocar, ...filtros } = await searchParams;
@@ -68,6 +68,10 @@ export default async function Clientes({ searchParams }: { searchParams: SP }) {
           <option value="visitas">Abre el link y no pide</option>
           <option value="inactivo">Hace mucho que no pide</option>
           <option value="dispositivo_nuevo">Teléfono nuevo</option>
+        </Selector>
+        <Selector etiqueta="Saldo" name="con_saldo" defaultValue={filtros.con_saldo ?? ""}>
+          <option value="">Todos</option>
+          <option value="true">Solo los que deben</option>
         </Selector>
         <Selector etiqueta="Ubicación" name="sin_ubicacion" defaultValue={filtros.sin_ubicacion ?? ""}>
           <option value="">Todas</option>

@@ -39,6 +39,7 @@ export default async function PedidoDetalle({ params }: { params: Promise<{ id: 
         <p className="mt-2 flex items-center gap-2 rounded-tarjeta bg-marca-suave p-3 text-xl font-bold text-marca-fuerte">
           <Icono aria-hidden className="size-7 shrink-0" /> {p.etiqueta}
         </p>
+        {p.etapa === "entregado" && p.recibio && <p className="mt-2 text-lg">{T.recibio(p.recibio)}</p>}
         {p.reparto && (
           <div className="mt-2 rounded-tarjeta border border-borde bg-superficie p-3 text-lg">
             <p className="font-bold">{T.paradaDe(p.reparto.parada, p.reparto.paradas)}</p>

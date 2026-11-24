@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { borrarDinero } from "./ayuda-dinero.js";
 import { entrar, pool } from "./ayuda.js";
 import { hoyMas, sufijo } from "./ayuda-f2.js";
 import { catalogoF3, clienteConEnlace, crearUsuarioF3, limpiarF3, pedirPersonal, type CatalogoF3, type ClienteF3, type Snapshot } from "./ayuda-f3.js";
@@ -124,7 +125,10 @@ export async function limpiarF6(app: FastifyInstance | undefined, antes: Snapsho
   const c = await pool.connect();
   try {
     await c.query("begin");
-    const rutas = "(select r.id from app.ruta r join app.vehiculo v on v.id = r.vehiculo_id where v.nombre like 'TF6 %')";
+    const rutasSql = "select r.id from app.ruta r join app.vehiculo v on v.id = r.vehiculo_id where v.nombre like 'TF6 %'";
+    const rutas = `(${rutasSql})`;
+    // F7: turnos, ventas y cobros de esas rutas y de los clientes y usuarios de prueba, antes de soltar pedidos y rutas.
+    await borrarDinero(c, { clientes: "select id from app.cliente where nombre like 'TF3 %'", usuarios: "select id from app.usuario where usuario like 'tf3\\_%'", rutas: rutasSql });
     await c.query(`update app.pedido set ruta_id = null where ruta_id in ${rutas}`);
     await c.query(`delete from app.ruta_parada where ruta_id in ${rutas}`);
     await c.query(`delete from app.ruta where id in ${rutas}`);

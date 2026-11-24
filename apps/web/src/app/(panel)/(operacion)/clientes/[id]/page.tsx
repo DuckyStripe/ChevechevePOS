@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { EnlaceCliente } from "@/componentes/clientes/enlace-cliente";
+import { CreditoCliente } from "@/componentes/cobranza/credito-cliente";
+import { HojaEstadoCuenta } from "@/componentes/cobranza/estado-cuenta";
+import { BotonImprimir } from "@/componentes/cobranza/imprimir";
 import { FormCliente } from "@/componentes/clientes/form-cliente";
 import { UbicacionCliente } from "@/componentes/clientes/ubicacion-cliente";
 import { itemsDe } from "@/componentes/productos/formato";
@@ -7,7 +10,7 @@ import { AvisoError, SinPermiso } from "@/componentes/ui/aviso-error";
 import { BotonEnlace } from "@/componentes/ui/boton";
 import { Tarjeta, Titulo } from "@/componentes/ui/tarjeta";
 import { apiServidor, obtenerYo, tiene } from "@/lib/api-servidor";
-import type { ArticuloVenta, ClienteDetalle, Dispositivo, Lista, ListaPrecio, Zona } from "@/lib/tipos";
+import type { ArticuloVenta, ClienteDetalle, Dispositivo, EstadoCuenta, Lista, ListaPrecio, Zona } from "@/lib/tipos";
 
 export const metadata = { title: "Cliente · ChevechevePOS" };
 
@@ -21,13 +24,15 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
   const puedeEnlace = tiene(yo.datos, "clientes.enlace");
   const puedeCredito = tiene(yo.datos, "clientes.credito");
   const puedeNombres = tiene(yo.datos, "pedidos.capturar") || tiene(yo.datos, "ventas.crear");
-  const [c, zonas, listas, disp, catalogo] = await Promise.all([
+  const verCuenta = tiene(yo.datos, "cobranza.ver");
+  const [c, zonas, listas, disp, catalogo, cuenta] = await Promise.all([
     apiServidor<ClienteDetalle>(`/clientes/${id}`),
     apiServidor<Lista<Zona> | Zona[]>("/zonas", { por_pagina: "200" }),
     puedeCredito ? apiServidor<Lista<ListaPrecio> | ListaPrecio[]>("/listas-precio", { por_pagina: "200" }) : null,
     puedeEnlace ? apiServidor<Dispositivo[]>(`/clientes/${id}/dispositivos`) : null,
     // Nombres de los productos (frecuentes y ultimo pedido solo traen ids de presentacion).
     puedeNombres ? apiServidor<ArticuloVenta[] | Lista<ArticuloVenta>>("/catalogo-venta") : null,
+    verCuenta ? apiServidor<EstadoCuenta>(`/clientes/${id}/estado-cuenta`) : null,
   ]);
   if (!c.ok) return <AvisoError mensaje={c.error.status === 404 ? "No encontramos a ese cliente." : c.error.mensaje} reintentar={c.error.status !== 404 && c.error.status !== 403} />;
   const cliente = c.datos;
@@ -48,6 +53,24 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
 
       <EnlaceCliente cliente={cliente} dispositivos={disp?.ok ? itemsDe(disp.datos) : []} puedeEnlace={puedeEnlace} />
       <UbicacionCliente cliente={cliente} puedeEditar={puedeEditar} />
+      {(verCuenta || puedeCredito || cliente.saldo != null) && (
+        <CreditoCliente cliente={cliente} puedeCredito={puedeCredito} puedeAbonar={tiene(yo.datos, "cobranza.abonar")} puedeAvisar={tiene(yo.datos, "avisos.enviar") && tiene(yo.datos, "pedidos.ver")} />
+      )}
+      {cuenta && (
+        <Tarjeta aria-labelledby="cuenta">
+          <details>
+            <summary id="cuenta" className="flex min-h-tocable cursor-pointer items-center text-lg font-bold">Estado de cuenta (últimos 90 días)</summary>
+            {cuenta.ok ? (
+              <div className="mt-2 flex flex-col gap-3">
+                <HojaEstadoCuenta e={cuenta.datos} />
+                <div><BotonImprimir /></div>
+              </div>
+            ) : (
+              <p className="mt-2 text-base text-suave">{cuenta.error.mensaje}</p>
+            )}
+          </details>
+        </Tarjeta>
+      )}
 
       <Tarjeta aria-labelledby="frecuentes">
         <h2 id="frecuentes" className="mb-2 text-lg font-bold">

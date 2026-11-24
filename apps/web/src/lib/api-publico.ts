@@ -11,8 +11,9 @@ const SIN_API: ErrorApi = {
   mensaje: "No se pudo contactar al servidor. Revisa tu señal e intenta de nuevo.",
 };
 
-/** Destinos permitidos de `?ir=` (CONTRATOS §2.12 B5); F3: solo `pedido-<digitos>`. */
+/** Destinos permitidos de `?ir=` (CONTRATOS §2.12 B5): `pedido-<digitos>` (F3) y `estado-cuenta` (F7). */
 export function destinoIr(ir: string | null | undefined): string {
+  if (ir === "estado-cuenta") return "/pedido/estado-cuenta";
   const m = /^pedido-(\d{1,18})$/.exec(ir ?? "");
   return m ? `/pedido/mis-pedidos/${m[1]}` : "/pedido";
 }

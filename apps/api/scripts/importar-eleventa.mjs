@@ -3,14 +3,16 @@
 //
 // Uso (dentro del contenedor de la API en produccion; contra la base de pruebas en desarrollo):
 //   node scripts/importar-eleventa.mjs --parte catalogo|clientes|existencias|saldos --archivo <ruta>
-//        --usuario <usuario del dueño> [--simulacro] [--corte] [--mapeo mapeo.json] [--reporte salida.json]
+//        --usuario <usuario del dueño> [--simulacro] [--corte] [--concepto "texto"] [--mapeo mapeo.json] [--reporte salida.json]
 //
 // - catalogo: llave = codigo de barras de la presentacion «Pieza». Departamento -> categoria; precio venta ->
 //   Menudeo; precio mayoreo -> Mayoreo; minimo -> existencia_minima. Re-correr actualiza, no duplica.
 // - clientes: llave = fn_normalizar(nombre) + telefono (52 + 10 digitos). Telefono invalido: se importa SIN
 //   telefono y va al reporte (enmascarado). El saldo solo se reporta (suma), no se carga hasta F7.
 // - existencias: inventario_inicial por fn_ajustar_inventario; solo productos sin movimientos. Requiere --corte.
-// - saldos: requiere --corte y fn_saldo_inicial (008, F7): por ahora solo avisa (codigo de salida 2).
+// - saldos: requiere --corte y --concepto "<texto del dueño>". Por cada saldo > 0 busca al cliente por la llave de
+//   `clientes` y llama fn_saldo_inicial con vence = hoy (Mexico) + dias_credito. Sin cliente -> `cliente_no_encontrado`;
+//   con saldo inicial previo -> `ya_tenia_saldo` (se puede re-correr). Reporte: cargados, suma, ya_tenian, no_encontrados, saldo_invalido.
 // - Columnas: supuestos de nombres de Eleventa, ajustables con --mapeo (ver eleventa/mapeo.mjs).
 // - El archivo de origen nunca se modifica. Firebird (.fdb): pendiente del archivo real [P47].
 // - El reporte nunca lleva telefonos completos.
@@ -18,6 +20,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { leerArchivo } from "./eleventa/leer.mjs";
+import { saldos } from "./eleventa/saldos.mjs";
 import { mapearCliente, mapearProducto, resolverColumnas } from "./eleventa/mapeo.mjs";
 
 const PARTES = ["catalogo", "clientes", "existencias", "saldos"];
@@ -116,7 +119,7 @@ async function clientes(c, datos, mapeo, informe) {
   if (!lista) throw new Error("No hay lista de precios predeterminada");
   informe.telefonos_invalidos = [];
   informe.sin_telefono = 0;
-  informe.saldos = { clientes_con_saldo: 0, saldo_invalido: [], suma: "0.00", nota: "Solo reportado: se carga en F7 (fn_saldo_inicial)" };
+  informe.saldos = { clientes_con_saldo: 0, saldo_invalido: [], suma: "0.00", nota: "Solo reportado: se carga con --parte saldos" };
   const saldos = [];
   const vistos = new Map();
   for (const [i, f] of datos.filas.entries()) {
@@ -180,21 +183,17 @@ async function existencias(c, datos, mapeo, informe, ctx) {
   }
 }
 
-const PARTE_FN = { catalogo, clientes, existencias };
+const PARTE_FN = { catalogo, clientes, existencias, saldos: (c, d, m, i, ctx) => saldos(c, d, m, i, ctx, porFila) };
 
 /** Corre una parte. Devuelve el informe. Lanza Error con mensaje claro si el uso es invalido. */
-export async function importar({ parte, archivo, usuario, simulacro = false, corte = false, mapeo = {}, url = process.env.DATABASE_URL }) {
+export async function importar({ parte, archivo, usuario, simulacro = false, corte = false, concepto = "", mapeo = {}, url = process.env.DATABASE_URL }) {
   if (!PARTES.includes(parte)) throw new Error(`--parte debe ser una de: ${PARTES.join(", ")}`);
   if (!archivo || !usuario) throw new Error("Faltan --archivo y --usuario");
   if ((parte === "existencias" || parte === "saldos") && !corte)
     throw new Error(`La parte ${parte} se corre una sola vez, el día del corte: agrega --corte para confirmarlo`);
+  if (parte === "saldos" && !String(concepto).trim()) throw new Error('La parte saldos necesita --concepto "<texto>" (lo escribe el dueño)');
   if (!url) throw new Error("DATABASE_URL no está definida");
   const informe = nuevoInforme(parte, simulacro);
-  if (parte === "saldos") {
-    const e = new Error("La parte saldos llega en F7 (requiere fn_saldo_inicial, migración 008). Los saldos del archivo de clientes se reportan en la parte clientes.");
-    e.codigoSalida = 2;
-    throw e;
-  }
   const datos = await leerArchivo(archivo);
   const c = new pg.Client({ connectionString: url });
   await c.connect();
@@ -203,7 +202,7 @@ export async function importar({ parte, archivo, usuario, simulacro = false, cor
     const u = (await c.query("select id, sucursal_id from app.usuario where usuario = $1 and activo", [usuario])).rows[0];
     if (!u) throw new Error(`El usuario ${usuario} no existe o está inactivo`);
     await c.query("select set_config('app.usuario_id', $1, true)", [String(u.id)]);
-    await PARTE_FN[parte](c, datos, mapeo, informe, { usuarioId: u.id, sucursalId: u.sucursal_id });
+    await PARTE_FN[parte](c, datos, mapeo, informe, { usuarioId: u.id, sucursalId: u.sucursal_id, concepto: String(concepto).trim() });
     await c.query(simulacro ? "rollback" : "commit");
   } catch (e) {
     await c.query("rollback").catch(() => {});
@@ -219,8 +218,12 @@ function imprimir(r, ruta) {
   l(`\nImportación Eleventa · ${r.parte} · ${r.modo.toUpperCase()}${r.modo === "simulacro" ? " (no se escribió nada)" : ""}`);
   l(`Leídas ${r.leidas} · nuevas ${r.nuevas} · actualizadas ${r.actualizadas} · sin cambio ${r.sin_cambio} · saltadas ${r.saltadas.length} · rechazadas ${r.rechazadas.length}`);
   for (const [t, xs] of [["Rechazadas", r.rechazadas], ["Saltadas", r.saltadas], ["Teléfonos inválidos (importados sin teléfono)", r.telefonos_invalidos ?? []]])
-    if (xs.length) { l(`\n${t}:`); xs.slice(0, 50).forEach((x) => l(`  fila ${x.fila}: ${x.motivo ?? `${x.nombre} (${x.telefono})`}`)); if (xs.length > 50) l(`  … y ${xs.length - 50} más en el reporte`); }
-  if (r.saldos) l(`\nSaldos (solo reporte, no se cargan hasta F7): ${r.saldos.clientes_con_saldo} clientes, suma ${r.saldos.suma}`);
+    if (xs.length) { l(`\n${t}:`); xs.slice(0, 50).forEach((x) => l(`  fila ${x.fila}: ${x.motivo ? `${x.motivo}${x.nombre ? ` ${x.nombre} (${x.telefono})` : ""}` : `${x.nombre} (${x.telefono})`}`)); if (xs.length > 50) l(`  … y ${xs.length - 50} más en el reporte`); }
+  if (r.parte === "saldos") {
+    l(`Cargados ${r.cargados} (suma ${r.suma}) · ya tenían ${r.ya_tenian} · sin cliente ${r.no_encontrados} · saldo inválido ${r.saldo_invalido.length}`);
+    r.saldo_invalido.slice(0, 50).forEach((x) => l(`  fila ${x.fila}: saldo inválido ${x.nombre}`));
+  }
+  if (r.saldos) l(`\nSaldos (solo reporte, se cargan con --parte saldos): ${r.saldos.clientes_con_saldo} clientes, suma ${r.saldos.suma}`);
   l(`\nReporte completo: ${ruta}`);
 }
 
@@ -229,7 +232,7 @@ async function main() {
   const bandera = (n) => process.argv.includes(`--${n}`);
   try {
     const mapeo = arg("mapeo") ? JSON.parse(await readFile(arg("mapeo"), "utf8")) : {};
-    const informe = await importar({ parte: arg("parte"), archivo: arg("archivo"), usuario: arg("usuario"), simulacro: bandera("simulacro"), corte: bandera("corte"), mapeo });
+    const informe = await importar({ parte: arg("parte"), archivo: arg("archivo"), usuario: arg("usuario"), simulacro: bandera("simulacro"), corte: bandera("corte"), concepto: arg("concepto"), mapeo });
     const ruta = arg("reporte") ?? `reporte-eleventa-${informe.parte}-${informe.modo}.json`;
     await writeFile(ruta, JSON.stringify(informe, null, 2));
     imprimir(informe, ruta);

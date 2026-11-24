@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { cifrar, hashToken, nuevoToken } from "../src/modulos/clientes/token.js";
 import { olvidarFallosDeEnlace } from "../src/comun/permisos.js";
+import { borrarDinero } from "./ayuda-dinero.js";
 import { auth, entrar, marcaAuditoria, pool, type NombreRol, type UsuarioPrueba } from "./ayuda.js";
 import { ayudaF2, sufijo } from "./ayuda-f2.js";
 
@@ -144,15 +145,47 @@ export async function catalogoF3(app: FastifyInstance, dueno: string): Promise<C
   };
 }
 
-/** Inserta DIRECTO un pedido `entregado` (no hay venta hasta 008). Devuelve su id. */
+/**
+ * Inserta DIRECTO un pedido `entregado` (historial de entregas). Desde 008 el pedido apunta a una venta real: se crea una de mostrador en un
+ * turno ya cerrado de una caja `TF7 ...` (la limpia `borrarDinero`), solo para cumplir la llave; no mueve inventario. Devuelve su id.
+ */
 export async function pedidoEntregadoF3(clienteId: string, o: { hace_dias: number; lineas: { presentacion_id: string; cantidad: number; precio: string }[] }): Promise<string> {
-  const p = await pool.query<{ id: string }>(
-    `insert into app.pedido (sucursal_id, folio, cliente_id, origen, estado, fecha_entrega, lista_precio_id, clave_idempotencia, hash_solicitud, venta_id, creado_en, entregado_en)
-     select 1, app.fn_siguiente_folio(1, 'P'), cl.id, 'enlace', 'entregado', app.fn_fecha_local(now()), cl.lista_precio_id, $2, 'x',
-            (select coalesce(max(venta_id), 0) + 1 from app.pedido), now() - $3 * interval '1 day', now() - $3 * interval '1 day'
-       from app.cliente cl where cl.id = $1 returning id`,
-    [clienteId, randomUUID(), o.hace_dias],
-  );
+  const c = await pool.connect();
+  let pedidoId: string;
+  try {
+    await c.query("begin");
+    await c.query("select app.fn_dinero_escribir()");
+    const caja = await c.query<{ id: string }>("insert into app.caja (sucursal_id, nombre) values (1, $1) returning id", [`TF7 entregas ${randomUUID()}`]);
+    const turno = await c.query<{ id: string }>(
+      `insert into app.turno_caja (tipo, caja_id, usuario_id, estado, fondo_inicial, cerrado_en, cerrado_por, efectivo_esperado, efectivo_contado, diferencia)
+       select 'mostrador', $1, u.id, 'cerrado', 0, now(), u.id, 0, 0, 0 from (select id from app.usuario order by id limit 1) u returning id`,
+      [caja.rows[0]!.id],
+    );
+    // El historial se fabrica en un turno ya cerrado: se apaga un momento el disparador que lo impide.
+    await c.query("alter table app.venta disable trigger trg_venta_turno_abierto");
+    const venta = await c.query<{ id: string }>(
+      `insert into app.venta (sucursal_id, folio, origen, turno_caja_id, cliente_id, lista_precio_id, usuario_id, clave_idempotencia, hash_solicitud)
+       select 1, app.fn_siguiente_folio(1, 'V'), 'mostrador', $2::bigint, cl.id, cl.lista_precio_id, (select id from app.usuario order by id limit 1), $3::uuid, 'x'
+         from app.cliente cl where cl.id = $1 returning id`,
+      [clienteId, turno.rows[0]!.id, randomUUID()],
+    );
+    await c.query("alter table app.venta enable trigger trg_venta_turno_abierto");
+    const p = await c.query<{ id: string }>(
+      `insert into app.pedido (sucursal_id, folio, cliente_id, origen, estado, fecha_entrega, lista_precio_id, clave_idempotencia, hash_solicitud, venta_id, creado_en, entregado_en)
+       select 1, app.fn_siguiente_folio(1, 'P'), cl.id, 'enlace', 'entregado', app.fn_fecha_local(now()), cl.lista_precio_id, $2, 'x',
+              $4, now() - $3 * interval '1 day', now() - $3 * interval '1 day'
+         from app.cliente cl where cl.id = $1 returning id`,
+      [clienteId, randomUUID(), o.hace_dias, venta.rows[0]!.id],
+    );
+    await c.query("commit");
+    pedidoId = p.rows[0]!.id;
+  } catch (err) {
+    await c.query("rollback").catch(() => undefined);
+    throw err;
+  } finally {
+    c.release();
+  }
+  const p = { rows: [{ id: pedidoId }] };
   for (const [i, l] of o.lineas.entries()) {
     await pool.query(
       `insert into app.pedido_linea (pedido_id, numero, presentacion_id, producto_id, factor, cantidad_pedida, cantidad, precio_lista, precio_unitario, cantidad_entregada, motivo_ajuste)
@@ -193,6 +226,8 @@ export async function limpiarF3(app: FastifyInstance | undefined, antes: Snapsho
     const usuarios = "(select id from app.usuario where usuario like 'tf3\\_%')";
     await c.query(`delete from app.notificacion where usuario_id in ${usuarios}`);
     await c.query(`delete from app.aviso_cliente where cliente_id in ${clientes} or usuario_id in ${usuarios}`);
+    // F7: ventas, cobros y turnos de esos clientes y usuarios (cuelgan de pedidos, clientes y rutas).
+    await borrarDinero(c, { clientes: `select id from app.cliente where nombre like 'TF3 %'`, usuarios: `select id from app.usuario where usuario like 'tf3\\_%'`, rutas: "select id from app.ruta where false" });
     await c.query("alter table app.pedido_evento disable trigger trg_pedido_evento_inmutable");
     await c.query(`delete from app.pedido_evento where pedido_id in ${pedidos}`);
     await c.query("alter table app.pedido_evento enable trigger trg_pedido_evento_inmutable");

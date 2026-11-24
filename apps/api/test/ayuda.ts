@@ -5,6 +5,7 @@ import pg from "pg";
 
 // Importar buildApp despues de test/entorno.ts (setupFiles) para que lea la base de pruebas.
 import { buildApp } from "../src/app.js";
+import { borrarDinero } from "./ayuda-dinero.js";
 
 /** Pool propio de las pruebas (la app tiene el suyo). */
 export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
@@ -88,6 +89,8 @@ export async function limpiar(app: FastifyInstance | undefined, antes: Instantan
     await c.query(`delete from app.notificacion_envio where notificacion_id in (select id from app.notificacion where usuario_id in ${ids})`);
     await c.query(`delete from app.notificacion where usuario_id in ${ids}`);
     await c.query(`delete from app.sesion where usuario_id in ${ids}`);
+    // F7: turnos, ventas y cobros que dejaron esos usuarios (si no, no se pueden borrar).
+    await borrarDinero(c, { clientes: "select id from app.cliente where false", usuarios: `select id from app.usuario where usuario like '${PREFIJO}%'`, rutas: "select id from app.ruta where false" });
     await c.query(`update app.configuracion set actualizado_por = null where actualizado_por in ${ids}`);
     await c.query(`update app.plantilla set actualizado_por = null where actualizado_por in ${ids}`);
     // Sin duenos en la base de pruebas, borrar el ultimo dueno de prueba dispararia ULTIMO_DUENO.

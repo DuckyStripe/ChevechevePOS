@@ -258,6 +258,8 @@ export type ClienteDetalle = Omit<ClienteFila, "enlace"> & {
   lat_propuesta?: string | null;
   lng_propuesta?: string | null;
   proxima_visita?: string | null;
+  disponible?: string | null; // F7
+  semaforo?: Semaforo | null; // F7
   enlace: { creado_en: string; ultimo_uso_en: string | null } | null;
   frecuentes: { presentacion_id: number | string; veces: number; ultima_cantidad: number }[];
   ultimo_pedido: { id: number | string; folio: string; fecha: string; lineas: { presentacion_id: number | string; cantidad: number }[] } | null;
@@ -355,7 +357,8 @@ export type Despacho = {
     por_zona?: { zona: string; pedidos: number; sin_ruta: number; total: string }[];
   };
   surtido?: { productos_por_comprar: number }; // F5
-  rutas?: { lista: { id: string; folio: string; nombre: string | null; estado: string; repartidor: string; paradas: number; entregadas: number }[]; por_cargar: number; en_curso: number }; // F6
+  rutas?: { lista: { id: string; folio: string; nombre: string | null; estado: string; repartidor: string; paradas: number; entregadas: number }[]; por_cargar: number; en_curso: number; por_liquidar?: number }; // F6; por_liquidar F7
+  cierre?: { transferencias_por_verificar: number; turnos_mostrador_abiertos: number }; // F7
   avisos_pendientes?: number;
   respaldo?: { ultimo: string | null; ok: boolean; vencido: boolean };
 };
@@ -471,6 +474,8 @@ export type Seguimiento = {
   linea_tiempo: { etapa: string; en: string; etiqueta: string }[];
   reparto: { parada: number; paradas: number; antes_que_tu: number; llegada_estimada_desde: string; llegada_estimada_hasta: string } | null;
   editable: boolean;
+  /** Quién recibió la entrega (F7, solo en `entregado`; la foto nunca sale al cliente). */
+  recibio?: string | null;
   /** Solo `propuesto` (`fn_vista_borrador`); el contrato no da el nombre del campo, la migracion 004 lo llama `borrador`. */
   borrador?: VistaBorrador | null;
 };
@@ -569,6 +574,8 @@ export type ParadaRuta = {
     lat: string | null;
     lng: string | null;
     zona: { id: string; nombre: string } | null;
+    saldo?: string | null; // F7
+    vencido?: string | null; // F7
   };
   pedido: { id: string; folio: string; total: string; estado: string; lineas: LineaRuta[] } | null;
   navegar: { google: string; waze: string } | null;
@@ -582,6 +589,7 @@ export type RutaDetalle = RutaResumen & {
   terminada_en: string | null;
   paradas: ParadaRuta[];
   navegar_ruta: string[];
+  turno?: { id: string; fondo_inicial: string } | null; // F7
 };
 export type CandidatoRuta = { id: string; folio: string; cliente: { id: string; nombre: string }; estado: string; total: string; tiene_ubicacion: boolean };
 export type CandidatosRuta = { zonas: { zona: { id: string; nombre: string } | null; pedidos: CandidatoRuta[] }[] };
@@ -591,3 +599,172 @@ export type OrdenCarga = {
   cajas_totales: number;
 };
 export type Repartidor = { id: string; nombre: string };
+
+/* ---------- F7: entrega, cobro, caja, cobranza, cierre (CONTRATOS §2.8, §4.4). Donde el contrato no detalla la fila, se asume y se avisa. ---------- */
+
+export type Semaforo = { color: "verde" | "amarillo" | "rojo"; dias_promedio_pago: string | number | null; max_dias_vencido: string | number; limite_sugerido: string };
+
+export type TurnoCaja = {
+  id: string;
+  tipo: "mostrador" | "ruta";
+  caja_id: string | null;
+  ruta_id: string | null;
+  usuario?: Ref | string | null;
+  caja?: Ref | null;
+  estado: "abierto" | "cerrado";
+  fondo_inicial: string;
+  fondo?: string;
+  abierto_en: string;
+  cerrado_en?: string | null;
+  efectivo_esperado?: string | null;
+  efectivo_contado?: string | null;
+  diferencia?: string | null;
+};
+export type Caja = { id: string; nombre: string; activa: boolean; turno_abierto: { id: string; usuario: string } | null };
+export type MovimientoCaja = { id: string; tipo: "entrada" | "salida" | "retiro" | "reembolso"; monto: string; motivo: string | null; creado_en: string };
+
+/** `fn_resumen_turno` (+ en ruta `transferencias` y `devoluciones_producto`; la liquidación agrega `movimientos`). */
+export type ResumenTurno = {
+  tipo: "mostrador" | "ruta";
+  fondo_inicial: string;
+  ventas: { num: number | string; canceladas: number | string; efectivo: string; transferencia: string; tarjeta: string; credito: string };
+  abonos: { efectivo: string; transferencia: string; tarjeta: string };
+  entradas: string;
+  salidas: string;
+  retiros: string;
+  reembolsos: string;
+  efectivo_esperado: string;
+  efectivo_contado: string | null;
+  diferencia: string | null;
+  transferencias?: { folio: string; cliente: string; monto: string; referencia: string | null; comprobante?: string | null; verificado: boolean }[];
+  devoluciones_producto?: { producto: string; piezas: number }[];
+  movimientos?: MovimientoCaja[];
+};
+
+export type ResultadoEntrega = {
+  venta: { id: string; folio: string; total: string; cambio?: string | null };
+  pedido?: unknown;
+  saldo_cliente: string | { saldo: string; vencido?: string; disponible?: string } | null;
+  aviso: Aviso | null;
+};
+export type ResultadoAbono = { id: string; folio: string; aplicaciones?: unknown; saldo_cliente: string | { saldo: string; vencido?: string; disponible?: string } | null };
+
+export type CuentaPorCobrar = {
+  id: string;
+  cliente: Ref | string;
+  cliente_id?: string;
+  origen: string;
+  venta_folio: string | null;
+  concepto: string | null;
+  creado_en: string;
+  vence_el: string;
+  monto: string;
+  saldo: string;
+  estado: string;
+  dias_vencida: number | string;
+};
+export type AbonoFila = {
+  id: string;
+  folio: string;
+  cliente: Ref | string;
+  metodo: string;
+  monto: string;
+  estado: "aplicado" | "cancelado";
+  creado_en: string;
+  verificado?: boolean;
+};
+export type Transferencia = { tabla: "venta_pago" | "abono"; id: string; folio: string; cliente: string; monto: string; referencia: string | null; comprobante: string | null; ruta: string | null; verificado_en: string | null };
+
+export type VentaFila = { id: string; folio: string; creado_en: string; cliente: Ref | string | null; usuario?: Ref | string | null; origen: string; estado: "completada" | "cancelada"; total: string };
+export type VentaDetalle = VentaFila & {
+  motivo_cancelacion?: string | null;
+  lineas: { id: string; cantidad: number; presentacion: string; producto: string; precio_unitario: string; importe: string; piezas?: number; piezas_devueltas?: number }[];
+  pagos: { metodo: string; monto: string; referencia?: string | null }[];
+  utilidad?: string | null;
+};
+
+export type EstadoCuenta = {
+  cliente: { id: string; nombre: string };
+  negocio?: { nombre?: string };
+  saldo_inicial: string;
+  movimientos: { fecha: string; tipo: string; folio: string | null; concepto: string | null; cargo: string | null; abono: string | null; saldo: string }[];
+  saldo_final: string;
+  vencido: string;
+};
+
+export type ResumenDia = {
+  vendido: string;
+  ganancia: string | null;
+  cobrado: { efectivo: string; transferencia: string };
+  fiado_nuevo: string;
+  por_cobrar: string;
+  por_comprar: { productos: number | string; costo_estimado: string | null };
+};
+export type SugerenciaCobro = { cliente_id: string; nombre: string; zona: string | null; vencido: string; saldo: string };
+
+/* ---------- F8: ticket y vista previa de cobro (apps/api: ventas y cobrar; el contrato no los detalla del todo) ---------- */
+
+/** `POST /ventas` y `GET /ventas/:id/ticket`. */
+export type Ticket = {
+  venta_id: string;
+  folio: string;
+  fecha: string;
+  estado?: string;
+  negocio: { nombre: string | null; direccion: string | null; telefono: string | null; pie: string | null };
+  usuario: Ref;
+  cliente: Ref | null;
+  lineas: { cantidad: number; presentacion: string; producto: string; precio_unitario: string; importe: string }[];
+  total: string;
+  pagos: { metodo: string; monto: string; referencia: string | null }[];
+  efectivo_recibido: string | null;
+  cambio: string | null;
+  saldo_credito: string | null;
+};
+
+/** `POST /cobrar/vista`: todo calculado en SQL; la web solo lo muestra. `saldo` y `limite` son null sin cliente. */
+export type VistaCobro = {
+  total: string;
+  pagos: { metodo: string; monto: string }[];
+  pagado: string;
+  credito: string;
+  falta: string;
+  cuadra: boolean;
+  cambio: string | null;
+  efectivo_insuficiente: boolean;
+  saldo: string | null;
+  saldo_despues: string | null;
+  limite: string | null;
+  disponible_despues: string | null;
+  excede_limite: boolean | null;
+};
+
+/* ---------- F7: `GET /cobrar/contexto` (apps/api/src/modulos/cobrar) ---------- */
+
+export type ClienteCobro = {
+  id: string;
+  nombre: string;
+  saldo: string;
+  vencido: string;
+  disponible: string;
+  limite: string;
+  dias_credito: number;
+  cuentas_pendientes: number;
+  semaforo: Semaforo;
+};
+type TurnoCobro = { id: string; tipo: "mostrador" | "ruta"; caja_id: string | null; ruta_id: string | null } | null;
+export type ContextoEntrega = {
+  modo: "entrega";
+  pedido: { id: string; folio: string; estado: string; entrega_tipo: string; total: string; ruta_id: string | null; entregable: boolean };
+  cliente: ClienteCobro;
+  lineas: { id: string; producto: string; presentacion: string; cantidad: number; precio_unitario: string; importe: string }[];
+  turno: TurnoCobro;
+  metodos: string[];
+};
+export type ContextoAbono = {
+  modo: "abono";
+  cliente: ClienteCobro;
+  cuentas: { id: string; venta_folio: string | null; concepto: string | null; vence_el: string; saldo: string; dias_vencida: number }[];
+  parada: { id: string; ruta_id: string } | null;
+  turno: TurnoCobro;
+  metodos: string[];
+};

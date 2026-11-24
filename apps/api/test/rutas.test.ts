@@ -122,7 +122,11 @@ describe("flujo completo de una ruta", () => {
     // Iniciar: el repartidor dueno de la ruta; turno null en F6.
     const ini = await pedir("POST", `/api/rutas/${r0.id}/iniciar`, rep.token, {});
     expect(ini.statusCode).toBe(200);
-    expect(ini.json()).toMatchObject({ ruta: { estado: "en_curso" }, turno: null });
+    expect(ini.json()).toMatchObject({ ruta: { estado: "en_curso", turno: { fondo_inicial: "0.00" } }, turno: { id: expect.any(String), fondo_inicial: "0.00" } });
+    // F7: iniciar es idempotente (mismo turno, 200)
+    const ini2 = await pedir("POST", `/api/rutas/${r0.id}/iniciar`, rep.token, { fondo_inicial: "999.00" });
+    expect(ini2.statusCode).toBe(200);
+    expect(ini2.json().turno).toEqual(ini.json().turno);
     const paradas = ini.json<{ ruta: RutaApi }>().ruta.paradas;
     expect(paradas.every((p) => p.estado === "pendiente")).toBe(true);
 
@@ -144,7 +148,10 @@ describe("flujo completo de una ruta", () => {
     expect(fin.statusCode).toBe(200);
     expect(fin.json<RutaApi>().estado).toBe("terminada");
     expect(fin.json<RutaApi>().paradas.map((p) => p.estado)).toEqual(["fallida", "omitida", "omitida", "omitida", "omitida", "omitida"]);
-    expect(errorDe(await pedir("POST", `/api/rutas/${r0.id}/terminar`, rep.token)).codigo).toBe("ESTADO_NO_VALIDO");
+    // F7: terminar es idempotente por estado (200, misma ruta)
+    const fin2 = await pedir("POST", `/api/rutas/${r0.id}/terminar`, rep.token);
+    expect(fin2.statusCode).toBe(200);
+    expect(fin2.json<RutaApi>().estado).toBe("terminada");
     expect((await pool.query("select estado, motivo from app.pedido where id = $1", [e.pedidos[1]])).rows[0]).toEqual({ estado: "no_entregado", motivo: "no alcanzamos a pasar" });
   });
 });

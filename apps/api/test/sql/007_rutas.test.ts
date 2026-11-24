@@ -347,7 +347,7 @@ describe("cargar y orden de carga", () => {
 });
 
 describe("iniciar y reparto del cliente", () => {
-  it("iniciar: repartidor ajeno -> RUTA_AJENA; no cargada -> ESTADO_NO_VALIDO; ok: ruta en_curso, pedidos en_ruta, un aviso wa_pedido_en_ruta por pedido con su parada; devuelve null", async () => {
+  it("iniciar: repartidor ajeno -> RUTA_AJENA; no cargada -> ESTADO_NO_VALIDO; ok: ruta en_curso, pedidos en_ruta, un aviso wa_pedido_en_ruta por pedido con su parada; devuelve el turno de ruta (008)", async () => {
     await enTransaccion(async (c) => {
       const r = await rutaJuego(c, { n: 3 });
       expect((await error(c, () => iniciar(c, r.repartidor, r.id))).message).toBe("ESTADO_NO_VALIDO");
@@ -357,7 +357,8 @@ describe("iniciar y reparto del cliente", () => {
       const cajero = await usuarioF3(c, ROL3.cajero);
       expect((await errorConDetalle(c, () => iniciar(c, cajero, r.id))).detalle).toEqual({ permiso: "rutas.operar" });
       const antes = await movimientos(c);
-      expect((await iniciar(c, r.repartidor, r.id)).rows[0].r).toBeNull();
+      const turno = (await iniciar(c, r.repartidor, r.id)).rows[0].r;
+      expect(turno).not.toBeNull(); // 008: abre el turno de ruta y devuelve su id
       expect((await rutaFila(c, r.id)).estado).toBe("en_curso");
       expect(await c.query("select iniciada_en from app.ruta where id = $1", [r.id]).then((x) => x.rows[0].iniciada_en)).not.toBeNull();
       for (const [i, ped] of r.pedidos.entries()) {
@@ -369,7 +370,7 @@ describe("iniciar y reparto del cliente", () => {
         expect(await eventos(c, ped)).toContain("en_ruta");
       }
       expect(await movimientos(c)).toBe(antes);
-      expect((await error(c, () => iniciar(c, r.repartidor, r.id))).message).toBe("ESTADO_NO_VALIDO");
+      expect((await iniciar(c, r.repartidor, r.id)).rows[0].r).toBe(turno); // 008: repetir devuelve el mismo turno
     });
   });
 
@@ -490,8 +491,10 @@ describe("no entregado, terminar y cancelar", () => {
         const duenos = (await c.query("select u.id from app.usuario u where app.fn_tiene_permiso(u.id, 'pedidos.gestionar')")).rows.map((x) => x.id as string);
         expect(await notificaciones(c, "entrega_fallida", `fallida:${ped}:r${r.id}`, duenos)).toBeGreaterThan(0);
       }
-      // no se puede cerrar dos veces ni iniciar
-      expect((await error(c, () => c.query("select app.fn_terminar_ruta($1, $2)", [r.repartidor, r.id]))).message).toBe("ESTADO_NO_VALIDO");
+      // 008: cerrar dos veces no falla ni hace nada mas; iniciar una ruta terminada si falla
+      await c.query("select app.fn_terminar_ruta($1, $2)", [r.repartidor, r.id]);
+      expect((await rutaFila(c, r.id)).estado).toBe("terminada");
+      expect((await error(c, () => iniciar(c, r.repartidor, r.id))).message).toBe("ESTADO_NO_VALIDO");
 
       const ped = r.pedidos[1]!;
       await c.query("select app.fn_reprogramar_pedido($1, $2, $3)", [r.usuario, ped, r.manana]);
@@ -644,6 +647,7 @@ describe("revision F6", () => {
       await noEntregado(c, r.repartidor, p1.id as string, "otro", "  se cayo la caja  ");
       expect(await fila(c, "select motivo from app.pedido where id = $1", [r.pedidos[0]])).toEqual({ motivo: "se cayo la caja" });
       await c.query("select app.fn_terminar_ruta($1, $2)", [r.repartidor, r.id]);
+      await c.query("select app.fn_liquidar_ruta($1, $2, '0', null)", [r.usuario, r.id]); // 008: el turno abierto impide iniciar otra ruta
       await c.query("select app.fn_reprogramar_pedido($1, $2, $3)", [r.usuario, r.pedidos[0], r.manana]);
       const s = await rutaCon(c, [r.pedidos[0]!], { fecha: r.manana, usuario: r.usuario, repartidor: r.repartidor });
       await cargar(c, s.usuario, s.id);

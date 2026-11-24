@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { paramId } from "../../comun/ids.js";
 import {
-  esquemaAsignar, esquemaCrearRuta, esquemaIniciar, esquemaListaRutas, esquemaNoEntregado, esquemaOrden,
+  esquemaAsignar, esquemaCobro, esquemaCrearRuta, esquemaIniciar, esquemaListaRutas, esquemaNoEntregado, esquemaOrden,
 } from "./esquemas.js";
 import {
-  asignarPedidos, cancelarRuta, candidatos, cargarRuta, crearRuta, iniciarRuta, listarRutas, noEntregado, obtenerRuta, optimizar,
-  ordenarManual, ordenCarga, quitarParada, repartidores, terminarRuta,
+  agregarCobro, asignarPedidos, cancelarRuta, candidatos, cargarRuta, crearRuta, iniciarRuta, listarRutas, noEntregado, obtenerRuta, optimizar,
+  ordenarManual, ordenCarga, quitarParada, repartidores, sugerenciasCobro, terminarRuta,
 } from "./servicio.js";
 
 const planear = { permiso: "rutas.planear" };
@@ -25,6 +25,11 @@ export async function rutasRutas(app: FastifyInstance): Promise<void> {
     const { id } = paramId.parse(req.params);
     return asignarPedidos(req.usuario!, id, esquemaAsignar.parse(req.body).pedido_ids);
   });
+  app.post("/:id/cobros", { config: planear }, async (req) => {
+    const { id } = paramId.parse(req.params);
+    return agregarCobro(req.usuario!, id, esquemaCobro.parse(req.body).cliente_id);
+  });
+  app.get("/:id/sugerencias-cobro", { config: planear }, async (req) => sugerenciasCobro(req.usuario!, paramId.parse(req.params).id));
   app.delete("/paradas/:id", { config: planear }, async (req) => quitarParada(req.usuario!, paramId.parse(req.params).id));
   app.put("/:id/orden", { config: planear }, async (req) => {
     const { id } = paramId.parse(req.params);
@@ -36,8 +41,7 @@ export async function rutasRutas(app: FastifyInstance): Promise<void> {
 
   app.post("/:id/iniciar", { config: operar }, async (req) => {
     const { id } = paramId.parse(req.params);
-    esquemaIniciar.parse(req.body ?? {});
-    return iniciarRuta(req.usuario!, id);
+    return iniciarRuta(req.usuario!, id, esquemaIniciar.parse(req.body ?? {}).fondo_inicial);
   });
   app.post("/paradas/:id/no-entregado", { config: operar }, async (req) => {
     const { id } = paramId.parse(req.params);

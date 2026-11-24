@@ -43,7 +43,7 @@ describe("GET /api/despacho", () => {
     expect(r).toEqual({ fecha: hoy, rutas: { lista: [], por_cargar: 0, en_curso: 0 }, avisos_pendientes: expect.any(Number) }); // Repartidor: rutas.operar (solo las suyas) y avisos.enviar sin pedidos.ver
     expect(r.avisos_pendientes).toBe(0); // sin rutas propias no ve ningun aviso (con ruta: test/avisos-repartidor.test.ts)
     const a = (await pedir("GET", "/api/despacho", admin)).json();
-    expect(Object.keys(a).sort()).toEqual(["avisos_pendientes", "fecha", "pedidos", "respaldo", "rutas", "surtido"]);
+    expect(Object.keys(a).sort()).toEqual(["avisos_pendientes", "cierre", "fecha", "pedidos", "respaldo", "rutas", "surtido"]);
     expect(Object.keys((await pedir("GET", "/api/despacho", cajero)).json()).sort()).toEqual(["avisos_pendientes", "fecha", "pedidos"]);
     expect((await pedir("GET", "/api/despacho?fecha=2030-01-02", almacenista)).json().fecha).toBe("2030-01-02");
   });
@@ -78,10 +78,10 @@ describe("GET /api/despacho", () => {
     await pool.query("update app.propuesta_faltante set limite_en = now() + interval '30 minutes' where pedido_linea_id = $1", [l]);
     const d2 = (await pedir("GET", "/api/despacho", dueno.token)).json();
     expect(d2.pedidos.faltantes_vencen_1h).toBe(base.pedidos.faltantes_vencen_1h + 1);
-    // Rutas (F6) con rutas.ver; el cierre llega con F7 (el de surtido llego con F5).
+    // Rutas (F6) con rutas.ver (F7: `por_liquidar` con rutas.liquidar) y el bloque de cierre (F7).
     expect(d2.surtido).toEqual({ productos_por_comprar: expect.any(Number) });
-    expect(d2.rutas).toEqual({ lista: expect.any(Array), por_cargar: expect.any(Number), en_curso: expect.any(Number) });
-    expect(d2).not.toHaveProperty("cierre");
+    expect(d2.rutas).toEqual({ lista: expect.any(Array), por_cargar: expect.any(Number), en_curso: expect.any(Number), por_liquidar: expect.any(Number) });
+    expect(d2.cierre).toEqual({ transferencias_por_verificar: expect.any(Number), turnos_mostrador_abiertos: expect.any(Number) });
   });
 
   it("respaldo (solo configuracion.editar): sin archivo de estado = vencido en rojo; nunca con otro permiso", async () => {

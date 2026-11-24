@@ -15,6 +15,6 @@ export const PLANTILLAS_AVISO: Record<string, string> = {
 };
 
 /** Los que se pueden crear a mano desde la bandeja (`POST /avisos`). */
-export const PLANTILLAS_MANUALES = ["wa_recordatorio_saldo", "wa_enlace_cliente", "wa_datos_transferencia"];
+export const PLANTILLAS_MANUALES = ["wa_recordatorio_saldo", "wa_enlace_cliente", "wa_datos_transferencia", "wa_estado_cuenta", "wa_resumen_dia"];
 
 export const nombrePlantilla = (clave: string) => PLANTILLAS_AVISO[clave] ?? "Mensaje";

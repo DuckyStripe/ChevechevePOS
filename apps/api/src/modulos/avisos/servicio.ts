@@ -37,7 +37,8 @@ interface Fila {
  * Unico lugar (TS) donde se filtra que avisos ve alguien (`GET /avisos`, contadores de `GET /despacho`, marcar): la regla vive
  * en SQL (`fn_puede_ver_aviso`: `pedidos.ver` ve todos; el Repartidor, solo los de pedidos de sus rutas). `ph` = marcador del usuario.
  */
-export const condicionAvisosVisibles = (ph: string): string => `app.fn_puede_ver_aviso(${ph}::bigint, a.pedido_id, a.plantilla)`;
+// Un aviso dirigido a una persona (el resumen del dia al dueño) solo lo ve esa persona.
+export const condicionAvisosVisibles = (ph: string): string => `app.fn_puede_ver_aviso(${ph}::bigint, a.pedido_id, a.plantilla) and (a.usuario_id is null or a.usuario_id = ${ph}::bigint)`;
 
 const COLUMNAS = `a.id, a.estado, a.plantilla, a.vars, a.creado_en, a.pedido_id,
   case when c.id is null then null else json_build_object('id', c.id::text, 'nombre', c.nombre) end as cliente,
@@ -57,7 +58,8 @@ async function renderizar(q: Q, filas: Fila[]): Promise<Aviso[]> {
     let enlace = "";
     if (f.token_cifrado) {
       try {
-        enlace = `${base}/p/${descifrar(f.token_cifrado)}${f.plantilla === "wa_lo_de_siempre" && f.pedido_id ? `?ir=pedido-${f.pedido_id}` : ""}`;
+        const destino = f.plantilla === "wa_lo_de_siempre" && f.pedido_id ? `?ir=pedido-${f.pedido_id}` : ["wa_estado_cuenta", "wa_recordatorio_saldo"].includes(f.plantilla) ? "?ir=estado-cuenta" : "";
+        enlace = `${base}/p/${descifrar(f.token_cifrado)}${destino}`;
       } catch {
         enlace = ""; // dato alterado: el aviso sale sin enlace en vez de romper la lista
       }
@@ -133,7 +135,7 @@ export async function marcarAviso(u: UsuarioSesion, id: string, estado: "enviado
 
 const VARS_MANUAL = `jsonb_strip_nulls(jsonb_build_object('cliente', c.nombre, 'negocio', app.fn_config('negocio_nombre'),
     'banco', app.fn_config('transferencia_banco'), 'titular', app.fn_config('transferencia_titular'), 'clabe', app.fn_config('transferencia_clabe'),
-    'monto', pd.total::text, 'referencia', pd.folio))`;
+    'monto', pd.total::text, 'referencia', pd.folio, 'saldo', sc.saldo::text, 'vencido', sc.vencido::text))`;
 
 /** Aviso manual (unico lugar que los crea, P9). Clave `manual:<uuid>`: repetir la clave devuelve el mismo aviso (200). */
 export async function crearAvisoManual(
@@ -148,7 +150,7 @@ export async function crearAvisoManual(
       return { aviso: await avisoPorId(c, previo.rows[0].id), repetido: true };
     }
     const vars = await c.query<{ vars: unknown }>(
-      `select ${VARS_MANUAL} as vars from app.cliente c left join app.pedido pd on pd.id = $2 and pd.cliente_id = c.id where c.id = $1`,
+      `select ${VARS_MANUAL} as vars from app.cliente c join app.v_saldo_cliente sc on sc.cliente_id = c.id left join app.pedido pd on pd.id = $2 and pd.cliente_id = c.id where c.id = $1`,
       [d.cliente_id, d.pedido_id ?? null],
     );
     if (!vars.rows[0]) throw new AppError("NO_ENCONTRADO");
@@ -157,5 +159,14 @@ export async function crearAvisoManual(
       d.cliente_id, d.pedido_id ?? null, d.plantilla, clave, JSON.stringify(vars.rows[0].vars),
     ]);
     return { aviso: await avisoPorId(c, r.rows[0]!.id), repetido: false };
+  });
+}
+
+/** Resumen del dia para el dueño (`fn_aviso_resumen_dia`: SQL resuelve al destinatario y arma las variables). Repetir el mismo dia devuelve el mismo aviso. */
+export async function crearAvisoResumenDia(actor: string, fecha: string | undefined): Promise<{ aviso: Aviso; repetido: boolean }> {
+  return conUsuario(actor, async (c) => {
+    const r = await c.query<{ aviso_id: string; repetido: boolean }>(
+      "select aviso_id::text as aviso_id, repetido from app.fn_aviso_resumen_dia($1::bigint, coalesce($2::date, app.fn_fecha_local(now())))", [actor, fecha ?? null]);
+    return { aviso: await avisoPorId(c, r.rows[0]!.aviso_id), repetido: r.rows[0]!.repetido };
   });
 }

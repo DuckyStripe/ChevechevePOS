@@ -25,6 +25,14 @@ import { rutasVehiculos } from "./vehiculos/rutas.js"; // F6
 import { rutasFechasDemanda } from "./fechas-demanda/rutas.js";
 import { rutasPromociones } from "./promociones/rutas.js";
 import { rutasSurtido } from "./surtido/rutas.js";
+import { rutasCajas } from "./cajas/rutas.js"; // F7
+import { rutasCierre } from "./cierre/rutas.js"; // F7
+import { rutasCobranza } from "./cobranza/rutas.js"; // F7
+import { rutasCobrar } from "./cobrar/rutas.js"; // F7
+import { rutasComprobantes } from "./comprobantes/rutas.js"; // F7
+import { rutasEntregas } from "./entregas/rutas.js"; // F7
+import { rutasTurnos } from "./turnos/rutas.js"; // F7
+import { rutasVentas } from "./ventas/rutas.js"; // F7
 
 /** Un modulo por linea, todos bajo /api. */
 export async function modulos(api: FastifyInstance): Promise<void> {
@@ -53,5 +61,13 @@ export async function modulos(api: FastifyInstance): Promise<void> {
   await api.register(rutasSurtido, { prefix: "/surtido" }); // F5
   await api.register(rutasPromociones, { prefix: "/promociones" }); // F5
   await api.register(rutasFechasDemanda, { prefix: "/fechas-demanda" }); // F5
+  await api.register(rutasCajas, { prefix: "/cajas" }); // F7
+  await api.register(rutasTurnos, { prefix: "/turnos" }); // F7
+  await api.register(rutasVentas, { prefix: "/ventas" }); // F7
+  await api.register(rutasEntregas); // F7: /pedidos/:id/entregar, /rutas/:id/liquidacion, /rutas/:id/liquidar
+  await api.register(rutasCobranza); // F7: /cuentas-por-cobrar, /abonos, /transferencias, /clientes/:id/saldo-inicial y estado-cuenta
+  await api.register(rutasComprobantes); // F7
+  await api.register(rutasCobrar, { prefix: "/cobrar" }); // F7
+  await api.register(rutasCierre, { prefix: "/cierre" }); // F7
   await api.register(rutasMovil, { prefix: "/movil" }); // /movil/push, /movil/actualizaciones
 }

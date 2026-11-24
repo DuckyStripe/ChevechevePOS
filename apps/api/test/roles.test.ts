@@ -31,7 +31,7 @@ describe("GET /api/roles y /api/permisos", () => {
     const roles = res.json() as Array<{ nombre: string; es_sistema: boolean; permisos: string[]; num_usuarios: number }>;
     expect(roles.map((r) => r.nombre)).toEqual(expect.arrayContaining(["Dueño", "Administrador", "Repartidor", "Cajero", "Almacenista"]));
     const admin = roles.find((r) => r.nombre === "Administrador")!;
-    expect(admin).toMatchObject({ es_sistema: false, permisos: ["auditoria.ver", "avisos.enviar", "catalogo.editar", "catalogo.ver", "clientes.credito", "clientes.editar", "clientes.enlace", "clientes.ver", "compras.registrar", "compras.ver", "configuracion.editar", "inventario.ajustar", "inventario.ver", "pedidos.capturar", "pedidos.gestionar", "pedidos.ver", "proveedores.gestionar", "rutas.liquidar", "rutas.operar", "rutas.planear", "rutas.ver", "surtido.ver"] });
+    expect(admin).toMatchObject({ es_sistema: false, permisos: ["auditoria.ver", "avisos.enviar", "caja.operar", "caja.supervisar", "catalogo.editar", "catalogo.ver", "clientes.credito", "clientes.editar", "clientes.enlace", "clientes.ver", "cobranza.abonar", "cobranza.ver", "cobranza.verificar", "compras.registrar", "compras.ver", "configuracion.editar", "inventario.ajustar", "inventario.ver", "pedidos.capturar", "pedidos.gestionar", "pedidos.ver", "proveedores.gestionar", "reportes.ver", "rutas.liquidar", "rutas.operar", "rutas.planear", "rutas.ver", "surtido.ver", "ventas.crear", "ventas.credito", "ventas.devolver", "ventas.ver", "ventas.ver_todas"] });
     expect(roles.find((r) => r.nombre === "Dueño")!.num_usuarios).toBeGreaterThanOrEqual(1);
   });
   it("lista permisos", async () => {

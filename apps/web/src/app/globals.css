@@ -65,3 +65,35 @@ dialog::backdrop {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Estado de cuenta (y tickets de F8): al imprimir solo sale la hoja de 80 mm. */
+@page {
+  size: 80mm auto;
+  margin: 3mm;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .hoja-80,
+  .hoja-80 * {
+    visibility: visible;
+  }
+  .hoja-80 {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 74mm;
+    font-size: 11px;
+    color: var(--color-texto);
+  }
+  /* Ticket de mostrador: sin colores y letra de 12 pt para la térmica. */
+  .hoja-80[data-ticket] {
+    font-size: 12pt;
+    color: #000;
+    background: #fff;
+  }
+  .hoja-80[data-ticket] * {
+    color: #000 !important;
+    background: transparent !important;
+  }
+}

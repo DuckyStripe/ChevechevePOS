@@ -27,7 +27,8 @@ const DESDE = `from app.cliente c
   join app.lista_precio lp on lp.id = c.lista_precio_id
   left join lateral (select * from app.cliente_enlace e where e.cliente_id = c.id order by e.id desc limit 1) ult on true
   left join app.usuario ur on ur.id = ult.revocado_por
-  left join al on al.cliente_id = c.id`;
+  left join al on al.cliente_id = c.id
+  left join app.v_saldo_cliente vs on vs.cliente_id = c.id`;
 const WITH_ALERTAS = `with al as (select a.cliente_id, array_agg(distinct ${ALERTA}) as arr from app.v_alerta_cliente a group by a.cliente_id)`;
 
 // `lista_precio` la ve quien ve clientes (el catalogo de venta necesita saber con que lista cotiza); limite y dias de credito solo con clientes.credito.
@@ -36,10 +37,14 @@ const base = (credito: boolean) => `c.id, c.nombre, c.tipo_negocio, ${REF("z")} 
   json_build_object('id', lp.id::text, 'nombre', lp.nombre) as lista_precio, c.activo${credito ? ", c.limite_credito::text as limite_credito" : ""}`;
 
 export interface FiltrosClientes extends Pagina {
+  con_saldo?: boolean;
   buscar?: string; zona_id?: string; dia_visita?: number; sin_ubicacion?: boolean; con_propuesta?: boolean; alerta?: string; enlace?: string; activo?: boolean;
 }
 
-export async function listarClientes(veCredito: boolean, f: FiltrosClientes) {
+/** `saldo` y `vencido` (v_saldo_cliente) solo para quien ve cobranza o maneja credito (`veSaldo`). */
+const SALDO = ", vs.saldo::text as saldo, vs.vencido::text as vencido";
+
+export async function listarClientes(veCredito: boolean, veSaldo: boolean, f: FiltrosClientes) {
   const p: unknown[] = [];
   const arg = (v: unknown) => (p.push(v), `$${p.length}`);
   const donde: string[] = [];
@@ -55,19 +60,22 @@ export async function listarClientes(veCredito: boolean, f: FiltrosClientes) {
   if (f.alerta) donde.push(`${arg(f.alerta)} = any(coalesce(al.arr, '{}'))`);
   if (f.enlace) donde.push(`(${ENLACE})->>'estado' = ${arg(f.enlace)}`);
   if (f.activo !== undefined) donde.push(`c.activo = ${arg(f.activo)}`);
+  if (f.con_saldo !== undefined) donde.push(f.con_saldo ? "vs.saldo > 0" : "vs.saldo = 0");
   const limite = arg(f.por_pagina);
   const desplazo = arg(offset(f));
   const r = await consulta<{ total: string }>(
-    `${WITH_ALERTAS} select ${base(veCredito)}, coalesce(al.arr, '{}') as alertas, (${ENLACE}) as enlace, count(*) over() as total ${DESDE}
+    `${WITH_ALERTAS} select ${base(veCredito)}${veSaldo ? SALDO : ""}, coalesce(al.arr, '{}') as alertas, (${ENLACE}) as enlace, count(*) over() as total ${DESDE}
       ${donde.length ? `where ${donde.join(" and ")}` : ""} order by c.nombre, c.id limit ${limite} offset ${desplazo}`,
     p,
   );
   return listadoDeFilas(r.rows, f);
 }
 
-export async function detalleCliente(q: Q, id: string, veCredito: boolean) {
+export async function detalleCliente(q: Q, id: string, veCredito: boolean, veSaldo = false) {
   const r = await q.query(
-    `${WITH_ALERTAS} select ${base(veCredito)}, coalesce(al.arr, '{}') as alertas, c.contacto, c.direccion, c.referencias, c.notas, c.sugerir_pedido,
+    `${WITH_ALERTAS} select ${base(veCredito)}${veSaldo ? `${SALDO}, vs.disponible::text as disponible,
+            (select json_build_object('color', k.color, 'dias_promedio_pago', k.dias_promedio_pago::text, 'max_dias_vencido', k.max_dias_vencido, 'limite_sugerido', k.limite_sugerido::text)
+               from app.v_semaforo_cliente k where k.cliente_id = c.id) as semaforo` : ""}, coalesce(al.arr, '{}') as alertas, c.contacto, c.direccion, c.referencias, c.notas, c.sugerir_pedido,
             c.lista_precio_id::text as lista_precio_id, ${veCredito ? "c.dias_credito, " : ""}c.lat::text as lat, c.lng::text as lng, c.ubicacion_fuente,
             c.lat_propuesta::text as lat_propuesta, c.lng_propuesta::text as lng_propuesta, app.fn_proxima_visita(c.id)::text as proxima_visita,
             case when ult.id is null or ult.revocado_en is not null then null
@@ -82,7 +90,7 @@ export async function detalleCliente(q: Q, id: string, veCredito: boolean) {
   return r.rows[0];
 }
 
-export const obtenerCliente = (id: string, veCredito: boolean) => detalleCliente(pool, id, veCredito);
+export const obtenerCliente = (id: string, veCredito: boolean, veSaldo: boolean) => detalleCliente(pool, id, veCredito, veSaldo);
 
 const invalido = (campo: string, mensaje: string) => new AppError("VALIDACION", [{ path: [campo], message: mensaje }]);
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { dinero } from "../../comun/dinero.js";
 import { idEsquema } from "../../comun/ids.js";
 import { esquemaPagina } from "../../comun/paginacion.js";
 
@@ -21,5 +22,6 @@ export const esquemaOrden = z.object({ paradas: z.array(idEsquema).max(200) });
 export const esquemaNoEntregado = z
   .object({ motivo: z.enum(["cerrado", "no_estaba", "no_quiso", "otro"]), nota: z.string().trim().min(1).max(200).optional() })
   .refine((d) => d.motivo !== "otro" || d.nota !== undefined, "Falta contar que paso");
-/** F6 ignora el fondo (lo pide F7 al abrir el turno de ruta): se acepta y no se usa. */
-export const esquemaIniciar = z.object({ fondo_inicial: z.union([z.string(), z.number()]).optional() });
+/** Fondo para dar cambio que se lleva el repartidor (turno de ruta); por omision 0. */
+export const esquemaIniciar = z.object({ fondo_inicial: dinero.default("0.00") });
+export const esquemaCobro = z.object({ cliente_id: idEsquema });

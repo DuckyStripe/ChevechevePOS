@@ -68,7 +68,7 @@ export default async function MiRuta({ searchParams }: { searchParams: Promise<{
   return (
     <main>
       <Titulo titulo={d.datos.nombre ?? "Mi ruta"} ayuda={`${fechaLarga(d.datos.fecha)} · ${d.datos.vehiculo.nombre}`} />
-      <Reparto ruta={d.datos} />
+      <Reparto ruta={d.datos} puedeLiquidar={tiene(yo.datos, "rutas.liquidar")} />
     </main>
   );
 }

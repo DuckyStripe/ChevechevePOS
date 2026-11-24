@@ -3,7 +3,7 @@ import { NuevaRuta } from "@/componentes/rutas/nueva-ruta";
 import { ESTADO_RUTA, kmTexto } from "@/componentes/rutas/formato";
 import { fecha as fechaLarga, hoyMX, itemsDe } from "@/componentes/productos/formato";
 import { AvisoError, SinPermiso } from "@/componentes/ui/aviso-error";
-import { Boton } from "@/componentes/ui/boton";
+import { Boton, BotonEnlace } from "@/componentes/ui/boton";
 import { Campo } from "@/componentes/ui/campo";
 import { Insignia } from "@/componentes/ui/insignia";
 import { Tarjeta, Titulo } from "@/componentes/ui/tarjeta";
@@ -21,6 +21,7 @@ export default async function Rutas({ searchParams }: { searchParams: Promise<{ 
   if (!tiene(yo.datos, "rutas.ver")) return <SinPermiso />;
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha ?? "") ? sp.fecha! : hoyMX();
   const puedePlanear = tiene(yo.datos, "rutas.planear");
+  const puedeLiquidar = tiene(yo.datos, "rutas.liquidar");
 
   const [r, veh, reps] = await Promise.all([
     apiServidor<Lista<RutaResumen>>("/rutas", { fecha: dia, por_pagina: "200" }),
@@ -67,6 +68,11 @@ export default async function Rutas({ searchParams }: { searchParams: Promise<{ 
                     </p>
                   </Tarjeta>
                 </Link>
+                {ruta.estado === "terminada" && puedeLiquidar && (
+                  <BotonEnlace className="mt-2" href={`/cierre/ruta/${ruta.id}`}>
+                    Liquidar
+                  </BotonEnlace>
+                )}
               </li>
             );
           })}

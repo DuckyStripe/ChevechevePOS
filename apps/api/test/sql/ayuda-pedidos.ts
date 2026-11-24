@@ -98,19 +98,37 @@ export async function pedido(
   return r.rows[0].pedido_id;
 }
 
-/** Inserta DIRECTO un pedido `entregado` (no hay venta hasta 008; F7 cambia esto a fn_entregar_pedido). */
+/**
+ * Inserta DIRECTO un pedido `entregado` (con el historial de entregas que piden las pruebas de F3). Desde 008 el pedido apunta a una
+ * venta real: se crea una venta de mostrador en un turno ya cerrado (caja propia) solo para cumplir la llave; no mueve inventario.
+ */
 export async function pedidoEntregado(
   c: pg.PoolClient, clienteId: string,
   o: { creado_hace_dias: number; lineas: { presentacion: string; cantidad: number; entregada: number; precio: string }[] },
 ): Promise<string> {
   const f = await dia(c, 0);
+  await c.query("select app.fn_dinero_escribir()"); // las tablas de dinero solo se escriben desde sus funciones; esto es un historial de prueba
+  const caja = await c.query("insert into app.caja (sucursal_id, nombre) values (1, $1) returning id", [`Caja entregas ${sufijo()}`]);
+  const usuario = await usuarioF3(c);
+  const turno = await c.query(
+    `insert into app.turno_caja (tipo, caja_id, usuario_id, estado, fondo_inicial, cerrado_en, cerrado_por, efectivo_esperado, efectivo_contado, diferencia)
+     values ('mostrador', $1, $2, 'cerrado', 0, now(), $2, 0, 0, 0) returning id`,
+    [caja.rows[0].id, usuario],
+  );
+  await c.query("alter table app.venta disable trigger trg_venta_turno_abierto"); // el historial se fabrica en un turno ya cerrado
+  const venta = await c.query(
+    `insert into app.venta (sucursal_id, folio, origen, turno_caja_id, cliente_id, lista_precio_id, usuario_id, clave_idempotencia, hash_solicitud)
+     select 1, app.fn_siguiente_folio(1, 'V'), 'mostrador', $2::bigint, cl.id, cl.lista_precio_id, $3::bigint, $4::uuid, 'x' from app.cliente cl where cl.id = $1 returning id`,
+    [clienteId, turno.rows[0].id, usuario, randomUUID()],
+  );
+  await c.query("alter table app.venta enable trigger trg_venta_turno_abierto");
   const p = await c.query(
     `insert into app.pedido (sucursal_id, folio, cliente_id, origen, estado, fecha_entrega, lista_precio_id, clave_idempotencia,
                              hash_solicitud, venta_id, creado_en, entregado_en)
      select 1, app.fn_siguiente_folio(1, 'P'), cl.id, 'enlace', 'entregado', $2::date, cl.lista_precio_id, $3, 'x',
-            (select coalesce(max(venta_id), 0) + 1 from app.pedido), now() - $4 * interval '1 day', now() - $4 * interval '1 day'
+            $5, now() - $4 * interval '1 day', now() - $4 * interval '1 day'
      from app.cliente cl where cl.id = $1 returning id`,
-    [clienteId, f, randomUUID(), o.creado_hace_dias],
+    [clienteId, f, randomUUID(), o.creado_hace_dias, venta.rows[0].id],
   );
   for (const [i, l] of o.lineas.entries()) {
     await c.query(

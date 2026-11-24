@@ -32,6 +32,7 @@ export function BandejaAvisos({ puedeMarcar }: { puedeMarcar: boolean }) {
   const clienteParam = sp.get("cliente");
   const pedidoParam = sp.get("pedido");
   const pedirla = sp.get("bandeja") === "1" || !!nuevo;
+  const alDueno = nuevo === "wa_resumen_dia";
 
   const [cerradaPorUsuario, setCerrada] = useState(false);
   const [manual, setManual] = useState(false);
@@ -69,10 +70,18 @@ export function BandejaAvisos({ puedeMarcar }: { puedeMarcar: boolean }) {
     };
   }, [filtroCliente, aplicar]);
 
+  // Quita solo lo de la bandeja: la pantalla de abajo (p. ej. /cobrar?pedido=) conserva sus parámetros.
+  const sinBandeja = (extra?: Record<string, string>) => {
+    const q = new URLSearchParams(sp.toString());
+    for (const k of ["nuevo", "bandeja", "fecha"]) q.delete(k);
+    for (const [k, v] of Object.entries(extra ?? {})) q.set(k, v);
+    return q.size ? `${pathname}?${q}` : pathname;
+  };
+
   function cerrar() {
     setManual(false);
     setCerrada(true);
-    if (pedirla) router.replace(pathname);
+    if (pedirla) router.replace(sinBandeja());
   }
 
   async function marcar(a: Aviso, accion: "enviado" | "descartar") {
@@ -84,20 +93,26 @@ export function BandejaAvisos({ puedeMarcar }: { puedeMarcar: boolean }) {
   }
 
   async function crear() {
-    if (!nuevo || !clienteParam) return;
+    if (!nuevo || (!clienteParam && !alDueno)) return;
     setOcupado("nuevo");
-    const r = await llamar<Aviso>("POST", "/avisos", { clave_idempotencia: claveNuevo, cliente_id: clienteParam, plantilla: nuevo, ...(pedidoParam ? { pedido_id: pedidoParam } : {}) });
+    // `wa_resumen_dia` va al dueño, no a un cliente: sin `cliente_id` y con la fecha del resumen (la API resuelve al dueño).
+    const r = await llamar<Aviso>("POST", "/avisos", {
+      clave_idempotencia: claveNuevo,
+      plantilla: nuevo,
+      ...(alDueno ? { fecha: sp.get("fecha") ?? undefined } : { cliente_id: clienteParam }),
+      ...(pedidoParam ? { pedido_id: pedidoParam } : {}),
+    });
     setOcupado(null);
     if (!r.ok) return void toast.error(mensajeError(r.error));
     setClaveNuevo(uuid()); // el siguiente aviso manual es otro
     toast.success("Mensaje listo. Tócalo para abrir WhatsApp.");
     setCerrada(false);
     setManual(true);
-    router.replace(`${pathname}?bandeja=1&cliente=${clienteParam}`);
+    router.replace(sinBandeja(clienteParam ? { bandeja: "1", cliente: clienteParam } : { bandeja: "1" }));
     await cargar();
   }
 
-  const puedeCrear = !!nuevo && !!clienteParam && PLANTILLAS_MANUALES.includes(nuevo);
+  const puedeCrear = !!nuevo && (!!clienteParam || alDueno) && PLANTILLAS_MANUALES.includes(nuevo);
 
   return (
     <>
@@ -119,7 +134,7 @@ export function BandejaAvisos({ puedeMarcar }: { puedeMarcar: boolean }) {
           {puedeCrear && (
             <div className="flex flex-col gap-2 rounded-xl border border-marca bg-marca-suave p-3">
               <p className="text-base font-medium">
-                Preparar «{nombrePlantilla(nuevo!)}» para el cliente #{clienteParam}.
+                Preparar «{nombrePlantilla(nuevo!)}» {alDueno ? "para el dueño" : `para el cliente #${clienteParam}`}.
               </p>
               <Boton cargando={ocupado === "nuevo"} onClick={() => void crear()}>
                 Preparar mensaje

@@ -11,7 +11,7 @@ import {
 } from "./esquemas.js";
 import {
   aceptarPropuesto, cancelarPedidoCliente, catalogoCliente, crearPedidoCliente, editarPedidoCliente, elegirPin, entrarConPin, hashIp,
-  listarPedidosCliente, perfilCliente, ponerFavorito, proponerUbicacion, registrarApertura, responderFaltanteCliente, seguimientoCliente,
+  estadoCuentaCliente, listarPedidosCliente, perfilCliente, ponerFavorito, proponerUbicacion, registrarApertura, responderFaltanteCliente, seguimientoCliente,
 } from "./servicio.js";
 
 // Limites del enlace (CONTRATOS §4.4): la llave es el hash del token, no la IP. Todo es temporal.
@@ -50,6 +50,8 @@ export async function rutasPublico(app: FastifyInstance): Promise<void> {
     await registrarApertura(c, typeof d === "string" ? d : "");
     return perfilCliente(c);
   });
+
+  app.get("/estado-cuenta", { config: cfg }, async (req) => estadoCuentaCliente(req.cliente!));
 
   /* ---- catalogo con ETag ---- */
   app.get("/catalogo", { config: cfg }, async (req, reply) => {

@@ -13,7 +13,7 @@ import { Insignia } from "@/componentes/ui/insignia";
 import { Tarjeta } from "@/componentes/ui/tarjeta";
 import { llamar, type ErrorApi } from "@/lib/api-cliente";
 import { dinero } from "@/lib/dinero";
-import type { CandidatosRuta, RutaDetalle } from "@/lib/tipos";
+import type { CandidatosRuta, RutaDetalle, SugerenciaCobro } from "@/lib/tipos";
 import { ESTADO_RUTA, cajasTexto, kmTexto, piezasTexto } from "./formato";
 
 type Optimizacion = { distancia_km: string | null; distancia_anterior_km: string | null; sin_ubicacion: string[] };
@@ -32,7 +32,7 @@ function textoCargar(e: ErrorApi): { texto: string; faltan: { producto: string; 
  * `/rutas/[id]`: dueña de asignar, ordenar, optimizar, quitar, cargar y cancelar (N1). Cada acción termina en `router.refresh()`:
  * la pantalla siempre muestra lo que dice el servidor.
  */
-export function PanelRuta({ ruta, candidatos, puedePlanear }: { ruta: RutaDetalle; candidatos: CandidatosRuta | null; puedePlanear: boolean }) {
+export function PanelRuta({ ruta, candidatos, puedePlanear, sugerencias = [] }: { ruta: RutaDetalle; candidatos: CandidatosRuta | null; puedePlanear: boolean; sugerencias?: SugerenciaCobro[] }) {
   const router = useRouter();
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -260,6 +260,25 @@ export function PanelRuta({ ruta, candidatos, puedePlanear }: { ruta: RutaDetall
               </Boton>
             </div>
           )}
+        </Tarjeta>
+      )}
+
+      {sugerencias.length > 0 && (ruta.estado === "planeada" || ruta.estado === "cargada") && puedePlanear && (
+        <Tarjeta aria-labelledby="cobros" className="flex flex-col gap-2">
+          <h2 id="cobros" className="text-xl font-bold">Pasar a cobrar</h2>
+          <p className="text-base text-suave">Clientes de estas zonas con saldo vencido. Si los agregas, el repartidor pasa a cobrarles aunque no lleven pedido.</p>
+          <ul className="flex flex-col gap-2">
+            {sugerencias.map((c) => (
+              <li key={c.cliente_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-borde p-2">
+                <span className="min-w-0 text-base [overflow-wrap:anywhere]">
+                  <strong>{c.nombre}</strong> · vencido {dinero(c.vencido)}{c.zona ? ` · ${c.zona}` : ""}
+                </span>
+                <Boton variante="secundario" disabled={ocupado !== null} onClick={() => void correr("cobro", llamar("POST", `/rutas/${ruta.id}/cobros`, { cliente_id: c.cliente_id }), "Parada de cobro agregada.")}>
+                  Agregar a la ruta
+                </Boton>
+              </li>
+            ))}
+          </ul>
         </Tarjeta>
       )}
 

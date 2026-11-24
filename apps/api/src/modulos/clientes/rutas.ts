@@ -14,6 +14,8 @@ const ver = { permiso: "clientes.ver" };
 const editar = { permiso: "clientes.editar" };
 const enlace = { permiso: "clientes.enlace" };
 const veCredito = (req: FastifyRequest) => req.usuario!.permisos.includes("clientes.credito");
+/** Saldo, vencido, disponible y semaforo: quien ve cobranza o maneja credito. */
+const veSaldo = (req: FastifyRequest) => req.usuario!.permisos.includes("cobranza.ver") || veCredito(req);
 const tocaCredito = (d: object) => CAMPOS_CREDITO.some((k) => k in d);
 
 export async function rutasClientes(app: FastifyInstance): Promise<void> {
@@ -23,8 +25,12 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
   app.patch("/zonas/:id", { config: editar }, async (req) => editarZona(req.usuario!.id, paramId.parse(req.params).id, esquemaEditarZona.parse(req.body)));
 
   /* ---- clientes ---- */
-  app.get("/clientes", { config: ver }, async (req) => listarClientes(veCredito(req), esquemaListaClientes.parse(req.query)));
-  app.get("/clientes/:id", { config: ver }, async (req) => obtenerCliente(paramId.parse(req.params).id, veCredito(req)));
+  app.get("/clientes", { config: ver }, async (req) => {
+    const f = esquemaListaClientes.parse(req.query);
+    if (f.con_saldo !== undefined && !veSaldo(req)) exigirPermiso(req, "cobranza.ver");
+    return listarClientes(veCredito(req), veSaldo(req), f);
+  });
+  app.get("/clientes/:id", { config: ver }, async (req) => obtenerCliente(paramId.parse(req.params).id, veCredito(req), veSaldo(req)));
 
   app.post("/clientes", { config: editar }, async (req, reply) => {
     const d = esquemaCrearCliente.parse(req.body);

@@ -19,25 +19,27 @@ export interface Yo {
   permisos: string[];
   sucursal: { id: string; nombre: string };
   debe_cambiar_contrasena: boolean;
-  turno_abierto: null;
+  turno_abierto: { id: string; tipo: string; caja_id: string | null; ruta_id: string | null } | null;
   notificaciones_sin_leer: number;
 }
 
-/** `turno_abierto` es siempre null hasta F7 (caja). */
+/** `turno_abierto`: el turno de caja o de ruta abierto de esta persona (uno solo, por indice unico), o null. */
 export async function obtenerYo(usuarioId: string): Promise<Yo> {
-  const r = await consulta<Omit<Yo, "turno_abierto">>(
+  const r = await consulta<Yo>(
     `select u.id, u.usuario, u.nombre,
             json_build_object('id', r.id, 'nombre', r.nombre) as rol,
             array(select rp.permiso_codigo from app.rol_permiso rp where rp.rol_id = u.rol_id order by 1) as permisos,
             json_build_object('id', s.id, 'nombre', s.nombre) as sucursal,
             u.debe_cambiar_contrasena,
+            (select json_build_object('id', t.id::text, 'tipo', t.tipo, 'caja_id', t.caja_id::text, 'ruta_id', t.ruta_id::text)
+               from app.turno_caja t where t.usuario_id = u.id and t.estado = 'abierto') as turno_abierto,
             (select count(*)::int from app.notificacion n where n.usuario_id = u.id and n.leida_en is null) as notificaciones_sin_leer
        from app.usuario u join app.rol r on r.id = u.rol_id join app.sucursal s on s.id = u.sucursal_id
       where u.id = $1`,
     [usuarioId],
   );
   if (!r.rows[0]) throw new AppError("NO_ENCONTRADO");
-  return { ...r.rows[0], turno_abierto: null };
+  return r.rows[0];
 }
 
 // Usuarios que no existen tambien se bloquean (si no, el 429 delataria cuales existen).

@@ -22,6 +22,11 @@ export const ENTRADAS: EntradaMenu[] = [
   { ruta: "/compras", titulo: "Compras", permiso: "compras.ver", grupo: "paso2" },
   { ruta: "/rutas", titulo: "Rutas", permiso: "rutas.ver", grupo: "paso3" }, // F6
   { ruta: "/reparto", titulo: "Mi ruta", permiso: "rutas.operar", grupo: "paso4" }, // F6
+  { ruta: "/cobranza", titulo: "Cobranza", permiso: "cobranza.ver", grupo: "paso4" }, // F7
+  { ruta: "/cierre", titulo: "Cierre", permiso: "rutas.liquidar", grupo: "paso5" }, // F7
+  { ruta: "/ventas", titulo: "Ventas", permiso: "ventas.ver", grupo: "paso5" }, // F7
+  { ruta: "/pos", titulo: "Vender", permiso: "ventas.crear", grupo: "mostrador" }, // F8
+  { ruta: "/caja", titulo: "Caja", permiso: "caja.operar", grupo: "mostrador" }, // F7
   { ruta: "/clientes", titulo: "Clientes", permiso: "clientes.ver", grupo: "ajustes" },
   { ruta: "/productos", titulo: "Productos", permiso: "catalogo.ver", grupo: "ajustes" },
   { ruta: "/precios", titulo: "Precios", permiso: "precios.editar", grupo: "ajustes" },

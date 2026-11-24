@@ -3,7 +3,7 @@ import { AvisoError, SinPermiso } from "@/componentes/ui/aviso-error";
 import { BotonEnlace } from "@/componentes/ui/boton";
 import { Titulo } from "@/componentes/ui/tarjeta";
 import { apiServidor, obtenerYo, tiene } from "@/lib/api-servidor";
-import type { CandidatosRuta, RutaDetalle } from "@/lib/tipos";
+import type { CandidatosRuta, RutaDetalle, SugerenciaCobro } from "@/lib/tipos";
 
 export const metadata = { title: "Ruta · ChevechevePOS" };
 
@@ -19,6 +19,8 @@ export default async function Ruta({ params }: { params: Promise<{ id: string }>
   const puedePlanear = tiene(yo.datos, "rutas.planear");
   const cand = puedePlanear && r.datos.estado === "planeada" ? await apiServidor<CandidatosRuta>(`/rutas/${id}/candidatos`) : null;
 
+  const sug = puedePlanear && (r.datos.estado === "planeada" || r.datos.estado === "cargada") ? await apiServidor<SugerenciaCobro[]>(`/rutas/${id}/sugerencias-cobro`) : null;
+
   return (
     <main>
       <Titulo titulo={r.datos.nombre ?? `Ruta ${r.datos.folio}`}>
@@ -27,7 +29,7 @@ export default async function Ruta({ params }: { params: Promise<{ id: string }>
         </BotonEnlace>
       </Titulo>
       {cand && !cand.ok && <AvisoError mensaje={cand.error.mensaje} />}
-      <PanelRuta ruta={r.datos} candidatos={cand?.ok ? cand.datos : null} puedePlanear={puedePlanear} />
+      <PanelRuta ruta={r.datos} candidatos={cand?.ok ? cand.datos : null} puedePlanear={puedePlanear} sugerencias={sug?.ok ? sug.datos : []} />
     </main>
   );
 }

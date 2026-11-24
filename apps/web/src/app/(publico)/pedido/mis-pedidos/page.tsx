@@ -45,7 +45,7 @@ export default async function MisPedidos() {
 
   return (
     <main>
-      <Encabezado negocio={c.datos.negocio.nombre} />
+      <Encabezado negocio={c.datos.negocio.nombre} credito={c.datos.credito} />
       <h1 className="mb-3 text-2xl font-bold">{T.misPedidos}</h1>
       {lista.length === 0 && <p className="rounded-tarjeta border border-dashed border-borde p-6 text-center text-base text-suave">{T.sinPedidos}</p>}
       {enCurso.length > 0 && (

@@ -9,9 +9,12 @@ export const esquemaListaAvisos = esquemaPagina.extend({
 });
 
 /** Solo las plantillas que se mandan a mano (CONTRATOS §4.4); las de pedido las crea SQL. */
-export const esquemaCrearAviso = z.object({
+const aviso = z.object({
   clave_idempotencia: z.uuid(),
   cliente_id: idEsquema,
-  plantilla: z.enum(["wa_recordatorio_saldo", "wa_enlace_cliente", "wa_datos_transferencia"]),
+  plantilla: z.enum(["wa_recordatorio_saldo", "wa_enlace_cliente", "wa_datos_transferencia", "wa_estado_cuenta"]),
   pedido_id: idEsquema.optional(),
 });
+/** El resumen del dia va al dueño (la API lo resuelve; no se pide `usuario_id`): uno por dia, asi que no lleva clave de idempotencia. */
+const resumenDia = z.object({ plantilla: z.literal("wa_resumen_dia"), fecha: z.iso.date().optional() });
+export const esquemaCrearAviso = z.union([resumenDia, aviso]);

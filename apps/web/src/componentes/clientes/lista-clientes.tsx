@@ -11,6 +11,7 @@ import { Campo, Selector } from "@/componentes/ui/campo";
 import { Dialogo } from "@/componentes/ui/dialogo";
 import { Insignia } from "@/componentes/ui/insignia";
 import { llamar } from "@/lib/api-cliente";
+import { dinero } from "@/lib/dinero";
 import type { ClienteFila } from "@/lib/tipos";
 import { ALERTAS, diasTexto, ENLACE, MOTIVOS_BAJA } from "./formato-clientes";
 
@@ -93,6 +94,7 @@ export function ListaClientes({ clientes, puedeBaja, revocarInicial }: { cliente
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {enlace && <Insignia tono={enlace.tono}>{enlace.texto}</Insignia>}
+                    {c.saldo != null && Number(c.saldo) > 0 && <Insignia tono={c.vencido != null && Number(c.vencido) > 0 ? "peligro" : "aviso"}>Debe {dinero(c.saldo)}</Insignia>}
                     {!c.tiene_ubicacion && <Insignia tono="aviso">Sin ubicación</Insignia>}
                     {c.tiene_propuesta && <Insignia tono="aviso">Mandó su ubicación</Insignia>}
                     {alertas.map((a) => (

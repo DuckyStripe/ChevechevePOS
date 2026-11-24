@@ -36,6 +36,7 @@ export async function despacho(u: UsuarioSesion, fecha: string | undefined) {
     salida.surtido = { productos_por_comprar: r.rows[0]!.n };
   }
   if (u.permisos.includes("rutas.ver") || u.permisos.includes("rutas.operar")) salida.rutas = await bloqueRutas(u, dia);
+  if (["rutas.liquidar", "cobranza.verificar", "caja.supervisar"].some((p) => u.permisos.includes(p))) salida.cierre = await bloqueCierre(u);
   if (u.permisos.includes("avisos.enviar")) salida.avisos_pendientes = await contarPendientes(u);
   if (u.permisos.includes("configuracion.editar")) {
     const r = await leerRespaldo();
@@ -60,5 +61,21 @@ async function bloqueRutas(u: UsuarioSesion, dia: string) {
     lista: r.rows,
     por_cargar: r.rows.filter((x) => x.estado === "planeada").length,
     en_curso: r.rows.filter((x) => x.estado === "en_curso").length,
+    // F7: rutas terminadas que nadie ha liquidado (de cualquier dia); solo para quien liquida.
+    ...(u.permisos.includes("rutas.liquidar") ? { por_liquidar: await porLiquidar(u) } : {}),
   };
+}
+
+async function porLiquidar(u: UsuarioSesion): Promise<number> {
+  return (await consulta<{ n: number }>("select count(*)::int as n from app.ruta where sucursal_id = $1 and estado = 'terminada'", [u.sucursal_id])).rows[0]!.n;
+}
+
+/** Bloque `cierre` (F7): lo que falta cerrar en caja. Transferencias sin ver en el banco y turnos de mostrador abiertos de la sucursal. */
+async function bloqueCierre(u: UsuarioSesion) {
+  const r = await consulta<{ transferencias_por_verificar: number; turnos_mostrador_abiertos: number }>(
+    `select (select count(*)::int from app.v_transferencia t where t.sucursal_id = $1 and t.verificado_en is null) as transferencias_por_verificar,
+            (select count(*)::int from app.turno_caja t join app.caja k on k.id = t.caja_id where t.tipo = 'mostrador' and t.estado = 'abierto' and k.sucursal_id = $1) as turnos_mostrador_abiertos`,
+    [u.sucursal_id],
+  );
+  return r.rows[0]!;
 }

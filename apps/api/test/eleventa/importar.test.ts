@@ -39,7 +39,19 @@ beforeAll(async () => {
 // El kardex y las categorias se quedan (los movimientos son inmutables); los productos quedan inactivos.
 afterAll(async () => {
   rmSync(dir, { recursive: true });
-  await pool.query("delete from app.cliente where nombre like $1", [`%${marca}`]);
+  const c = await pool.connect();
+  try {
+    await c.query("begin");
+    await c.query("select set_config('app.escribiendo_dinero', '1', true)");
+    await c.query("delete from app.cuenta_por_cobrar where cliente_id in (select id from app.cliente where nombre like $1)", [`%${marca}`]);
+    await c.query("delete from app.cliente where nombre like $1", [`%${marca}`]);
+    await c.query("commit");
+  } catch (e) {
+    await c.query("rollback");
+    throw e;
+  } finally {
+    c.release();
+  }
   await pool.query("update app.presentacion set activa = false where codigo_barras like $1", [`${marca}%`]);
   await pool.query("update app.producto set activo = false where id in (select producto_id from app.presentacion where codigo_barras like $1)", [`${marca}%`]);
   await pool.query("update app.usuario set activo = false where usuario = $1", [usuario]);
@@ -97,7 +109,50 @@ describe("importar Eleventa (base de pruebas)", () => {
     expect(r2.nuevas).toBe(0);
     expect(await clientesN()).toBe(3);
   });
-  it("saldos: código 2 hasta F7", async () => {
-    await expect(corre("saldos", clientes, { corte: true })).rejects.toMatchObject({ codigoSalida: 2 });
+});
+
+describe("importar Eleventa: saldos (base de pruebas)", () => {
+  const tel = `5500${marca.slice(-6)}`;
+  const csvClientes = `Nombre,Teléfono,Dirección,Saldo\nSaldo Uno ${marca},${tel},Calle 1,"1,250.50"\nSaldo Cero ${marca},,Calle 2,0\nSaldo Malo ${marca},,Calle 3,abc\n`;
+  const csvSaldos = `${csvClientes}Saldo Fantasma ${marca},,Calle 4,10\n`;
+  let ya: string, saldos: string;
+  const cxc = () => pool.query<{ monto: string; saldo: string; origen: string; concepto: string; vence: string; esperado: string }>(
+    `select x.monto, x.saldo, x.origen, x.concepto, x.vence_el::text vence,
+            ((now() at time zone 'America/Mexico_City')::date + c.dias_credito)::text esperado
+       from app.cuenta_por_cobrar x join app.cliente c on c.id = x.cliente_id where c.nombre like $1`, [`%${marca}`]).then((r) => r.rows);
+  beforeAll(async () => {
+    ya = join(dir, "saldos-clientes.csv");
+    saldos = join(dir, "saldos.csv");
+    writeFileSync(ya, csvClientes);
+    writeFileSync(saldos, csvSaldos);
+    await corre("clientes", ya);
+    await pool.query("update app.cliente set dias_credito = 7 where nombre = $1", [`Saldo Uno ${marca}`]);
+  });
+  const saldosCon = (extra: Record<string, unknown> = {}) => corre("saldos", saldos, { corte: true, concepto: "Saldo de Eleventa", ...extra });
+
+  it("sin --corte o sin --concepto falla y no escribe", async () => {
+    await expect(corre("saldos", saldos, { concepto: "x" })).rejects.toThrow("--corte");
+    await expect(corre("saldos", saldos, { corte: true })).rejects.toThrow("--concepto");
+    expect((await cxc()).length).toBe(0);
+  });
+  it("--simulacro reporta pero no deja filas", async () => {
+    const r = await saldosCon({ simulacro: true });
+    expect(r).toMatchObject({ cargados: 1, suma: "1250.50" });
+    expect((await cxc()).length).toBe(0);
+  });
+  it("carga solo el saldo valido, vence = corte + dias de credito, reporte sin telefonos", async () => {
+    const r = await saldosCon();
+    expect(r).toMatchObject({ cargados: 1, suma: "1250.50", ya_tenian: 0, no_encontrados: 1 });
+    expect(r.saldo_invalido).toEqual([expect.objectContaining({ nombre: `Saldo Malo ${marca}` })]);
+    expect(JSON.stringify(r)).not.toContain(tel);
+    const f = await cxc();
+    expect(f).toHaveLength(1);
+    expect(f[0]).toMatchObject({ monto: "1250.50", saldo: "1250.50", origen: "saldo_inicial", concepto: "Saldo de Eleventa" });
+    expect(f[0]!.vence).toBe(f[0]!.esperado);
+  });
+  it("segunda corrida no duplica", async () => {
+    const r = await saldosCon();
+    expect(r).toMatchObject({ cargados: 0, suma: "0.00", ya_tenian: 1 });
+    expect(await cxc()).toHaveLength(1);
   });
 });

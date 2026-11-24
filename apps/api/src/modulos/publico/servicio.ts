@@ -78,8 +78,10 @@ export async function perfilCliente(c: ClienteEnlace) {
             app.fn_config('faltante_minutos_respuesta')::int as faltante_minutos_respuesta,
             (select texto from app.fn_render_plantilla('pantalla_bienvenida', jsonb_build_object('cliente', c.nombre, 'negocio', app.fn_config('negocio_nombre')))) as bienvenida,
             (select texto from app.fn_render_plantilla('pantalla_aviso_ubicacion', jsonb_build_object('negocio', app.fn_config('negocio_nombre')))) as aviso_ubicacion,
-            (select p.id::text from app.pedido p where p.cliente_id = c.id and p.estado = 'propuesto' and p.propuesto_vence_en > now() order by p.id desc limit 1) as propuesto
-       from app.cliente c where c.id = $1`,
+            (select p.id::text from app.pedido p where p.cliente_id = c.id and p.estado = 'propuesto' and p.propuesto_vence_en > now() order by p.id desc limit 1) as propuesto,
+            case when s.limite_credito = 0 and s.saldo = 0 then null
+                 else json_build_object('limite', s.limite_credito::text, 'saldo', s.saldo::text, 'disponible', s.disponible::text) end as credito
+       from app.cliente c join app.v_saldo_cliente s on s.cliente_id = c.id where c.id = $1`,
     [c.cliente_id],
   );
   const f = r.rows[0];
@@ -93,7 +95,7 @@ export async function perfilCliente(c: ClienteEnlace) {
     dias_visita: f.dias_visita,
     proxima_visita: f.proxima_visita,
     tiene_ubicacion: f.tiene_ubicacion,
-    credito: null as null, // el saldo llega con 008 (F7)
+    credito: f.credito as { limite: string; saldo: string; disponible: string } | null,
     faltante_accion_predeterminada: f.faltante_accion_predeterminada,
     faltante_minutos_respuesta: f.faltante_minutos_respuesta,
     textos: { bienvenida: f.bienvenida, aviso_ubicacion: f.aviso_ubicacion },
@@ -277,4 +279,10 @@ export async function responderFaltanteCliente(c: ClienteEnlace, propuestaId: st
 
 export async function proponerUbicacion(c: ClienteEnlace, lat: number, lng: number): Promise<void> {
   await conCliente(c.cliente_id, (t) => t.query("select app.fn_proponer_ubicacion($1::bigint, $2::numeric, $3::numeric)", [c.cliente_id, lat.toFixed(6), lng.toFixed(6)]));
+}
+
+/** Estado de cuenta del propio cliente (90 dias): la misma `fn_estado_cuenta` que ve el personal; el cliente sale del token, nunca del cuerpo. */
+export async function estadoCuentaCliente(c: ClienteEnlace) {
+  const r = await consulta<{ e: unknown }>("select app.fn_estado_cuenta($1::bigint, null, null) as e", [c.cliente_id]);
+  return r.rows[0]!.e;
 }

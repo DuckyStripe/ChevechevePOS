@@ -5,19 +5,22 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Map, MapPin, Navigation, Phone } from "lucide-react";
 import { toast } from "sonner";
+import { conVolver } from "@/componentes/cobro/volver";
 import { mensajeError } from "@/componentes/productos/formato";
 import { cajasTexto, telefonoLlamada } from "@/componentes/rutas/formato";
 import { Boton, BotonEnlace, clasesBoton } from "@/componentes/ui/boton";
-import { AreaTexto } from "@/componentes/ui/campo";
+import { AreaTexto, Campo } from "@/componentes/ui/campo";
 import { Dialogo } from "@/componentes/ui/dialogo";
 import { Insignia } from "@/componentes/ui/insignia";
 import { Tarjeta } from "@/componentes/ui/tarjeta";
 import { llamar } from "@/lib/api-cliente";
 import { pantallaEncendida } from "@/lib/cascaron";
+import { dinero } from "@/lib/dinero";
 import type { ParadaRuta, RutaDetalle } from "@/lib/tipos";
 
 // P4 y P5: una mano, una parada por pantalla, acciones abajo (≥ 56 px), y siempre claro si se guardó o no.
 const GRANDE = "!min-h-14 !text-lg";
+const FONDO = /^\d{1,10}(\.\d{1,2})?$/;
 // La clave viaja a la API; su texto para el cliente sale de la plantilla `motivo_<clave>`.
 const MOTIVOS = [{ clave: "cerrado", texto: "Estaba cerrado" }, { clave: "no_estaba", texto: "No estaba" }, { clave: "no_quiso", texto: "No quiso el pedido" }] as const;
 
@@ -27,10 +30,10 @@ const siguientePendiente = (paradas: ParadaRuta[], desde: number): number => {
 };
 
 /**
- * `/reparto`: dueña de iniciar, no entregado y terminar (N1). Entregar y cobrar llegan en F7 (`/cobrar`): hasta entonces las paradas
- * no pasan a «entregada» y la ruta se termina con la confirmación de lo que quedó pendiente.
+ * `/reparto`: dueña de iniciar (con fondo), no entregado y terminar (N1). Entregar, cobrar un abono y anotar un gasto son
+ * enlaces a `/cobrar` y `/caja` (sus dueñas) con `?volver=` a esta ruta.
  */
-export function Reparto({ ruta }: { ruta: RutaDetalle }) {
+export function Reparto({ ruta, puedeLiquidar }: { ruta: RutaDetalle; puedeLiquidar: boolean }) {
   const router = useRouter();
   const [indice, setIndice] = useState(() => Math.max(0, ruta.paradas.findIndex((p) => p.estado === "pendiente")));
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -39,6 +42,7 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
   const [otro, setOtro] = useState(false);
   const [nota, setNota] = useState("");
   const [terminando, setTerminando] = useState(false);
+  const [fondo, setFondo] = useState("");
 
   const enCurso = ruta.estado === "en_curso";
   useEffect(() => {
@@ -97,7 +101,8 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
             {error}
           </p>
         )}
-        <Boton className={GRANDE} ancho cargando={ocupado === "iniciar"} onClick={() => void correr("iniciar", llamar("POST", `/rutas/${ruta.id}/iniciar`, {}), "Ruta iniciada.")}>
+        <Campo etiqueta="¿Con cuánto cambio sales? (opcional)" inputMode="decimal" value={fondo} onChange={(e) => setFondo(e.target.value.replace(",", "."))} error={fondo !== "" && !FONDO.test(fondo) ? "Escribe solo el monto, por ejemplo 500." : undefined} />
+        <Boton className={GRANDE} ancho cargando={ocupado === "iniciar"} disabled={fondo !== "" && !FONDO.test(fondo)} onClick={() => void correr("iniciar", llamar("POST", `/rutas/${ruta.id}/iniciar`, fondo ? { fondo_inicial: fondo } : {}), "Ruta iniciada.")}>
           Iniciar ruta
         </Boton>
         <BotonEnlace variante="secundario" className={GRANDE} href={`/rutas/${ruta.id}/carga`}>
@@ -114,15 +119,22 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
         <p className="text-base text-suave">
           {ruta.paradas.filter((x) => x.estado === "visitada").length} entregadas · {ruta.paradas.filter((x) => x.estado !== "visitada").length} sin entregar.
         </p>
+        {ruta.estado === "terminada" && puedeLiquidar && (
+          <BotonEnlace className={GRANDE} href={`/cierre/ruta/${ruta.id}`}>
+            Siguiente: liquidar la ruta
+          </BotonEnlace>
+        )}
       </Tarjeta>
     );
   }
 
   const tel = telefonoLlamada(p.cliente.telefono_whatsapp);
   const marcada = p.estado !== "pendiente";
+  const volverAqui = `/reparto?ruta=${ruta.id}`;
+  const cobrarHref = p.pedido ? conVolver(`/cobrar?pedido=${p.pedido.id}&parada=${p.id}`, volverAqui) : conVolver(`/cobrar?cliente=${p.cliente.id}&parada=${p.id}`, volverAqui);
 
   return (
-    <div className="flex flex-col gap-4 pb-48">
+    <div className="flex flex-col gap-4 pb-64">
       <p className="text-base font-semibold text-suave" aria-live="polite">
         Parada {p.orden} de {ruta.paradas.length} · quedan {pendientes.length}
       </p>
@@ -154,6 +166,20 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
         ) : (
           <p className="text-base text-suave">Parada de cobro: no lleva producto.</p>
         )}
+        {p.cliente.saldo != null && Number(p.cliente.saldo) > 0 && (
+          <p className="rounded-xl bg-marca-suave p-3 text-base font-semibold text-marca-fuerte">
+            Antes ya debía {dinero(p.cliente.saldo)}
+            {p.cliente.vencido != null && Number(p.cliente.vencido) > 0 ? ` (vencido ${dinero(p.cliente.vencido)})` : ""}.
+            {p.pedido && !marcada && (
+              <>
+                {" "}
+                <Link href={conVolver(`/cobrar?cliente=${p.cliente.id}`, volverAqui)} className="underline">
+                  Cobrar saldo anterior
+                </Link>
+              </>
+            )}
+          </p>
+        )}
         {tel && (
           <a href={`tel:${tel}`} className={`${clasesBoton("secundario", true)} ${GRANDE}`}>
             <Phone aria-hidden className="size-6" /> Llamar
@@ -179,6 +205,9 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
       <Boton variante="secundario" className={GRANDE} onClick={() => setTerminando(true)}>
         Terminar ruta
       </Boton>
+      <Link href={conVolver("/caja", volverAqui)} className="inline-flex min-h-tocable items-center justify-center text-base font-semibold text-marca-fuerte underline">
+        Anotar un gasto
+      </Link>
       <Link href={`/rutas/${ruta.id}/carga`} className="text-center text-base font-semibold text-marca-fuerte underline">
         Ver la hoja de carga
       </Link>
@@ -190,6 +219,11 @@ export function Reparto({ ruta }: { ruta: RutaDetalle }) {
             <p role="alert" className="rounded-xl bg-peligro-suave p-2 text-base font-bold text-peligro">
               {error}
             </p>
+          )}
+          {!marcada && (
+            <BotonEnlace className={GRANDE} href={cobrarHref}>
+              {p.pedido ? "Entregar y cobrar" : "Cobrar"}
+            </BotonEnlace>
           )}
           <div className="grid grid-cols-2 gap-2">
             {p.navegar ? (

@@ -45,7 +45,7 @@ interface ParadaFila {
   estado: string;
   km_desde_anterior: string | null;
   nota: string | null;
-  cliente: { id: string; nombre: string; direccion: string | null; referencias: string | null; telefono_whatsapp: string | null; lat: string | null; lng: string | null; zona: { id: string; nombre: string } | null };
+  cliente: { id: string; nombre: string; direccion: string | null; referencias: string | null; telefono_whatsapp: string | null; lat: string | null; lng: string | null; zona: { id: string; nombre: string } | null; saldo: string; vencido: string };
   pedido: { id: string; folio: string; total: string; estado: string; lineas: { cantidad: number; presentacion: string; producto: string }[] } | null;
 }
 
@@ -54,6 +54,7 @@ export async function detalleRuta(q: Q, id: string, u: UsuarioSesion) {
   const r = await q.query(
     `select ${FILA_LISTA}, r.sucursal_id::text as sucursal_id, r.repartidor_id::text as repartidor_id, v.capacidad_cajas,
             r.optimizada_en, r.cargada_en, r.iniciada_en, r.terminada_en, r.creado_en,
+            (select json_build_object('id', t.id::text, 'fondo_inicial', t.fondo_inicial::text) from app.turno_caja t where t.id = r.turno_caja_id) as turno,
             (app.fn_orden_carga(r.id) ->> 'cajas_totales')::int as cajas_totales
        ${DESDE_LISTA} where r.id = $1`,
     [id],
@@ -64,7 +65,7 @@ export async function detalleRuta(q: Q, id: string, u: UsuarioSesion) {
   const ps = await q.query<ParadaFila>(
     `select pa.id::text as id, pa.orden, pa.tipo, pa.estado, pa.km_desde_anterior, pa.nota,
             json_build_object('id', c.id::text, 'nombre', c.nombre, 'direccion', c.direccion, 'referencias', c.referencias,
-              'telefono_whatsapp', c.telefono_whatsapp, 'lat', c.lat::text, 'lng', c.lng::text,
+              'telefono_whatsapp', c.telefono_whatsapp, 'lat', c.lat::text, 'lng', c.lng::text, 'saldo', sc.saldo::text, 'vencido', sc.vencido::text,
               'zona', case when z.id is null then null else json_build_object('id', z.id::text, 'nombre', z.nombre) end) as cliente,
             case when p.id is null then null else json_build_object('id', p.id::text, 'folio', p.folio, 'total', p.total::text, 'estado', p.estado,
               'lineas', coalesce((select json_agg(json_build_object('cantidad', l.cantidad, 'presentacion', pz.nombre, 'producto', pr.nombre) order by l.numero)
@@ -72,6 +73,7 @@ export async function detalleRuta(q: Q, id: string, u: UsuarioSesion) {
                                    where l.pedido_id = p.id and l.estado = 'activa' and l.cantidad > 0), '[]'::json)) end as pedido
        from app.ruta_parada pa
        join app.cliente c on c.id = pa.cliente_id
+       join app.v_saldo_cliente sc on sc.cliente_id = c.id
        left join app.zona z on z.id = c.zona_id
        left join app.pedido p on p.id = pa.pedido_id
       where pa.ruta_id = $1 order by pa.orden`,
@@ -213,12 +215,26 @@ export async function cancelarRuta(u: UsuarioSesion, id: string) {
   });
 }
 
-/** F6: sin turno de caja (llega con 008); `fondo_inicial` se ignora. */
-export async function iniciarRuta(u: UsuarioSesion, id: string) {
+/** Abre el turno de ruta con el fondo (`fn_iniciar_ruta`); repetir sobre una ruta en curso devuelve el mismo turno. */
+export async function iniciarRuta(u: UsuarioSesion, id: string, fondo: string) {
   return conUsuario(u.id, async (c) => {
-    await c.query("select app.fn_iniciar_ruta($1::bigint, $2::bigint)", [u.id, id]);
-    return { ruta: await detalleRuta(c, id, u), turno: null };
+    await c.query("select app.fn_iniciar_ruta($1::bigint, $2::bigint, $3::numeric)", [u.id, id, fondo]);
+    const ruta = await detalleRuta(c, id, u);
+    return { ruta, turno: ruta.turno };
   });
+}
+
+export async function agregarCobro(u: UsuarioSesion, id: string, clienteId: string) {
+  return conUsuario(u.id, async (c) => {
+    await c.query("select app.fn_agregar_cobro($1::bigint, $2::bigint, $3::bigint)", [u.id, id, clienteId]);
+    return detalleRuta(c, id, u);
+  });
+}
+
+export async function sugerenciasCobro(u: UsuarioSesion, id: string) {
+  const ok = await consulta("select 1 from app.ruta where id = $1 and sucursal_id = $2", [id, u.sucursal_id]);
+  if (!ok.rowCount) throw new AppError("NO_ENCONTRADO");
+  return (await consulta("select cliente_id::text as cliente_id, nombre, zona, vencido::text as vencido, saldo::text as saldo from app.fn_sugerencias_cobro($1::bigint)", [id])).rows;
 }
 
 export async function terminarRuta(u: UsuarioSesion, id: string) {

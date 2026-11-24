@@ -12,7 +12,7 @@ export const esquemaListaClientes = esquemaPagina.extend({
   dia_visita: z.coerce.number().int().min(1).max(7).optional(),
   sin_ubicacion: booleanoQuery.optional(),
   con_propuesta: booleanoQuery.optional(),
-  con_saldo: booleanoQuery.optional(), // el saldo llega con F7: hasta entonces no filtra
+  con_saldo: booleanoQuery.optional(),
   alerta: z.enum(["visitas", "inactivo", "dispositivo_nuevo"]).optional(),
   enlace: z.enum(["activo", "sin_activar", "dado_de_baja", "sin_link"]).optional(),
   activo: booleanoQuery.optional(),
